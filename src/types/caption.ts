@@ -24,3 +24,9 @@ export interface CaptionTemplate {
   style: CaptionStyle;
   preview: string;
 }
+export interface AIDecision {
+  decision: "SHOW" | "HIDE";
+  type: "live" | "highlight"; // 👈 Add this line
+  duration: number | "permanent";
+  formattedText: string;
+}

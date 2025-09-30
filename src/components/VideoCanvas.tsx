@@ -44,9 +44,15 @@ export const VideoCanvas = ({
   const startPreview = async () => {
     try {
       if (recordingMode === "webcam") {
+        const audioConstraints = {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
+        };
+
         const stream = await navigator.mediaDevices.getUserMedia({
           video: { width: 1920, height: 1080 },
-          audio: true,
+          audio: audioConstraints,
         });
         streamRef.current = stream;
         if (videoRef.current) {

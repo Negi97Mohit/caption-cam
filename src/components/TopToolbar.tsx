@@ -2,6 +2,8 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { CaptionStyle } from "@/types/caption";
+import { useTheme } from "next-themes";
+import { Moon, Sun } from "lucide-react";
 import { 
   Bold, 
   Italic, 
@@ -34,6 +36,7 @@ export const TopToolbar = ({
   captionsEnabled,
   onCaptionsToggle,
 }: TopToolbarProps) => {
+  const { theme, setTheme } = useTheme();
   const updateStyle = (updates: Partial<CaptionStyle>) => {
     onStyleChange({ ...style, ...updates });
   };
@@ -43,7 +46,7 @@ export const TopToolbar = ({
       {/* Logo */}
       <div className="flex items-center gap-2">
         <div className="w-8 h-8 rounded-lg bg-gradient-primary" />
-        <span className="font-bold text-xl">CaptionCam</span>
+        <span className="font-bold text-xl">gaki がき/ガキ</span>
       </div>
 
       <Separator orientation="vertical" className="h-8" />
@@ -133,6 +136,15 @@ export const TopToolbar = ({
       </div>
 
       <div className="ml-auto flex items-center gap-2">
+          <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+        >
+          <Sun className="h-[1.2rem] w-[1.2rem] rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
+          <Moon className="absolute h-[1.2rem] w-[1.2rem] rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
+          <span className="sr-only">Toggle theme</span>
+        </Button>
         <Button
           variant={captionsEnabled ? "default" : "secondary"}
           size="sm"

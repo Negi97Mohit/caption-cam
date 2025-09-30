@@ -10,10 +10,12 @@ interface LiveCaptionsProps {
 export const LiveCaptions = ({ style, onCaptionChange, isRecording }: LiveCaptionsProps) => {
   const [caption, setCaption] = useState("");
   const recognitionRef = useRef<any>(null);
+  const isRecordingRef = useRef(isRecording);
+  const restartTimeoutRef = useRef<number | null>(null);
+
+  isRecordingRef.current = isRecording;
 
   useEffect(() => {
-    if (!isRecording) return;
-
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     
     if (!SpeechRecognition) {
@@ -25,38 +27,96 @@ export const LiveCaptions = ({ style, onCaptionChange, isRecording }: LiveCaptio
     recognition.continuous = true;
     recognition.interimResults = true;
     recognition.lang = "en-US";
+    recognition.maxAlternatives = 1;
+
+    let finalTranscript = "";
 
     recognition.onresult = (event: any) => {
       let interimTranscript = "";
-      let finalTranscript = "";
 
       for (let i = event.resultIndex; i < event.results.length; i++) {
         const transcript = event.results[i][0].transcript;
         if (event.results[i].isFinal) {
           finalTranscript += transcript + " ";
         } else {
-          interimTranscript += transcript;
+          interimTranscript = transcript;
         }
       }
 
-      const currentCaption = finalTranscript || interimTranscript;
+      const currentCaption = (finalTranscript + interimTranscript).trim();
       setCaption(currentCaption);
       onCaptionChange(currentCaption);
     };
 
     recognition.onerror = (event: any) => {
       console.error("Speech recognition error:", event.error);
+      
+      if (event.error === 'no-speech' || event.error === 'audio-capture') {
+        return;
+      }
+      
+      if (isRecordingRef.current && event.error !== 'aborted') {
+        if (restartTimeoutRef.current) {
+          clearTimeout(restartTimeoutRef.current);
+        }
+        restartTimeoutRef.current = window.setTimeout(() => {
+          try {
+            recognition.start();
+          } catch (e) {
+            console.error("Error restarting after error:", e);
+          }
+        }, 1000);
+      }
     };
 
-    recognition.start();
+    recognition.onend = () => {
+      if (isRecordingRef.current) {
+        if (restartTimeoutRef.current) {
+          clearTimeout(restartTimeoutRef.current);
+        }
+        restartTimeoutRef.current = window.setTimeout(() => {
+          try {
+            recognition.start();
+          } catch (e) {
+            console.error("Error restarting recognition:", e);
+          }
+        }, 100);
+      }
+    };
+
     recognitionRef.current = recognition;
 
     return () => {
+      if (restartTimeoutRef.current) {
+        clearTimeout(restartTimeoutRef.current);
+      }
       if (recognitionRef.current) {
         recognitionRef.current.stop();
       }
     };
-  }, [isRecording, onCaptionChange]);
+  }, [onCaptionChange]);
+
+  useEffect(() => {
+    if (!recognitionRef.current) return;
+
+    if (isRecording) {
+      try {
+        recognitionRef.current.start();
+      } catch (e: any) {
+        if (e.message?.includes('already started')) {
+          console.log("Recognition already running");
+        } else {
+          console.error("Error starting recognition:", e);
+        }
+      }
+    } else {
+      if (restartTimeoutRef.current) {
+        clearTimeout(restartTimeoutRef.current);
+      }
+      recognitionRef.current.stop();
+      setCaption("");
+    }
+  }, [isRecording]);
 
   if (!caption) return null;
 
@@ -101,9 +161,12 @@ export const LiveCaptions = ({ style, onCaptionChange, isRecording }: LiveCaptio
         background: style.gradient || style.backgroundColor,
         textShadow: style.shadow ? "2px 2px 4px rgba(0,0,0,0.8)" : "none",
         WebkitTextStroke: style.outline ? "2px rgba(0,0,0,0.8)" : "none",
+        fontWeight: style.bold ? "bold" : "normal",
+        fontStyle: style.italic ? "italic" : "normal",
+        textDecoration: style.underline ? "underline" : "none",
       }}
     >
       {caption}
     </div>
   );
-};
+}

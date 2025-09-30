@@ -3,6 +3,7 @@ import { VideoCanvas } from "@/components/VideoCanvas";
 import { LeftSidebar } from "@/components/LeftSidebar";
 import { TopToolbar } from "@/components/TopToolbar";
 import { CaptionStyle, CaptionTemplate } from "@/types/caption";
+import { DebugPanel } from "@/components/DebugPanel";
 
 const Index = () => {
   const [captionStyle, setCaptionStyle] = useState<CaptionStyle>({
@@ -19,10 +20,13 @@ const Index = () => {
     italic: false,
     underline: false,
   });
-
+  
+  const [showDebug, setShowDebug] = useState(true); 
   const [selectedTemplate, setSelectedTemplate] = useState<CaptionTemplate | null>(null);
   const [captionsEnabled, setCaptionsEnabled] = useState(true);
   const [recordingMode, setRecordingMode] = useState<"webcam" | "screen" | "both">("webcam");
+
+  console.log("Index page re-rendered. Recording mode is:", recordingMode);
 
   const handleTemplateSelect = (template: CaptionTemplate) => {
     setSelectedTemplate(template);
@@ -60,6 +64,7 @@ const Index = () => {
           }
         />
       </div>
+      {showDebug && <DebugPanel />}
     </div>
   );
 };

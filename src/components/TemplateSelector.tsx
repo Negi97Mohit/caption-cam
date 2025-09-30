@@ -24,6 +24,9 @@ const TEMPLATES: CaptionTemplate[] = [
       animation: "fade",
       outline: false,
       shadow: true,
+      bold: false,
+      italic: false,
+      underline: false,
     },
   },
   {
@@ -42,6 +45,9 @@ const TEMPLATES: CaptionTemplate[] = [
       outline: true,
       shadow: true,
       gradient: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+      bold: true,
+      italic: false,
+      underline: false,
     },
   },
   {
@@ -59,6 +65,9 @@ const TEMPLATES: CaptionTemplate[] = [
       animation: "bounce",
       outline: true,
       shadow: true,
+      bold: true,
+      italic: false,
+      underline: false,
     },
   },
   {
@@ -76,6 +85,9 @@ const TEMPLATES: CaptionTemplate[] = [
       animation: "karaoke",
       outline: false,
       shadow: true,
+      bold: false,
+      italic: false,
+      underline: false,
     },
   },
   {
@@ -93,6 +105,9 @@ const TEMPLATES: CaptionTemplate[] = [
       animation: "fade",
       outline: false,
       shadow: true,
+      bold: false,
+      italic: false,
+      underline: false,
     },
   },
   {
@@ -110,6 +125,9 @@ const TEMPLATES: CaptionTemplate[] = [
       animation: "bounce",
       outline: false,
       shadow: true,
+      bold: false,
+      italic: false,
+      underline: false,
     },
   },
   {
@@ -127,6 +145,9 @@ const TEMPLATES: CaptionTemplate[] = [
       animation: "fade",
       outline: false,
       shadow: false,
+      bold: true,
+      italic: false,
+      underline: false,
     },
   },
 ];

@@ -1,4 +1,4 @@
-export type CaptionShape = "rectangular" | "rounded" | "pill" | "speech-bubble";
+export type CaptionShape = "rectangular" | "rounded" | "pill" | "speech-bubble" | "banner";
 export type CaptionAnimation = "fade" | "bounce" | "karaoke" | "none";
 
 export interface CaptionStyle {
@@ -12,6 +12,9 @@ export interface CaptionStyle {
   outline: boolean;
   shadow: boolean;
   gradient?: string;
+  bold: boolean;
+  italic: boolean;
+  underline: boolean;
 }
 
 export interface CaptionTemplate {

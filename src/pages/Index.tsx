@@ -1,7 +1,7 @@
 import { useState } from "react";
-import { VideoRecorder } from "@/components/VideoRecorder";
-import { CaptionEditor } from "@/components/CaptionEditor";
-import { TemplateSelector } from "@/components/TemplateSelector";
+import { VideoCanvas } from "@/components/VideoCanvas";
+import { LeftSidebar } from "@/components/LeftSidebar";
+import { TopToolbar } from "@/components/TopToolbar";
 import { CaptionStyle, CaptionTemplate } from "@/types/caption";
 
 const Index = () => {
@@ -15,47 +15,50 @@ const Index = () => {
     animation: "fade",
     outline: false,
     shadow: true,
+    bold: false,
+    italic: false,
+    underline: false,
   });
 
   const [selectedTemplate, setSelectedTemplate] = useState<CaptionTemplate | null>(null);
   const [captionsEnabled, setCaptionsEnabled] = useState(true);
+  const [recordingMode, setRecordingMode] = useState<"webcam" | "screen" | "both">("webcam");
+
+  const handleTemplateSelect = (template: CaptionTemplate) => {
+    setSelectedTemplate(template);
+    setCaptionStyle(template.style);
+  };
 
   return (
-    <div className="min-h-screen bg-background">
-      <div className="container mx-auto py-8 px-4">
-        <header className="mb-8 text-center animate-fade-in">
-          <h1 className="text-5xl font-bold bg-gradient-primary bg-clip-text text-transparent mb-2">
-            CaptionCam
-          </h1>
-          <p className="text-muted-foreground text-lg">
-            Record, Caption, and Share - All in One Place
-          </p>
-        </header>
+    <div className="h-screen flex flex-col bg-background overflow-hidden">
+      {/* Top Toolbar */}
+      <TopToolbar
+        style={captionStyle}
+        onStyleChange={setCaptionStyle}
+        captionsEnabled={captionsEnabled}
+        onCaptionsToggle={setCaptionsEnabled}
+      />
 
-        <div className="grid lg:grid-cols-[1fr,400px] gap-6">
-          <div className="space-y-6">
-            <VideoRecorder
-              captionStyle={captionStyle}
-              captionsEnabled={captionsEnabled}
-              onCaptionsToggle={setCaptionsEnabled}
-            />
-          </div>
+      {/* Main Content Area */}
+      <div className="flex flex-1 overflow-hidden">
+        {/* Left Sidebar */}
+        <LeftSidebar
+          onSelectTemplate={handleTemplateSelect}
+          selectedTemplate={selectedTemplate}
+          style={captionStyle}
+          onStyleChange={setCaptionStyle}
+        />
 
-          <div className="space-y-6">
-            <TemplateSelector
-              onSelectTemplate={(template) => {
-                setSelectedTemplate(template);
-                setCaptionStyle(template.style);
-              }}
-              selectedTemplate={selectedTemplate}
-            />
-
-            <CaptionEditor
-              style={captionStyle}
-              onStyleChange={setCaptionStyle}
-            />
-          </div>
-        </div>
+        {/* Central Canvas */}
+        <VideoCanvas
+          captionStyle={captionStyle}
+          captionsEnabled={captionsEnabled}
+          recordingMode={recordingMode}
+          onRecordingModeChange={setRecordingMode}
+          onCaptionPositionChange={(position) =>
+            setCaptionStyle({ ...captionStyle, position })
+          }
+        />
       </div>
     </div>
   );

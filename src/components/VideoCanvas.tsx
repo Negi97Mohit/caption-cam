@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from "react";
-import { Maximize, Mic, Move, ScreenShare, Square, Webcam } from "lucide-react";
+import { Maximize, Mic, Move, ScreenShare, Square, Webcam, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { CaptionStyle, AIDecision } from "@/types/caption";
 import { Button } from "@/components/ui/button";
@@ -8,20 +8,142 @@ import { useDebug } from "@/context/DebugContext";
 import { formatCaptionWithAI } from "@/lib/ai";
 import { toast } from "sonner";
 
+const MAX_PERMANENT_CAPTIONS = 9;
+
+// Simplified Caption Management Hook (No auto-cleanup)
+const useCaptionManagement = (
+  setPermanentCaptions: React.Dispatch<React.SetStateAction<AIDecision[]>>,
+  setOccupiedCells: React.Dispatch<React.SetStateAction<Set<number>>>
+) => {
+  const removeCaption = useCallback((id: string) => {
+    setPermanentCaptions(prev => {
+      const caption = prev.find(c => c.id === id);
+      if (caption?.cellIndex !== undefined) {
+        setOccupiedCells(cells => {
+          const newSet = new Set(cells);
+          newSet.delete(caption.cellIndex!);
+          return newSet;
+        });
+      }
+      return prev.filter(c => c.id !== id);
+    });
+  }, [setPermanentCaptions, setOccupiedCells]);
+
+  return { removeCaption };
+};
+
+// Get dynamic styles based on caption type/intent
+const getCaptionStyleOverrides = (caption: AIDecision, baseStyle: CaptionStyle) => {
+  const text = caption.formattedText;
+  const isList = text.includes('•') || text.includes('\n');
+  const isQuestion = text.includes('?');
+  const isQuote = text.startsWith('"') || text.startsWith("'");
+  const isTitle = caption.captionIntent === 'title' || (text === text.toUpperCase() && text.length < 30);
+
+  // Title style - bold, large, gradient background
+  if (isTitle) {
+    return {
+      fontSize: baseStyle.fontSize * 1.4,
+      fontWeight: '800',
+      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+      color: '#ffffff',
+      padding: '16px 32px',
+      borderRadius: '16px',
+      boxShadow: '0 8px 32px rgba(102, 126, 234, 0.4)',
+      textTransform: 'uppercase' as const,
+      letterSpacing: '2px',
+      border: '2px solid rgba(255, 255, 255, 0.3)',
+    };
+  }
+
+  // Question style - distinct color, rounded, with icon
+  if (isQuestion) {
+    return {
+      fontSize: baseStyle.fontSize * 1.1,
+      fontWeight: '600',
+      background: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
+      color: '#ffffff',
+      padding: '14px 24px',
+      borderRadius: '20px',
+      boxShadow: '0 6px 24px rgba(245, 87, 108, 0.35)',
+      fontStyle: 'italic' as const,
+      border: '2px solid rgba(255, 255, 255, 0.2)',
+    };
+  }
+
+  // Quote style - elegant serif, light background
+  if (isQuote) {
+    return {
+      fontSize: baseStyle.fontSize * 1.05,
+      fontWeight: '500',
+      fontFamily: 'Georgia, serif',
+      background: 'rgba(255, 255, 255, 0.95)',
+      color: '#2d3748',
+      padding: '16px 28px',
+      borderRadius: '12px',
+      boxShadow: '0 4px 16px rgba(0, 0, 0, 0.15)',
+      borderLeft: '4px solid #f6ad55',
+      fontStyle: 'italic' as const,
+    };
+  }
+
+  // List style - structured, clean
+  if (isList) {
+    return {
+      fontSize: baseStyle.fontSize * 0.95,
+      fontWeight: '500',
+      background: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
+      color: '#ffffff',
+      padding: '16px 24px',
+      borderRadius: '14px',
+      boxShadow: '0 6px 24px rgba(79, 172, 254, 0.35)',
+      textAlign: 'left' as const,
+      border: '2px solid rgba(255, 255, 255, 0.25)',
+      lineHeight: '1.6',
+    };
+  }
+
+  // Default live caption style - simple, unobtrusive
+  return {
+    fontSize: baseStyle.fontSize,
+    fontWeight: baseStyle.bold ? '600' : '400',
+    background: baseStyle.backgroundColor,
+    color: baseStyle.color,
+    padding: '12px 20px',
+    borderRadius: '10px',
+    boxShadow: '0 4px 12px rgba(0, 0, 0, 0.3)',
+    fontStyle: baseStyle.italic ? 'italic' as const : 'normal' as const,
+  };
+};
+
 interface DraggableCaptionProps {
   caption: AIDecision;
   style: CaptionStyle;
   onPositionChange: (id: string, position: { x: number; y: number }) => void;
   onDragChange: (isDragging: boolean) => void;
+  onDragStart: (cellIndex: number | undefined) => void;
+  onDelete: (id: string) => void;
 }
 
-const DraggableCaption = ({ style, caption, onPositionChange, onDragChange }: DraggableCaptionProps) => {
+const DraggableCaption = ({ 
+  style, 
+  caption, 
+  onPositionChange, 
+  onDragChange, 
+  onDragStart,
+  onDelete
+}: DraggableCaptionProps) => {
   const dragRef = useRef<HTMLDivElement>(null);
   const offset = useRef({ x: 0, y: 0 });
+  const [isHovered, setIsHovered] = useState(false);
 
   const onMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
+    if ((e.target as HTMLElement).closest('.delete-btn')) return;
+    
     if (!dragRef.current || !caption.id) return;
+    onDragStart(caption.cellIndex);
     onDragChange(true);
+    
     const rect = dragRef.current.getBoundingClientRect();
     offset.current = {
       x: e.clientX - rect.left,
@@ -48,33 +170,42 @@ const DraggableCaption = ({ style, caption, onPositionChange, onDragChange }: Dr
     document.removeEventListener("mouseup", onMouseUp);
   };
 
+  // Get dynamic styles based on caption content/type
+  const dynamicStyles = getCaptionStyleOverrides(caption, style);
+
   const captionStyles: React.CSSProperties = {
-    fontFamily: style.fontFamily,
-    fontSize: `${style.fontSize}px`,
-    color: style.color,
-    backgroundColor: style.backgroundColor,
+    ...dynamicStyles,
     left: `${caption.position?.x ?? 50}%`,
     top: `${caption.position?.y ?? 85}%`,
     transform: "translate(-50%, -50%)",
-    fontWeight: style.bold ? "bold" : "normal",
-    fontStyle: style.italic ? "italic" : "normal",
-    textDecoration: style.underline ? "underline" : "none",
     textShadow: style.shadow ? "2px 2px 4px rgba(0,0,0,0.7)" : "none",
+    transition: "all 0.2s ease",
   };
 
   return (
     <div
       ref={dragRef}
-      className={cn(
-        "absolute p-4 cursor-move select-none",
-        { "rounded-lg": style.shape === "rounded" },
-        { "rounded-full px-6": style.shape === "pill" }
-      )}
-      style={captionStyles}
+      className="absolute cursor-move select-none group"
+      style={{
+        ...captionStyles,
+        ...(isHovered && { transform: "translate(-50%, -50%) scale(1.02)" })
+      }}
       onMouseDown={onMouseDown}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
     >
-      <Move className="absolute top-1 right-1 h-3 w-3 text-white/50" />
-      {caption.formattedText}
+      <Move className="absolute top-2 right-10 h-4 w-4 text-white/60 opacity-0 group-hover:opacity-100 transition-opacity" />
+      <button
+        className="delete-btn absolute top-2 right-2 h-6 w-6 bg-red-500/90 hover:bg-red-600 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+        onClick={(e) => {
+          e.stopPropagation();
+          if (caption.id) onDelete(caption.id);
+        }}
+        title="Delete caption"
+      >
+        <X className="h-3.5 w-3.5 text-white" />
+      </button>
+      <div className="whitespace-pre-wrap">{caption.formattedText}</div>
     </div>
   );
 };
@@ -100,8 +231,26 @@ export const VideoCanvas = ({
   const [permanentCaptions, setPermanentCaptions] = useState<AIDecision[]>([]);
   const [partialTranscript, setPartialTranscript] = useState("");
   
+  const [occupiedCells, setOccupiedCells] = useState<Set<number>>(new Set());
+  const GRID_COLS = 3;
+  const GRID_ROWS = 3;
+  const PLACEMENT_ORDER = [1, 0, 2, 4, 3, 5, 6, 8, 7]; 
+
+  const getPositionForCell = (cellIndex: number): { x: number; y: number } => {
+    const row = Math.floor(cellIndex / GRID_COLS);
+    const col = cellIndex % GRID_COLS;
+    const x = (col / (GRID_COLS - 1)) * 80 + 10;
+    const y = (row / (GRID_ROWS - 1)) * 80 + 10;
+    return { x, y };
+  };
+  
   const liveCaptionTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const { setDebugInfo } = useDebug();
+
+  const { removeCaption } = useCaptionManagement(
+    setPermanentCaptions,
+    setOccupiedCells
+  );
 
   const handleNewTranscript = useCallback(
     async (transcript: string) => {
@@ -120,25 +269,71 @@ export const VideoCanvas = ({
         if (aiDecision.type === 'highlight') {
             setLiveCaption(null);
 
-            const lines = aiDecision.formattedText.split('\n').filter(line => line.trim() !== '');
+            // CRITICAL FIX: Keep bullet points together as ONE caption
+            const text = aiDecision.formattedText;
+            
+            // Check if this is a multi-line list/content that should stay together
+            const isList = text.includes('•') || text.includes('\n');
+            
+            if (isList) {
+              // Keep entire list as ONE caption
+              const availableCells = PLACEMENT_ORDER.filter(cell => !occupiedCells.has(cell));
+              
+              if (availableCells.length === 0) {
+                toast.warning("Screen is full", { description: "No space for new caption." });
+                return;
+              }
 
-            if (lines.length > 1) {
-              const newCaptions = lines.map((line, index) => ({
+              const cellToOccupy = availableCells[0];
+              const newCaption: AIDecision = {
                 ...aiDecision,
-                id: `${Date.now()}-${index}`,
-                formattedText: line,
-                position: { 
-                  x: captionStyle.position.x, 
-                  y: captionStyle.position.y + (index * (captionStyle.fontSize / 16) * 4)
-                },
-              }));
-              setPermanentCaptions(prev => [...prev, ...newCaptions]);
+                id: `${Date.now()}`,
+                formattedText: text, // Keep all content together
+                position: getPositionForCell(cellToOccupy),
+                cellIndex: cellToOccupy,
+                captionIntent: 'list', // Mark as list for styling
+              };
+
+              setPermanentCaptions(prev => [...prev, newCaption]);
+              setOccupiedCells(prev => new Set(prev).add(cellToOccupy));
+              
             } else {
-              setPermanentCaptions(prev => [...prev, { ...aiDecision, id: Date.now().toString(), position: captionStyle.position }]);
+              // For non-list highlights (titles, questions, quotes), keep as single caption
+              const availableCells = PLACEMENT_ORDER.filter(cell => !occupiedCells.has(cell));
+              
+              if (availableCells.length === 0) {
+                toast.warning("Screen is full", { description: "No space for new caption." });
+                return;
+              }
+
+              const cellToOccupy = availableCells[0];
+              
+              // Detect intent for styling
+              let intent: string = 'default';
+              if (text.includes('?')) intent = 'question';
+              else if (text.startsWith('"') || text.startsWith("'")) intent = 'quote';
+              else if (text === text.toUpperCase() && text.length < 30) intent = 'title';
+              
+              const newCaption: AIDecision = {
+                ...aiDecision,
+                id: `${Date.now()}`,
+                formattedText: text,
+                position: getPositionForCell(cellToOccupy),
+                cellIndex: cellToOccupy,
+                captionIntent: intent,
+              };
+
+              setPermanentCaptions(prev => [...prev, newCaption]);
+              setOccupiedCells(prev => new Set(prev).add(cellToOccupy));
             }
 
-        } else {
-            setLiveCaption({ ...aiDecision, id: Date.now().toString(), position: captionStyle.position });
+        } else { // 'live' caption
+            setLiveCaption({ 
+              ...aiDecision, 
+              id: Date.now().toString(), 
+              position: captionStyle.position,
+              captionIntent: 'live'
+            });
 
             if (liveCaptionTimeoutRef.current) {
                 clearTimeout(liveCaptionTimeoutRef.current);
@@ -154,7 +349,7 @@ export const VideoCanvas = ({
         setDebugInfo((prev) => ({ ...prev, error: "AI formatting failed." }));
       }
     },
-    [setDebugInfo, captionStyle.position, captionStyle.fontSize],
+    [setDebugInfo, captionStyle, occupiedCells],
   );
 
   const { isRecording, startRecording, stopRecording } = useVosk({
@@ -171,8 +366,18 @@ export const VideoCanvas = ({
 
   const handlePermanentCaptionPositionChange = (id: string, position: { x: number; y: number }) => {
     setPermanentCaptions(captions => 
-      captions.map(c => c.id === id ? { ...c, position } : c)
+      captions.map(c => c.id === id ? { ...c, position, cellIndex: undefined } : c)
     );
+  };
+  
+  const handleDragStart = (cellIndex: number | undefined) => {
+    if (cellIndex !== undefined) {
+      setOccupiedCells(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(cellIndex);
+        return newSet;
+      });
+    }
   };
 
   useEffect(() => {
@@ -209,10 +414,27 @@ export const VideoCanvas = ({
     setPermanentCaptions([]);
     setLiveCaption(null);
     setPartialTranscript("");
+    setOccupiedCells(new Set());
     if (videoRef.current && videoRef.current.srcObject) {
       (videoRef.current.srcObject as MediaStream).getTracks().forEach((track) => track.stop());
       videoRef.current.srcObject = null;
     }
+  };
+
+  // Get dynamic styles for live/partial captions
+  const getLiveCaptionStyles = () => {
+    const baseStyles = getCaptionStyleOverrides(
+      liveCaption || { formattedText: partialTranscript, decision: 'SHOW', type: 'live', duration: 4, captionIntent: 'live' } as AIDecision, 
+      captionStyle
+    );
+    
+    return {
+      ...baseStyles,
+      left: `${captionStyle.position.x}%`,
+      top: `${captionStyle.position.y}%`,
+      transform: "translate(-50%, -50%)",
+      opacity: liveCaption ? 1 : 0.7,
+    };
   };
   
   return (
@@ -228,25 +450,14 @@ export const VideoCanvas = ({
                 caption={caption}
                 onPositionChange={handlePermanentCaptionPositionChange}
                 onDragChange={setIsDragging}
+                onDragStart={handleDragStart}
+                onDelete={removeCaption}
               />
             ))}
             {(liveCaption || partialTranscript) && (
               <div 
-                className={cn(
-                  "absolute p-2 select-none text-center",
-                  // FIX: Changed `style` to `captionStyle`
-                  { "rounded-lg": captionStyle.shape === "rounded" },
-                  { "rounded-full px-6": captionStyle.shape === "pill" }
-                )}
-                style={{
-                  left: `${captionStyle.position.x}%`,
-                  top: `${captionStyle.position.y}%`,
-                  transform: "translate(-50%, -50%)",
-                  fontFamily: captionStyle.fontFamily,
-                  fontSize: `${captionStyle.fontSize}px`,
-                  color: liveCaption ? captionStyle.color : `${captionStyle.color}80`,
-                  backgroundColor: captionStyle.backgroundColor,
-                }}
+                className="absolute select-none text-center"
+                style={getLiveCaptionStyles()}
               >
                 {liveCaption?.formattedText || partialTranscript}
               </div>

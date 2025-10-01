@@ -24,11 +24,14 @@ export interface CaptionTemplate {
   style: CaptionStyle;
   preview: string;
 }
+
 export interface AIDecision {
-  id?: string; // 👈 Add this line
+  id?: string;
   decision: "SHOW" | "HIDE";
   type: "live" | "highlight";
   duration: number | "permanent";
   formattedText: string;
-  position?: { x: number; y: number }; // 👈 And this line
+  position?: { x: number; y: number };
+  cellIndex?: number;
+  captionIntent?: string; // 'title' | 'question' | 'quote' | 'list' | 'live' | 'default'
 }

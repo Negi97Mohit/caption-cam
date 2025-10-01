@@ -1,8 +1,9 @@
 import { useState, useRef, useCallback } from "react";
 import { useContinuousAudio } from "./useContinuousAudio";
 
-const TRANSCRIPT_BUFFER_TIMEOUT = 2000; // Increased to 2 seconds
+const TRANSCRIPT_BUFFER_TIMEOUT = 500; // Reduced from 2000ms for faster response
 const MAX_BUFFER_LENGTH = 500;
+const PARTIAL_MIN_LENGTH = 15; // Show partials with at least 15 chars
 
 interface UseVoskProps {
   onTranscript: (transcript: string) => void;
@@ -24,6 +25,7 @@ export const useVosk = ({ onTranscript, onPartialTranscript, onError }: UseVoskP
   // Audio chunk tracking
   const audioChunksSentRef = useRef<number>(0);
   const lastPartialTimeRef = useRef<number>(Date.now());
+  const lastPartialTextRef = useRef<string>("");
 
   const flushBuffer = useCallback(() => {
     if (transcriptBufferRef.current.trim()) {
@@ -39,7 +41,6 @@ export const useVosk = ({ onTranscript, onPartialTranscript, onError }: UseVoskP
       wsRef.current.send(chunk);
       audioChunksSentRef.current++;
       
-      // Log every 100 chunks
       if (audioChunksSentRef.current % 100 === 0) {
         console.log(`Audio chunks sent to Vosk: ${audioChunksSentRef.current}`);
       }
@@ -77,6 +78,7 @@ export const useVosk = ({ onTranscript, onPartialTranscript, onError }: UseVoskP
     setIsVoskReady(false);
     setConnectionStatus("disconnected");
     audioChunksSentRef.current = 0;
+    lastPartialTextRef.current = "";
   }, [stopAudioCapture, flushBuffer]);
 
   const startRecording = useCallback(() => {
@@ -98,8 +100,8 @@ export const useVosk = ({ onTranscript, onPartialTranscript, onError }: UseVoskP
       setConnectionStatus("connected");
       setIsRecording(true);
       audioChunksSentRef.current = 0;
+      lastPartialTextRef.current = "";
       
-      // Start audio capture after WebSocket is ready
       startAudioCapture();
     };
 
@@ -125,21 +127,30 @@ export const useVosk = ({ onTranscript, onPartialTranscript, onError }: UseVoskP
           clearTimeout(bufferTimeoutRef.current);
         }
 
-        // Flush immediately if sentence is complete
-        if (endsWithPunctuation && timeSinceLastSentence > 500) {
+        // Flush immediately if sentence is complete and enough time passed
+        if (endsWithPunctuation && timeSinceLastSentence > 300) {
           flushBuffer();
         } else {
           bufferTimeoutRef.current = setTimeout(flushBuffer, TRANSCRIPT_BUFFER_TIMEOUT);
         }
         
         lastPartialTimeRef.current = now;
+        lastPartialTextRef.current = "";
       } else if (message.partial) {
-        // Only log if it's been a while since last partial
-        if (now - lastPartialTimeRef.current > 1000) {
-          console.log("Partial transcript:", message.partial);
+        const partialText = message.partial.trim();
+        
+        // Only process if partial is substantial and different from last
+        if (partialText.length >= PARTIAL_MIN_LENGTH && 
+            partialText !== lastPartialTextRef.current) {
+          
+          if (now - lastPartialTimeRef.current > 300) {
+            console.log("Partial transcript:", partialText);
+          }
+          
+          onPartialTranscript(partialText);
+          lastPartialTextRef.current = partialText;
+          lastPartialTimeRef.current = now;
         }
-        onPartialTranscript(message.partial);
-        lastPartialTimeRef.current = now;
       }
     };
 
@@ -165,7 +176,7 @@ export const useVosk = ({ onTranscript, onPartialTranscript, onError }: UseVoskP
       }
       setIsRecording(false);
     };
-  }, [isRecording, startAudioCapture, onPartialTranscript, onError, flushBuffer, stopRecording, isAudioCapturing]);
+  }, [isRecording, startAudioCapture, onPartialTranscript, onError, flushBuffer, stopRecording, isAudioCapturing, stopAudioCapture]);
 
   return { 
     isVoskReady, 

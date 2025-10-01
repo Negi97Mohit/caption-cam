@@ -9,10 +9,9 @@ const SITE_URL = import.meta.env.VITE_APP_SITE_URL;
 const APP_NAME = import.meta.env.VITE_APP_NAME;
 
 export async function formatCaptionWithAI(transcript: string): Promise<AIDecision> {
-  // Updated fallback for the new AI Decision structure
   const fallbackDecision: AIDecision = {
     decision: "SHOW",
-    type: "live", // default to live
+    type: "live",
     duration: 5,
     formattedText: transcript,
   };
@@ -31,7 +30,7 @@ Follow these rules:
 2.  "type": "highlight": Use for important or structured content (lists, key statements, conclusions). Duration = "permanent".
 3.  "decision": "HIDE": Use only for filler words like "um", "ah", "you know", "like", etc.
 4.  "formattedText": Clean, concise, ready for overlay.
-   - Lists can be bullet points.
+   - Lists can be bullet points using "\\n" for new lines.
    - Key statements can emphasize keywords or summarize.
    - Let the content guide formatting; do not add explanations.
 
@@ -41,7 +40,7 @@ Example Output:
   "decision": "SHOW",
   "type": "highlight",
   "duration": "permanent",
-  "formattedText": "• Fighting • Talking • Loving"
+  "formattedText": "• Fighting\\n• Talking\\n• Loving"
 }
 
 Now, process the following transcript:`;
@@ -56,12 +55,11 @@ Now, process the following transcript:`;
         "X-Title": APP_NAME,
       },
       body: JSON.stringify({
-        model: "x-ai/grok-4-fast:free",
+        model: "openai/gpt-3.5-turbo", // Switched to a more reliable model for JSON output
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content: transcript },
         ],
-        // Optional: ensure JSON response
         response_format: { type: "json_object" },
       }),
     });
@@ -73,11 +71,23 @@ Now, process the following transcript:`;
     }
 
     const data = await response.json();
-    const decision: AIDecision = data.choices[0].message.content;
+    const content = data.choices[0].message.content;
 
-    return decision;
+    // START: MODIFIED LOGIC
+    // The AI response content is a string, so we must parse it into a JSON object.
+    try {
+      const decision: AIDecision = JSON.parse(content);
+      return decision;
+    } catch (parseError) {
+      console.error("Failed to parse AI JSON response:", parseError);
+      // If parsing fails, return the fallback with the raw content.
+      fallbackDecision.formattedText = content; 
+      return fallbackDecision;
+    }
+    // END: MODIFIED LOGIC
+
   } catch (error) {
-    console.error("Error calling or parsing AI response:", error);
+    console.error("Error calling AI API:", error);
     return fallbackDecision;
   }
 }

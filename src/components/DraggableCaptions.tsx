@@ -4,6 +4,9 @@ import { AIDecision, CaptionStyle } from "@/types/caption";
 import { formatCaptionWithAI } from "@/lib/ai";
 import { useDebug } from "@/context/DebugContext";
 import { cn } from "@/lib/utils";
+import { useContinuousAudio } from "@/hooks/useContinuousAudio";
+
+const VOSK_WEBSOCKET_URL = "ws://localhost:2700";
 
 interface DraggableCaptionsProps {
   style: CaptionStyle;
@@ -21,113 +24,96 @@ export const DraggableCaptions = ({
   const [currentCaption, setCurrentCaption] = useState<AIDecision | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
+
   const captionRef = useRef<HTMLDivElement>(null);
   const captionTimeoutRef = useRef<number | null>(null);
-  const recognitionRef = useRef<any>(null);
+  const wsRef = useRef<WebSocket | null>(null);
+  const finalTranscriptRef = useRef<string>("");
 
   const { setDebugInfo } = useDebug();
 
-  const onCaptionChangeRef = useRef(onCaptionChange);
-  onCaptionChangeRef.current = onCaptionChange;
-  const isRecordingRef = useRef(isRecording);
-  isRecordingRef.current = isRecording;
+  const handleTranscript = useCallback(async (transcript: { final: string; interim: string }) => {
+    const rawText = transcript.final || transcript.interim;
+    setDebugInfo((prev) => ({ ...prev, rawTranscript: rawText, error: null }));
 
-  useEffect(() => {
-    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    // Show interim results for a live feeling
+    setCurrentCaption({
+      decision: "SHOW",
+      type: "live",
+      duration: 5,
+      formattedText: rawText,
+    });
 
-    if (!SpeechRecognition) {
-      console.error("Speech recognition not supported in this browser.");
-      setDebugInfo((prev) => ({ ...prev, error: "Speech recognition not supported." }));
-      return;
+    if (transcript.final) {
+      finalTranscriptRef.current += transcript.final + " ";
+      const aiResponse = await formatCaptionWithAI(finalTranscriptRef.current.trim());
+      setDebugInfo((prev) => ({ ...prev, aiResponse }));
+
+      if (captionTimeoutRef.current) clearTimeout(captionTimeoutRef.current);
+
+      if (aiResponse.decision === "SHOW") {
+        setCurrentCaption(aiResponse);
+        onCaptionChange(aiResponse.formattedText);
+
+        if (aiResponse.type === "live" && typeof aiResponse.duration === "number") {
+          captionTimeoutRef.current = window.setTimeout(() => setCurrentCaption(null), aiResponse.duration * 1000);
+        }
+      } else {
+        if (currentCaption?.duration !== "permanent") setCurrentCaption(null);
+      }
+      finalTranscriptRef.current = "";
     }
+  }, [setDebugInfo, onCaptionChange, currentCaption?.duration]);
 
-    const recognition = new SpeechRecognition();
-    recognition.continuous = true;
-    recognition.interimResults = true;
-    recognition.lang = "en-US";
-
-    let finalTranscript = "";
-
-    recognition.onresult = async (event: any) => {
-      let interimTranscript = "";
-      for (let i = event.resultIndex; i < event.results.length; i++) {
-        const transcript = event.results[i][0].transcript;
-        if (event.results[i].isFinal) {
-          finalTranscript += transcript;
-        } else {
-          interimTranscript += transcript;
-        }
+  const { isCapturing, startCapture, stopCapture } = useContinuousAudio({
+    onAudioChunk: (chunk) => {
+      if (wsRef.current?.readyState === WebSocket.OPEN) {
+        wsRef.current.send(chunk);
       }
+    },
+    onError: (error) => {
+      setDebugInfo((prev) => ({ ...prev, error: `Audio Capture Error: ${error.message}` }));
+    },
+  });
 
-      const fullTranscript = (finalTranscript + interimTranscript).trim();
-      setDebugInfo((prev) => ({ ...prev, rawTranscript: fullTranscript, error: null }));
-
-      // Show live interim caption
-      setCurrentCaption({
-        decision: "SHOW",
-        type: "live",
-        duration: 5,
-        formattedText: fullTranscript,
-      });
-
-      // When final sentence detected, send to AI
-      if (event.results[event.results.length - 1].isFinal) {
-        const aiResponse = await formatCaptionWithAI(finalTranscript);
-        setDebugInfo((prev) => ({ ...prev, aiResponse }));
-
-        if (captionTimeoutRef.current) clearTimeout(captionTimeoutRef.current);
-
-        if (aiResponse.decision === "SHOW") {
-          setCurrentCaption(aiResponse);
-          onCaptionChangeRef.current(aiResponse.formattedText);
-
-          // Only clear "live" captions after their duration
-          if (aiResponse.type === 'live' && typeof aiResponse.duration === 'number') {
-            captionTimeoutRef.current = window.setTimeout(() => {
-              setCurrentCaption(null);
-            }, aiResponse.duration * 1000);
-          }
-        } else {
-          setCurrentCaption(null);
-        }
-
-        finalTranscript = "";
-      }
-    };
-
-    recognition.onerror = (event: any) => {
-      console.error("Speech recognition error:", event.error);
-      setDebugInfo((prev) => ({ ...prev, error: `Speech Recognition Error: ${event.error}` }));
-    };
-
-    recognition.onend = () => {
-      if (isRecordingRef.current) {
-        try {
-          recognition.start();
-        } catch (e) {
-          console.error("Error restarting recognition:", e);
-        }
-      }
-    };
-
-    recognitionRef.current = recognition;
-
-    return () => {
-      recognitionRef.current?.stop();
-    };
-  }, [setDebugInfo]);
-
+  // ✅ Effect 1: Controls audio capture based on isRecording
   useEffect(() => {
     if (isRecording) {
-      try { recognitionRef.current?.start(); } catch (e) { console.error("Error starting recognition:", e); }
+      startCapture();
     } else {
-      if (captionTimeoutRef.current) clearTimeout(captionTimeoutRef.current);
-      recognitionRef.current?.stop();
-      setCurrentCaption(null);
+      stopCapture();
     }
-  }, [isRecording]);
+  }, [isRecording, startCapture, stopCapture]);
 
-  // --- DRAGGING LOGIC ---
+  // ✅ Effect 2: Manages WebSocket based on capture state
+  useEffect(() => {
+    if (isCapturing) {
+      const ws = new WebSocket(VOSK_WEBSOCKET_URL);
+      wsRef.current = ws;
+
+      ws.onopen = () => console.log("Vosk WebSocket connected.");
+      ws.onmessage = (event) => {
+        const data = JSON.parse(event.data);
+        if (data.text) {
+          handleTranscript({ final: data.text, interim: "" });
+        } else if (data.partial) {
+          handleTranscript({ final: "", interim: data.partial });
+        }
+      };
+      ws.onclose = () => console.log("Vosk WebSocket disconnected.");
+      ws.onerror = () => setDebugInfo((prev) => ({ ...prev, error: "WebSocket Error. Is your Vosk server running?" }));
+
+      // Cleanup when capture stops
+      return () => {
+        if (ws.readyState === WebSocket.OPEN) {
+          ws.close();
+        }
+        wsRef.current = null;
+      };
+    }
+  }, [isCapturing, handleTranscript, setDebugInfo]);
+
+  // --- Dragging Logic ---
   const handleMouseDown = (e: React.MouseEvent) => {
     if (!captionRef.current) return;
     setIsDragging(true);
@@ -167,14 +153,16 @@ export const DraggableCaptions = ({
     return null;
   }
 
-  // --- STYLE HELPERS ---
   const getShapeClasses = () => {
     switch (style.shape) {
       case "pill": return "rounded-full";
       case "rectangular": return "rounded-none";
       case "banner": return "rounded-none w-full left-0 right-0";
-      case "speech-bubble": return "rounded-2xl relative after:content-[''] after:absolute after:bottom-0 after:left-1/2 after:-translate-x-1/2 after:translate-y-full after:border-8 after:border-transparent after:border-t-current";
-      case "rounded": default: return "rounded-xl";
+      case "speech-bubble":
+        return "rounded-2xl relative after:content-[''] after:absolute after:bottom-0 after:left-1/2 after:-translate-x-1/2 after:translate-y-full after:border-8 after:border-transparent after:border-t-current";
+      case "rounded":
+      default:
+        return "rounded-xl";
     }
   };
 

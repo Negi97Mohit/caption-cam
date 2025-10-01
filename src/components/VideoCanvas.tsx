@@ -1,17 +1,83 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
+import { Maximize, Mic, Move, ScreenShare, Square, Webcam } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { CaptionStyle, AIDecision } from "@/types/caption";
 import { Button } from "@/components/ui/button";
-import { 
-  Video, 
-  Square, 
-  Monitor, 
-  Camera, 
-  Download,
-  Play,
-  Layers,
-} from "lucide-react";
-import { CaptionStyle } from "@/types/caption";
-import { DraggableCaptions } from "./DraggableCaptions";
-import { useToast } from "@/hooks/use-toast";
+import { useVosk } from "@/hooks/useVosk";
+import { useDebug } from "@/context/DebugContext";
+import { formatCaptionWithAI } from "@/lib/ai";
+import { toast } from "sonner";
+
+interface DraggableCaptionProps {
+  caption: AIDecision;
+  style: CaptionStyle;
+  onPositionChange: (id: string, position: { x: number; y: number }) => void;
+  onDragChange: (isDragging: boolean) => void;
+}
+
+const DraggableCaption = ({ style, caption, onPositionChange, onDragChange }: DraggableCaptionProps) => {
+  const dragRef = useRef<HTMLDivElement>(null);
+  const offset = useRef({ x: 0, y: 0 });
+
+  const onMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!dragRef.current || !caption.id) return;
+    onDragChange(true);
+    const rect = dragRef.current.getBoundingClientRect();
+    offset.current = {
+      x: e.clientX - rect.left,
+      y: e.clientY - rect.top,
+    };
+    document.addEventListener("mousemove", onMouseMove);
+    document.addEventListener("mouseup", onMouseUp);
+  };
+
+  const onMouseMove = (e: MouseEvent) => {
+    if (!dragRef.current || !caption.id) return;
+    const parentRect = dragRef.current.parentElement!.getBoundingClientRect();
+    const x = ((e.clientX - parentRect.left - offset.current.x) / parentRect.width) * 100;
+    const y = ((e.clientY - parentRect.top - offset.current.y) / parentRect.height) * 100;
+    onPositionChange(caption.id, {
+      x: Math.max(0, Math.min(100, x)),
+      y: Math.max(0, Math.min(100, y)),
+    });
+  };
+
+  const onMouseUp = () => {
+    onDragChange(false);
+    document.removeEventListener("mousemove", onMouseMove);
+    document.removeEventListener("mouseup", onMouseUp);
+  };
+
+  const captionStyles: React.CSSProperties = {
+    fontFamily: style.fontFamily,
+    fontSize: `${style.fontSize}px`,
+    color: style.color,
+    backgroundColor: style.backgroundColor,
+    left: `${caption.position?.x ?? 50}%`,
+    top: `${caption.position?.y ?? 85}%`,
+    transform: "translate(-50%, -50%)",
+    fontWeight: style.bold ? "bold" : "normal",
+    fontStyle: style.italic ? "italic" : "normal",
+    textDecoration: style.underline ? "underline" : "none",
+    textShadow: style.shadow ? "2px 2px 4px rgba(0,0,0,0.7)" : "none",
+  };
+
+  return (
+    <div
+      ref={dragRef}
+      className={cn(
+        "absolute p-4 cursor-move select-none",
+        { "rounded-lg": style.shape === "rounded" },
+        { "rounded-full px-6": style.shape === "pill" }
+      )}
+      style={captionStyles}
+      onMouseDown={onMouseDown}
+    >
+      <Move className="absolute top-1 right-1 h-3 w-3 text-white/50" />
+      {caption.formattedText}
+    </div>
+  );
+};
 
 interface VideoCanvasProps {
   captionStyle: CaptionStyle;
@@ -26,288 +92,208 @@ export const VideoCanvas = ({
   captionsEnabled,
   recordingMode,
   onRecordingModeChange,
-  onCaptionPositionChange,
 }: VideoCanvasProps) => {
-  const [isRecording, setIsRecording] = useState(false);
-  const [isPreviewing, setIsPreviewing] = useState(false);
-  const [currentCaption, setCurrentCaption] = useState("");
-  
   const videoRef = useRef<HTMLVideoElement>(null);
-  const pipVideoRef = useRef<HTMLVideoElement>(null);
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-  const chunksRef = useRef<Blob[]>([]);
-  const streamRef = useRef<MediaStream | null>(null);
-  const pipStreamRef = useRef<MediaStream | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  
+  const [liveCaption, setLiveCaption] = useState<AIDecision | null>(null);
+  const [permanentCaptions, setPermanentCaptions] = useState<AIDecision[]>([]);
+  const [partialTranscript, setPartialTranscript] = useState("");
+  
+  const liveCaptionTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const { setDebugInfo } = useDebug();
 
-  const { toast } = useToast();
+  const handleNewTranscript = useCallback(
+    async (transcript: string) => {
+      setPartialTranscript("");
+      setDebugInfo((prev) => ({ ...prev, rawTranscript: transcript }));
 
-  const startPreview = async () => {
-    try {
-      if (recordingMode === "webcam") {
-        const audioConstraints = {
-          echoCancellation: true,
-          noiseSuppression: true,
-          autoGainControl: true,
-        };
+      try {
+        const aiDecision = await formatCaptionWithAI(transcript);
+        setDebugInfo((prev) => ({ ...prev, aiResponse: aiDecision, error: null }));
 
-        const stream = await navigator.mediaDevices.getUserMedia({
-          video: { width: 1920, height: 1080 },
-          audio: audioConstraints,
-        });
-        streamRef.current = stream;
-        if (videoRef.current) {
-          videoRef.current.srcObject = stream;
+        if (aiDecision.decision === "HIDE") {
+            setLiveCaption(null);
+            return;
         }
-      } else if (recordingMode === "screen") {
-        const displayStream = await navigator.mediaDevices.getDisplayMedia({
-          video: { width: 1920, height: 1080 },
-          audio: true,
-        });
-        const audioStream = await navigator.mediaDevices.getUserMedia({
-          audio: true,
-        });
-        
-        const stream = new MediaStream([
-          ...displayStream.getVideoTracks(),
-          ...audioStream.getAudioTracks(),
-        ]);
-        
-        streamRef.current = stream;
-        if (videoRef.current) {
-          videoRef.current.srcObject = stream;
+
+        if (aiDecision.type === 'highlight') {
+            setLiveCaption(null);
+
+            const lines = aiDecision.formattedText.split('\n').filter(line => line.trim() !== '');
+
+            if (lines.length > 1) {
+              const newCaptions = lines.map((line, index) => ({
+                ...aiDecision,
+                id: `${Date.now()}-${index}`,
+                formattedText: line,
+                position: { 
+                  x: captionStyle.position.x, 
+                  y: captionStyle.position.y + (index * (captionStyle.fontSize / 16) * 4)
+                },
+              }));
+              setPermanentCaptions(prev => [...prev, ...newCaptions]);
+            } else {
+              setPermanentCaptions(prev => [...prev, { ...aiDecision, id: Date.now().toString(), position: captionStyle.position }]);
+            }
+
+        } else {
+            setLiveCaption({ ...aiDecision, id: Date.now().toString(), position: captionStyle.position });
+
+            if (liveCaptionTimeoutRef.current) {
+                clearTimeout(liveCaptionTimeoutRef.current);
+            }
+
+            liveCaptionTimeoutRef.current = setTimeout(() => {
+                setLiveCaption(null);
+            }, (aiDecision.duration as number) * 1000);
         }
-      } else if (recordingMode === "both") {
-        // Main screen
-        const displayStream = await navigator.mediaDevices.getDisplayMedia({
-          video: { width: 1920, height: 1080 },
-          audio: true,
-        });
-        
-        // PIP camera
-        const cameraStream = await navigator.mediaDevices.getUserMedia({
-          video: { width: 640, height: 480 },
-          audio: true,
-        });
-        
-        streamRef.current = displayStream;
-        pipStreamRef.current = cameraStream;
-        
-        if (videoRef.current) {
-          videoRef.current.srcObject = displayStream;
-        }
-        if (pipVideoRef.current) {
-          pipVideoRef.current.srcObject = cameraStream;
-        }
+
+      } catch (error) {
+        console.error("AI formatting failed:", error);
+        setDebugInfo((prev) => ({ ...prev, error: "AI formatting failed." }));
       }
+    },
+    [setDebugInfo, captionStyle.position, captionStyle.fontSize],
+  );
 
-      setIsPreviewing(true);
-      
-      toast({
-        title: "Preview started",
-        description: "Ready to record",
+  const { isRecording, startRecording, stopRecording } = useVosk({
+    onTranscript: handleNewTranscript,
+    onPartialTranscript: (partial) => {
+      setPartialTranscript(partial);
+    },
+    onError: (error) => {
+      toast.error(error.message, {
+        description: "Please ensure the Python server is running and you've granted microphone permissions.",
       });
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to access media devices",
-        variant: "destructive",
-      });
-    }
-  };
+    },
+  });
 
-  const startRecording = () => {
-    if (!streamRef.current) return;
-
-    const mediaRecorder = new MediaRecorder(streamRef.current, {
-      mimeType: "video/webm;codecs=vp9",
-    });
-
-    mediaRecorderRef.current = mediaRecorder;
-    chunksRef.current = [];
-
-    mediaRecorder.ondataavailable = (event) => {
-      if (event.data.size > 0) {
-        chunksRef.current.push(event.data);
-      }
-    };
-
-    mediaRecorder.start(100);
-    setIsRecording(true);
-    
-    toast({
-      title: "Recording started",
-      description: "Speak clearly for live captions",
-    });
-  };
-
-  const stopRecording = () => {
-    if (mediaRecorderRef.current && isRecording) {
-      mediaRecorderRef.current.stop();
-      setIsRecording(false);
-      
-      toast({
-        title: "Recording stopped",
-        description: "Ready to download",
-      });
-    }
-  };
-
-  const downloadVideo = () => {
-    const blob = new Blob(chunksRef.current, { type: "video/webm" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `recording-${Date.now()}.webm`;
-    a.click();
-    URL.revokeObjectURL(url);
-    
-    toast({
-      title: "Download started",
-      description: "Your video is being downloaded",
-    });
-  };
-
-  const stopPreview = () => {
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach(track => track.stop());
-      streamRef.current = null;
-    }
-    if (pipStreamRef.current) {
-      pipStreamRef.current.getTracks().forEach(track => track.stop());
-      pipStreamRef.current = null;
-    }
-    if (videoRef.current) {
-      videoRef.current.srcObject = null;
-    }
-    if (pipVideoRef.current) {
-      pipVideoRef.current.srcObject = null;
-    }
-    setIsPreviewing(false);
+  const handlePermanentCaptionPositionChange = (id: string, position: { x: number; y: number }) => {
+    setPermanentCaptions(captions => 
+      captions.map(c => c.id === id ? { ...c, position } : c)
+    );
   };
 
   useEffect(() => {
-    return () => {
-      stopPreview();
+    const startStream = async () => {
+      if (videoRef.current) {
+        try {
+          let stream;
+          if (recordingMode === "screen" || recordingMode === "both") {
+            stream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false });
+          } else {
+            stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+          }
+          videoRef.current.srcObject = stream;
+        } catch (error) {
+          console.error("Error accessing media devices.", error);
+          toast.error("Could not access camera/screen.", {
+            description: "Please check permissions and try again.",
+          });
+        }
+      }
     };
-  }, []);
 
+    startStream();
+
+    return () => {
+      if (videoRef.current && videoRef.current.srcObject) {
+        (videoRef.current.srcObject as MediaStream).getTracks().forEach((track) => track.stop());
+      }
+    };
+  }, [recordingMode]);
+
+  const handleStopRecording = () => {
+    stopRecording();
+    setPermanentCaptions([]);
+    setLiveCaption(null);
+    setPartialTranscript("");
+    if (videoRef.current && videoRef.current.srcObject) {
+      (videoRef.current.srcObject as MediaStream).getTracks().forEach((track) => track.stop());
+      videoRef.current.srcObject = null;
+    }
+  };
+  
   return (
-    <div className="flex-1 flex flex-col bg-secondary/20">
-      {/* Canvas Controls */}
-      <div className="p-4 border-b border-border bg-card flex items-center gap-3">
-        <div className="flex gap-2">
-          <Button
-            variant={recordingMode === "webcam" ? "default" : "secondary"}
-            size="sm"
-            onClick={() => onRecordingModeChange("webcam")}
-            disabled={isPreviewing}
-          >
-            <Camera className="w-4 h-4 mr-2" />
-            Webcam
-          </Button>
-          <Button
-            variant={recordingMode === "screen" ? "default" : "secondary"}
-            size="sm"
-            onClick={() => onRecordingModeChange("screen")}
-            disabled={isPreviewing}
-          >
-            <Monitor className="w-4 h-4 mr-2" />
-            Screen
-          </Button>
-          <Button
-            variant={recordingMode === "both" ? "default" : "secondary"}
-            size="sm"
-            onClick={() => onRecordingModeChange("both")}
-            disabled={isPreviewing}
-          >
-            <Layers className="w-4 h-4 mr-2" />
-            Both (PIP)
-          </Button>
-        </div>
-
-        <div className="flex gap-2 ml-auto">
-          {!isPreviewing && (
-            <Button onClick={startPreview} className="bg-gradient-primary">
-              <Play className="w-4 h-4 mr-2" />
-              Start Preview
-            </Button>
-          )}
-
-          {isPreviewing && !isRecording && (
-            <>
-              <Button onClick={startRecording} variant="default">
-                <Video className="w-4 h-4 mr-2" />
-                Start Recording
-              </Button>
-              <Button onClick={stopPreview} variant="secondary">
-                Stop Preview
-              </Button>
-            </>
-          )}
-
-          {isRecording && (
-            <Button onClick={stopRecording} variant="destructive">
-              <Square className="w-4 h-4 mr-2" />
-              Stop Recording
-            </Button>
-          )}
-
-          {chunksRef.current.length > 0 && !isRecording && (
-            <Button onClick={downloadVideo} variant="secondary">
-              <Download className="w-4 h-4 mr-2" />
-              Download
-            </Button>
-          )}
-        </div>
+    <div className="flex-1 bg-gray-900 flex justify-center items-center p-4 relative overflow-hidden">
+      <div className="relative w-full h-full max-w-6xl aspect-video bg-black rounded-lg overflow-hidden">
+        <video ref={videoRef} className="w-full h-full object-cover" autoPlay muted />
+        {captionsEnabled && (
+          <>
+            {permanentCaptions.map((caption) => (
+              <DraggableCaption
+                key={caption.id}
+                style={captionStyle}
+                caption={caption}
+                onPositionChange={handlePermanentCaptionPositionChange}
+                onDragChange={setIsDragging}
+              />
+            ))}
+            {(liveCaption || partialTranscript) && (
+              <div 
+                className={cn(
+                  "absolute p-2 select-none text-center",
+                  // FIX: Changed `style` to `captionStyle`
+                  { "rounded-lg": captionStyle.shape === "rounded" },
+                  { "rounded-full px-6": captionStyle.shape === "pill" }
+                )}
+                style={{
+                  left: `${captionStyle.position.x}%`,
+                  top: `${captionStyle.position.y}%`,
+                  transform: "translate(-50%, -50%)",
+                  fontFamily: captionStyle.fontFamily,
+                  fontSize: `${captionStyle.fontSize}px`,
+                  color: liveCaption ? captionStyle.color : `${captionStyle.color}80`,
+                  backgroundColor: captionStyle.backgroundColor,
+                }}
+              >
+                {liveCaption?.formattedText || partialTranscript}
+              </div>
+            )}
+          </>
+        )}
       </div>
 
-      {/* Video Canvas */}
-      <div className="flex-1 flex items-center justify-center p-8">
-        <div className="relative w-full max-w-6xl aspect-video bg-black rounded-lg overflow-hidden shadow-elevated">
-          <video
-            ref={videoRef}
-            autoPlay
-            muted
-            playsInline
-            className="w-full h-full object-cover"
-          />
-
-          {/* Picture-in-Picture Video */}
-          {recordingMode === "both" && isPreviewing && (
-            <video
-              ref={pipVideoRef}
-              autoPlay
-              muted
-              playsInline
-              className="absolute bottom-4 right-4 w-64 h-48 rounded-lg border-2 border-white shadow-lg object-cover"
-            />
-          )}
-
-          {!isPreviewing && (
-            <div className="absolute inset-0 flex items-center justify-center">
-              <div className="text-center">
-                <Video className="w-24 h-24 mx-auto mb-6 text-muted-foreground" />
-                <p className="text-muted-foreground text-lg">Click Start Preview to begin</p>
-              </div>
-            </div>
-          )}
-
-          {isRecording && (
-            <div className="absolute top-4 left-4 flex items-center gap-2 px-4 py-2 bg-destructive/90 rounded-full animate-glow-pulse">
-              <div className="w-3 h-3 bg-white rounded-full animate-pulse" />
-              <span className="text-sm font-bold">REC</span>
-            </div>
-          )}
-
-          {isPreviewing && captionsEnabled && (
-            <DraggableCaptions
-              style={captionStyle}
-              onCaptionChange={setCurrentCaption}
-              isRecording={isRecording}
-              onPositionChange={onCaptionPositionChange}
-            />
-          )}
-        </div>
+      <div className="absolute bottom-6 flex items-center gap-4">
+        <Button
+          variant="secondary"
+          size="icon"
+          className="rounded-full h-12 w-12"
+          onClick={() => onRecordingModeChange("webcam")}
+          disabled={recordingMode === "webcam"}
+        >
+          <Webcam />
+        </Button>
+        <Button
+          variant="secondary"
+          size="icon"
+          className="rounded-full h-12 w-12"
+          onClick={() => onRecordingModeChange("screen")}
+          disabled={recordingMode === "screen"}
+        >
+          <ScreenShare />
+        </Button>
+        {!isRecording ? (
+          <Button
+            size="icon"
+            className="bg-red-600 hover:bg-red-700 rounded-full h-16 w-16"
+            onClick={startRecording}
+          >
+            <Mic />
+          </Button>
+        ) : (
+          <Button
+            size="icon"
+            className="bg-gray-600 hover:bg-gray-700 rounded-full h-16 w-16"
+            onClick={handleStopRecording}
+          >
+            <Square />
+          </Button>
+        )}
+        <Button variant="secondary" size="icon" className="rounded-full h-12 w-12">
+          <Maximize />
+        </Button>
       </div>
     </div>
   );

@@ -35,3 +35,32 @@ export interface AIDecision {
   cellIndex?: number;
   captionIntent?: string; // 'title' | 'question' | 'quote' | 'list' | 'live' | 'default'
 }
+
+export interface EditAction {
+  command: "EDIT" | "APPEND" | "DELETE_LINE";
+  targetCaptionId: string;
+  newText?: string; // For EDIT and APPEND
+  lineToDelete?: number; // For DELETE_LINE (e.g., 1 for the first line)
+}
+
+// --- START: NEW GRAPH TYPES ---
+export interface GraphDataPoint {
+  label: string;
+  value: number;
+}
+
+export interface GraphConfig {
+  title?: string;
+  xAxisLabel?: string;
+  yAxisLabel?: string;
+}
+
+export interface GraphObject {
+  id: string;
+  type: 'graph';
+  graphType: 'bar' | 'line' | 'pie';
+  data: GraphDataPoint[];
+  config: GraphConfig;
+  position: { x: number; y: number };
+  size: { width: number; height: number };
+}

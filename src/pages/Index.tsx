@@ -3,7 +3,6 @@ import { VideoCanvas } from "@/components/VideoCanvas";
 import { LeftSidebar } from "@/components/LeftSidebar";
 import { TopToolbar } from "@/components/TopToolbar";
 import { CaptionStyle, CaptionTemplate } from "@/types/caption";
-import { DebugPanel } from "@/components/DebugPanel";
 
 const Index = () => {
   const [captionStyle, setCaptionStyle] = useState<CaptionStyle>({
@@ -64,7 +63,6 @@ const Index = () => {
           }
         />
       </div>
-      {showDebug && <DebugPanel />}
     </div>
   );
 };

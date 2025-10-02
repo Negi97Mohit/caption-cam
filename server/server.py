@@ -1,20 +1,34 @@
-
 import asyncio
 import websockets
 import json
 from vosk import Model, KaldiRecognizer, SetLogLevel
 import os
 import logging
+from logging.handlers import RotatingFileHandler 
 
 # Setup logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s'
-)
+log_formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
 
-# Update this path to your Vosk model location
-MODEL_PATH = r"C:\Users\Dell\Desktop\caption-cam\server\vosk-model-small-en-us-0.15\vosk-model-small-en-us-0.15"
+# 1. Handler for console output with UTF-8 encoding
+console_handler = logging.StreamHandler()
+console_handler.setFormatter(log_formatter)
+console_handler.encoding = 'utf-8' # <-- FIX 1: Add encoding for console
+logger.addHandler(console_handler)
+
+# 2. Handler for file output with UTF-8 encoding
+log_file = os.path.join(os.path.dirname(__file__), 'server.log')
+file_handler = RotatingFileHandler(log_file, maxBytes=5*1024*1024, backupCount=3, encoding='utf-8') # <-- FIX 1: Add encoding for file
+file_handler.setFormatter(log_formatter)
+logger.addHandler(file_handler)
+
+
+# server/server.py
+
+SCRIPT_DIR = os.path.dirname(os.path.realpath(__file__))
+# Change "gigaspeech" to the new model name
+MODEL_PATH = os.path.join(SCRIPT_DIR, "vosk-model-small-en-us-0.15")
 
 # Verify model exists
 if not os.path.exists(MODEL_PATH):
@@ -55,7 +69,7 @@ async def recognize(websocket):
                     result = json.loads(recognizer.Result())
                     if result.get('text'):
                         transcripts_sent += 1
-                        logger.info(f"✓ Final transcript: '{result['text']}'")
+                        logger.info(f"✓ Final transcript: '{result.get('text', '')}' | Full JSON: {json.dumps(result)}")
                         await websocket.send(json.dumps({'text': result['text']}))
                 else:
                     # Partial result
@@ -93,7 +107,7 @@ async def main():
     logger.info("=" * 60)
     logger.info("✓ Vosk server started successfully!")
     logger.info("  Listening on: ws://localhost:2700")
-    logger.info("  Model: vosk-model-small-en-us-0.15")
+    logger.info("  Model: vosk-model-en-us-0.22")
     logger.info("  Sample Rate: 16000 Hz")
     logger.info("=" * 60)
     

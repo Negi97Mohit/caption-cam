@@ -1,9 +1,50 @@
-import { AIDecision } from "@/types/caption";
+// src/lib/ai.ts
+
+import { AIDecision, EditAction, GraphObject } from "@/types/caption";
 
 const API_KEY = import.meta.env.VITE_OPENROUTER_API_KEY;
 const API_URL = "https://openrouter.ai/api/v1/chat/completions";
 const SITE_URL = import.meta.env.VITE_APP_SITE_URL;
 const APP_NAME = import.meta.env.VITE_APP_NAME;
+
+const AUTOCORRECT_PROMPT = `You are an autocorrection service. Correct any spelling, grammar, or transcription errors in the user's text. Only return the corrected text, nothing else. Do not add any commentary or labels.`;
+
+export async function autocorrectTranscript(transcript: string): Promise<string> {
+  if (!transcript.trim()) {
+    return "";
+  }
+  try {
+    const response = await fetch(API_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${API_KEY}`,
+        "HTTP-Referer": SITE_URL,
+        "X-Title": APP_NAME,
+      },
+      body: JSON.stringify({
+        model: "openai/gpt-3.5-turbo",
+        messages: [
+          { role: "system", content: AUTOCORRECT_PROMPT },
+          { role: "user", content: transcript },
+        ],
+        temperature: 0,
+        max_tokens: 200,
+      }),
+    });
+
+    if (!response.ok) {
+      console.error("Autocorrect API error:", await response.text());
+      return transcript;
+    }
+
+    const data = await response.json();
+    return data.choices[0].message.content.trim();
+  } catch (error) {
+    console.error("Failed to autocorrect transcript:", error);
+    return transcript;
+  }
+}
 
 const responseCache = new Map<string, { decision: AIDecision; timestamp: number }>();
 const CACHE_TTL = 5 * 60 * 1000;
@@ -175,5 +216,217 @@ export async function formatCaptionWithAI(transcript: string): Promise<AIDecisio
       formattedText: transcript.trim().slice(0, 100) 
     };
     return errorResult;
+  }
+}
+
+const GRAPH_SYSTEM_PROMPT = `You are a data visualization AI assistant. You help users build graphs incrementally through voice commands.
+
+CRITICAL RULE - CREATE vs UPDATE:
+- If CONTEXT shows "EXISTING GRAPH" with a graph type, you MUST use "command": "UPDATE"
+- ONLY use "command": "CREATE" if CONTEXT says "No existing graph"
+- When UPDATING: Return the COMPLETE data array (old data + new data)
+- NEVER replace existing data - always append to it
+
+OTHER RULES:
+1. Parse data values carefully - handle percentages, numbers with units, etc.
+2. Set status to "COMPLETE" when graph has title and 2+ data points
+3. Set status to "INCOMPLETE" if it needs more data
+4. When updating config (title, labels), preserve existing values if not mentioned
+
+RESPONSE FORMAT (JSON only):
+{
+  "command": "CREATE" | "UPDATE",
+  "status": "COMPLETE" | "INCOMPLETE",
+  "graphType": "bar" | "line" | "pie",
+  "data": [{"label": "string", "value": number}],
+  "config": {
+    "title": "string",
+    "xAxisLabel": "string", 
+    "yAxisLabel": "string"
+  }
+}
+
+EXAMPLES:
+
+User: "create a bar graph with streaming services on x-axis and market share on y-axis"
+Context: No existing graph
+Response: {
+  "command": "CREATE",
+  "status": "INCOMPLETE",
+  "graphType": "bar",
+  "data": [],
+  "config": {
+    "title": "Streaming Services Market Share",
+    "xAxisLabel": "Streaming Services",
+    "yAxisLabel": "Market Share (%)"
+  }
+}
+
+User: "add Netflix with 45 percent"
+Context: EXISTING GRAPH with data: []
+Response: {
+  "command": "UPDATE",
+  "status": "INCOMPLETE",
+  "data": [{"label": "Netflix", "value": 45}],
+  "config": {}
+}
+
+User: "add Disney Plus with 25%"
+Context: EXISTING GRAPH with data: [{"label": "Netflix", "value": 45}]
+Response: {
+  "command": "UPDATE",
+  "status": "COMPLETE",
+  "data": [{"label": "Netflix", "value": 45}, {"label": "Disney Plus", "value": 25}],
+  "config": {}
+}
+
+User: "change the title to Zoom Usage"
+Context: EXISTING GRAPH with title: "Streaming Services"
+Response: {
+  "command": "UPDATE",
+  "status": "INCOMPLETE",
+  "data": [],
+  "config": {"title": "Zoom Usage"}
+}
+
+User: "let's add Microsoft Teams with 44 percent"
+Context: EXISTING GRAPH title: "Zoom Usage", data: [{"label": "Zoom", "value": 56}]
+Response: {
+  "command": "UPDATE",
+  "status": "COMPLETE",
+  "data": [{"label": "Zoom", "value": 56}, {"label": "Microsoft Teams", "value": 44}],
+  "config": {}
+}`;
+
+export async function processGraphCommand(
+  command: string,
+  existingGraph?: GraphObject
+): Promise<Partial<GraphObject> | null> {
+  const context = existingGraph
+    ? `EXISTING GRAPH (You MUST use UPDATE command):
+Graph Type: ${existingGraph.graphType}
+Title: "${existingGraph.config.title || 'Untitled'}"
+X-Axis Label: "${existingGraph.config.xAxisLabel || 'Not set'}"
+Y-Axis Label: "${existingGraph.config.yAxisLabel || 'Not set'}"
+Current Data (${existingGraph.data.length} points): ${JSON.stringify(existingGraph.data, null, 2)}`
+    : "No existing graph - this is a NEW graph creation (use CREATE command).";
+
+  try {
+    const response = await fetch(API_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${API_KEY}`,
+        "HTTP-Referer": SITE_URL,
+        "X-Title": APP_NAME,
+      },
+      body: JSON.stringify({
+        model: "openai/gpt-4o",
+        messages: [
+          { role: "system", content: GRAPH_SYSTEM_PROMPT },
+          { role: "user", content: `${context}\n\nUSER COMMAND: "${command}"` },
+        ],
+        temperature: 0.1,
+        response_format: { type: "json_object" },
+      }),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error("Graph command API failed:", errorText);
+      throw new Error("Graph command API failed");
+    }
+
+    const data = await response.json();
+    const rawContent = data.choices[0].message.content;
+    const parsed = JSON.parse(rawContent);
+    
+    console.log("Graph AI Response:", parsed);
+    
+    // Validation: If we have an existing graph, force UPDATE command
+    if (existingGraph && parsed.command === 'CREATE') {
+      console.warn("AI returned CREATE when UPDATE expected. Forcing UPDATE.");
+      parsed.command = 'UPDATE';
+    }
+    
+    // For updates, preserve the graph type from existing graph
+    if (parsed.command === 'UPDATE' && existingGraph) {
+      parsed.graphType = existingGraph.graphType;
+      
+      // Merge config - preserve existing values if new ones aren't provided
+      parsed.config = {
+        title: parsed.config?.title || existingGraph.config.title,
+        xAxisLabel: parsed.config?.xAxisLabel || existingGraph.config.xAxisLabel,
+        yAxisLabel: parsed.config?.yAxisLabel || existingGraph.config.yAxisLabel,
+      };
+    }
+    
+    return parsed;
+  } catch (error) {
+    console.error("Failed to process graph command:", error);
+    return null;
+  }
+}
+
+const EDIT_SYSTEM_PROMPT = `You are an AI assistant that processes voice commands to edit on-screen captions. You will receive a user's command and a JSON array of the captions currently on screen.
+
+Your task is to identify the target caption and the action the user wants to perform. You MUST return ONLY a valid JSON object with the following structure:
+{"command": "EDIT" | "APPEND" | "DELETE_LINE", "targetCaptionId": "string", "newText"?: "string", "lineToDelete"?: number}
+
+- "command": The action to perform.
+- "targetCaptionId": The "id" of the caption from the provided context that the user is referring to.
+- "newText": The new content for "EDIT" or "APPEND".
+- "lineToDelete": The 1-based index of the line to remove for "DELETE_LINE".
+
+CONTEXT:
+- The user might refer to captions by their content ("the one that says..."), their type ("the title", "the list"), or their position.
+- For "APPEND", the newText should start with a newline character if it's for a list (e.g., "\\n• New Item").
+- For "DELETE_LINE", identify the line number. If the user says "remove the second item", lineToDelete should be 2.
+
+Example:
+- User Command: "change the title to My Awesome Presentation"
+- Your Output: {"command": "EDIT", "targetCaptionId": "17...-0", "newText": "MY AWESOME PRESENTATION"}
+
+- User Command: "add a final point to the list"
+- Your Output: {"command": "APPEND", "targetCaptionId": "17...-1", "newText": "\\n• A Final Point"}
+
+- User Command: "remove the second item from the list"
+- Your Output: {"command": "DELETE_LINE", "targetCaptionId": "17...-1", "lineToDelete": 2}
+`;
+
+export async function processEditCommand(command: string, existingCaptions: AIDecision[]): Promise<EditAction | null> {
+  const context = `
+    Current Captions on screen:
+    ${JSON.stringify(existingCaptions.map(c => ({ id: c.id, captionIntent: c.captionIntent, formattedText: c.formattedText })), null, 2)}
+  `;
+
+  try {
+    const response = await fetch(API_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${API_KEY}`,
+        "HTTP-Referer": SITE_URL,
+        "X-Title": APP_NAME,
+      },
+      body: JSON.stringify({
+        model: "openai/gpt-4o",
+        messages: [
+          { role: "system", content: EDIT_SYSTEM_PROMPT },
+          { role: "user", content: `CONTEXT:\n${context}\n\nCOMMAND:\n"${command}"` },
+        ],
+        response_format: { type: "json_object" },
+      }),
+    });
+
+    if (!response.ok) throw new Error("Edit command API failed");
+
+    const data = await response.json();
+    const rawContent = data.choices[0].message.content;
+    const parsed: EditAction = JSON.parse(rawContent);
+    return parsed;
+  } catch (error) {
+    console.error("Failed to process edit command:", error);
+    return null;
   }
 }

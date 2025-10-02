@@ -7,12 +7,14 @@ import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import { ThemeProvider } from "next-themes";
 import { DebugProvider } from "./context/DebugContext";
+import { LogProvider } from "./context/LogContext";
 
 const queryClient = new QueryClient();
 
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
+    <LogProvider>
      <DebugProvider>  
     {/* WRAP with ThemeProvider */}
     <ThemeProvider
@@ -33,6 +35,7 @@ const App = () => (
       </TooltipProvider>
     </ThemeProvider>
     </DebugProvider>
+    </LogProvider>
   </QueryClientProvider>
 );
 

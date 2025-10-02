@@ -1,33 +1,16 @@
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { CaptionStyle } from "@/types/caption";
 import { useTheme } from "next-themes";
-import { Moon, Sun } from "lucide-react";
-import { 
-  Bold, 
-  Italic, 
-  Underline, 
-  Type,
-  Palette,
-  Eye,
-  EyeOff,
-} from "lucide-react";
-
-const FONTS = [
-  "Inter",
-  "Roboto",
-  "Open Sans",
-  "Montserrat",
-  "Playfair Display",
-  "Bebas Neue",
-];
+import { Moon, Sun, Eye, EyeOff, PanelLeftClose, PanelLeftOpen } from "lucide-react";
 
 interface TopToolbarProps {
   style: CaptionStyle;
   onStyleChange: (style: CaptionStyle) => void;
   captionsEnabled: boolean;
   onCaptionsToggle: (enabled: boolean) => void;
+  isSidebarVisible: boolean; // ADDED: Prop to know sidebar state
+  onSidebarToggle: () => void; // ADDED: Prop to toggle sidebar
 }
 
 export const TopToolbar = ({
@@ -35,11 +18,10 @@ export const TopToolbar = ({
   onStyleChange,
   captionsEnabled,
   onCaptionsToggle,
+  isSidebarVisible,
+  onSidebarToggle,
 }: TopToolbarProps) => {
   const { theme, setTheme } = useTheme();
-  const updateStyle = (updates: Partial<CaptionStyle>) => {
-    onStyleChange({ ...style, ...updates });
-  };
 
   return (
     <div className="h-16 border-b border-border bg-card px-4 flex items-center gap-4">
@@ -51,7 +33,12 @@ export const TopToolbar = ({
 
       <Separator orientation="vertical" className="h-8" />
 
-      {/* Font Selector */}
+      {/* Sidebar Toggle Button */}
+      <Button variant="ghost" size="icon" onClick={onSidebarToggle}>
+        {isSidebarVisible ? <PanelLeftClose /> : <PanelLeftOpen />}
+        <span className="sr-only">Toggle sidebar</span>
+      </Button>
+
 
       <div className="ml-auto flex items-center gap-2">
           <Button

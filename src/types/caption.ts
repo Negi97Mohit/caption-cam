@@ -32,6 +32,7 @@ export interface AIDecision {
   duration: number | "permanent";
   formattedText: string;
   position?: { x: number; y: number };
+  style?: CaptionStyle;
   cellIndex?: number;
   captionIntent?: string; // 'title' | 'question' | 'quote' | 'list' | 'live' | 'default'
 }

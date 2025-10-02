@@ -102,19 +102,22 @@ const getCaptionStyleOverrides = (caption: AIDecision, baseStyle: CaptionStyle):
 
 interface DraggableCaptionProps {
   caption: AIDecision;
-  style: CaptionStyle;
   onPositionChange: (id: string, position: { x: number; y: number }) => void;
   onDragChange: (isDragging: boolean) => void;
   onDelete: (id: string) => void;
   onTextChange: (id: string, newText: string) => void;
+  isSelected: boolean;
+  onSelect: (id: string) => void;
 }
 
-const DraggableCaption = ({ style, caption, onPositionChange, onDragChange, onDelete, onTextChange }: DraggableCaptionProps) => {
+const DraggableCaption = ({ caption, onPositionChange, onDragChange, onDelete, onTextChange, isSelected, onSelect }: DraggableCaptionProps) => {
   const [isEditing, setIsEditing] = useState(false);
   const dragRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const offset = useRef({ x: 0, y: 0 });
   const [isHovered, setIsHovered] = useState(false);
+  
+  const style = caption.style || {} as CaptionStyle;
 
   useLayoutEffect(() => {
     if (isEditing && textareaRef.current) {
@@ -177,7 +180,19 @@ const DraggableCaption = ({ style, caption, onPositionChange, onDragChange, onDe
   };
 
   return (
-    <div ref={dragRef} className="group" style={{...captionStyles, ...(isHovered && { transform: `${captionStyles.transform} scale(1.05)`, filter: 'brightness(1.1)'})}} onMouseDown={onMouseDown} onMouseEnter={() => setIsHovered(true)} onMouseLeave={() => setIsHovered(false)} onDoubleClick={() => setIsEditing(true)}>
+    <div 
+      ref={dragRef} 
+      className={cn(
+        "group",
+        isSelected && "ring-4 ring-primary ring-offset-2 ring-offset-background"
+      )} 
+      style={{...captionStyles, ...(isHovered && { transform: `${captionStyles.transform} scale(1.05)`, filter: 'brightness(1.1)'})}} 
+      onMouseDown={onMouseDown} 
+      onMouseEnter={() => setIsHovered(true)} 
+      onMouseLeave={() => setIsHovered(false)} 
+      onDoubleClick={() => setIsEditing(true)}
+      onClick={(e) => { e.stopPropagation(); onSelect(caption.id!); }}
+    >
       {caption.captionIntent === 'quote' && <span className="quote-before pointer-events-none">"</span>}
       <Move className="absolute -top-6 right-1/2 translate-x-1/2 h-5 w-5 text-white opacity-0 group-hover:opacity-100 transition-opacity drop-shadow-lg" />
       <button className="delete-btn absolute -top-3 -right-3 z-10 h-8 w-8 bg-red-500 hover:bg-red-600 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all shadow-lg hover:scale-110" onClick={(e) => { e.stopPropagation(); if (caption.id) onDelete(caption.id); }} title="Delete caption"><X className="h-4 w-4 text-white" /></button>
@@ -189,16 +204,29 @@ const DraggableCaption = ({ style, caption, onPositionChange, onDragChange, onDe
   );
 };
 
+
 interface VideoCanvasProps {
   captionStyle: CaptionStyle;
   captionsEnabled: boolean;
   recordingMode: "webcam" | "screen" | "both";
   onRecordingModeChange: (mode: "webcam" | "screen" | "both") => void;
   onCaptionPositionChange: (position: { x: number; y: number }) => void;
+  permanentCaptions: AIDecision[];
+  setPermanentCaptions: React.Dispatch<React.SetStateAction<AIDecision[]>>;
+  selectedCaptionId: string | null;
+  setSelectedCaptionId: (id: string | null) => void;
 }
 
-export const VideoCanvas = ({ captionStyle, captionsEnabled, recordingMode, onRecordingModeChange }: VideoCanvasProps) => {
-  // 1. Refs and State
+export const VideoCanvas = ({ 
+  captionStyle, 
+  captionsEnabled, 
+  recordingMode, 
+  onRecordingModeChange, 
+  permanentCaptions,
+  setPermanentCaptions,
+  selectedCaptionId,
+  setSelectedCaptionId,
+}: VideoCanvasProps) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const listBufferRef = useRef<string[]>([]);
   const listTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -211,29 +239,94 @@ export const VideoCanvas = ({ captionStyle, captionsEnabled, recordingMode, onRe
   const [isDragging, setIsDragging] = useState(false);
   const [activeGraphId, setActiveGraphId] = useState<string | null>(null);
   const [liveCaption, setLiveCaption] = useState<AIDecision | null>(null);
-  const [permanentCaptions, setPermanentCaptions] = useState<AIDecision[]>([]);
   const [partialTranscript, setPartialTranscript] = useState("");
   const [graphs, setGraphs] = useState<GraphObject[]>([]);
   
-  // 2. Contexts and Hooks
+  const [liveCaptionPosition, setLiveCaptionPosition] = useState(captionStyle.position);
+  const [isDraggingLive, setIsDraggingLive] = useState(false);
+  const dragOffsetRef = useRef({ x: 0, y: 0 });
+  const liveCaptionRef = useRef<HTMLDivElement>(null);
+
+  const [areControlsVisible, setAreControlsVisible] = useState(true);
+  const hideControlsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  
   const { setDebugInfo } = useDebug();
   const { log } = useLog();
 
-  // 3. Constants
   const EDIT_TRIGGER_WORDS = ["edit", "change", "update", "add to", "append", "remove", "delete"];
   const GRAPH_TRIGGER_WORDS = ["graph", "chart", "plot", "bar chart", "line chart", "pie chart", "add", "set"];
   const GRAPH_EDIT_COMMANDS = ["add [label] with [value] percent", "change the title to [new title]", "set x-axis to [label]", "done (to exit editing)"];
   const GENERAL_COMMANDS = ["create a bar chart", "create a line chart", "edit the [caption text or type]", "select the graph (to edit)"];
   
-  // 4. Callback Functions
+  useEffect(() => {
+    if (!isDraggingLive) {
+      setLiveCaptionPosition(captionStyle.position);
+    }
+  }, [captionStyle.position, isDraggingLive]);
+
+  const handleMouseMove = () => {
+    setAreControlsVisible(true);
+    if (hideControlsTimeoutRef.current) {
+      clearTimeout(hideControlsTimeoutRef.current);
+    }
+    hideControlsTimeoutRef.current = setTimeout(() => {
+      if (!isRecording) return;
+      setAreControlsVisible(false);
+    }, 3000);
+  };
+
+  useEffect(() => {
+    return () => {
+      if (hideControlsTimeoutRef.current) {
+        clearTimeout(hideControlsTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  const handleLiveCaptionMouseMove = useCallback((e: MouseEvent) => {
+    if (!liveCaptionRef.current) return;
+    const parent = liveCaptionRef.current.parentElement;
+    if (!parent) return;
+
+    const parentRect = parent.getBoundingClientRect();
+    const x = ((e.clientX - parentRect.left - dragOffsetRef.current.x) / parentRect.width) * 100;
+    const y = ((e.clientY - parentRect.top - dragOffsetRef.current.y) / parentRect.height) * 100;
+
+    setLiveCaptionPosition({
+      x: Math.max(0, Math.min(100, x)),
+      y: Math.max(0, Math.min(100, y)),
+    });
+  }, []);
+
+  const handleLiveCaptionMouseUp = useCallback(() => {
+    setIsDraggingLive(false);
+    document.removeEventListener("mousemove", handleLiveCaptionMouseMove);
+    document.removeEventListener("mouseup", handleLiveCaptionMouseUp);
+  }, [handleLiveCaptionMouseMove]);
+
+  const handleLiveCaptionMouseDown = (e: React.MouseEvent) => {
+    if (!liveCaptionRef.current) return;
+    e.stopPropagation();
+    setIsDraggingLive(true);
+    const rect = liveCaptionRef.current.getBoundingClientRect();
+    dragOffsetRef.current = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+    document.addEventListener("mousemove", handleLiveCaptionMouseMove);
+    document.addEventListener("mouseup", handleLiveCaptionMouseUp);
+  };
+  
   const processCaptionQueue = useCallback(() => {
     if (isProcessingQueueRef.current || captionQueueRef.current.length === 0) return;
     isProcessingQueueRef.current = true;
     const caption = captionQueueRef.current.shift()!;
-    const newCaption: AIDecision = { ...caption, id: `${Date.now()}-${Math.random()}`, position: caption.position || { x: 50, y: 50 } };
+    const newCaption: AIDecision = { 
+      ...caption, 
+      id: `${Date.now()}-${Math.random()}`, 
+      position: caption.position || { x: 50, y: 50 },
+      style: captionStyle,
+    };
     setPermanentCaptions(prev => [...prev, newCaption]);
     setTimeout(() => { isProcessingQueueRef.current = false; processCaptionQueue(); }, 100);
-  }, []);
+  }, [captionStyle, setPermanentCaptions]);
 
   const handleNewTranscript = useCallback(
     async (transcript: string) => {
@@ -247,7 +340,6 @@ export const VideoCanvas = ({ captionStyle, captionsEnabled, recordingMode, onRe
         setDebugInfo(prev => ({ ...prev, correctedTranscript }));
         const lowerTranscript = correctedTranscript.toLowerCase();
 
-        // --- A. STRICT GRAPH FOCUS MODE ---
         if (activeGraphId) {
           if (lowerTranscript.includes('done') || lowerTranscript.includes('stop editing') || lowerTranscript.includes('exit')) {
             toast.info("Graph editing finished.");
@@ -307,7 +399,6 @@ export const VideoCanvas = ({ captionStyle, captionsEnabled, recordingMode, onRe
           return;
         }
 
-        // --- B. GENERAL MODE (NO FOCUS) ---
         const isGraphRelated = GRAPH_TRIGGER_WORDS.some(word => lowerTranscript.includes(word));
         const isEditCommand = EDIT_TRIGGER_WORDS.some(word => lowerTranscript.startsWith(word));
 
@@ -433,19 +524,20 @@ export const VideoCanvas = ({ captionStyle, captionsEnabled, recordingMode, onRe
           toast.error("Failed to process speech");
       }
     },
-    [setDebugInfo, captionStyle, processCaptionQueue, permanentCaptions, graphs, activeGraphId, log],
+    [setDebugInfo, captionStyle, processCaptionQueue, permanentCaptions, graphs, activeGraphId, log, setPermanentCaptions],
   );
   
-  // 5. Stale Closure Fix
   const handleNewTranscriptRef = useRef(handleNewTranscript);
   useEffect(() => {
     handleNewTranscriptRef.current = handleNewTranscript;
   }, [handleNewTranscript]);
 
-  // 6. Other Handlers & Hook Initializations
   const removeCaption = useCallback((id: string) => {
     setPermanentCaptions(prev => prev.filter(c => c.id !== id));
-  }, []);
+    if(selectedCaptionId === id) {
+      setSelectedCaptionId(null);
+    }
+  }, [setPermanentCaptions, selectedCaptionId, setSelectedCaptionId]);
 
   const removeGraph = (id: string) => {
     setGraphs(prev => prev.filter(g => g.id !== id));
@@ -463,7 +555,13 @@ export const VideoCanvas = ({ captionStyle, captionsEnabled, recordingMode, onRe
   };
 
   const handlePermanentCaptionPositionChange = (id: string, position: { x: number; y: number }) => {
-    setPermanentCaptions(captions => captions.map(c => (c.id === id ? { ...c, position, cellIndex: undefined } : c)));
+    setPermanentCaptions(captions =>
+      captions.map(c =>
+        c.id === id
+          ? { ...c, position, style: { ...c.style!, position } }
+          : c
+      )
+    );
   };
 
   const { isRecording, startRecording, stopRecording } = useVosk({
@@ -480,7 +578,6 @@ export const VideoCanvas = ({ captionStyle, captionsEnabled, recordingMode, onRe
     },
   });
 
-  // 7. Effects
   useEffect(() => {
     const startStream = async () => {
       if (videoRef.current) {
@@ -508,7 +605,6 @@ export const VideoCanvas = ({ captionStyle, captionsEnabled, recordingMode, onRe
     };
   }, [recordingMode]);
 
-  // 8. Render Logic
   const handleStopRecording = () => {
     stopRecording();
     setPermanentCaptions([]);
@@ -542,16 +638,21 @@ export const VideoCanvas = ({ captionStyle, captionsEnabled, recordingMode, onRe
     
     return {
       ...baseStyles,
-      left: `${(liveCaption?.position?.x || captionStyle.position.x)}%`,
-      top: `${(liveCaption?.position?.y || captionStyle.position.y)}%`,
+      left: `${liveCaptionPosition.x}%`,
+      top: `${liveCaptionPosition.y}%`,
       transform: "translate(-50%, -50%)",
       opacity: liveCaption ? 1 : 0.7,
+      cursor: isDraggingLive ? 'grabbing' : 'grab',
       animation: liveCaption ? "slideUp 0.4s cubic-bezier(0.34, 1.56, 0.64, 1)" : "pulse 1.s ease-in-out infinite",
     };
   };
   
   return (
-    <div className="flex-1 bg-gray-900 flex justify-center items-center p-4 relative overflow-hidden">
+    <div 
+      className="flex-1 bg-gray-900 flex justify-center items-center p-4 relative overflow-hidden" 
+      onMouseMove={handleMouseMove}
+      onClick={() => setSelectedCaptionId(null)}
+    >
       <style>{`
         @keyframes zoomIn { from { opacity: 0; transform: translate(-50%, -50%) scale(0.5); } to { opacity: 1; transform: translate(-50%, -50%) scale(1); } }
         @keyframes slideUp { from { opacity: 0; transform: translate(-50%, -30%); } to { opacity: 1; transform: translate(-50%, -50%); } }
@@ -562,7 +663,10 @@ export const VideoCanvas = ({ captionStyle, captionsEnabled, recordingMode, onRe
         .quote-after { bottom: -0.5em; right: -0.4em; }
       `}</style>
       
-      <div className="relative w-full h-full max-w-6xl aspect-video bg-black rounded-lg overflow-hidden">
+      <div 
+        className="relative max-w-6xl w-full aspect-video bg-black rounded-lg overflow-hidden shadow-2xl"
+        onClick={(e) => e.stopPropagation()}
+      >
         <video ref={videoRef} className="w-full h-full object-cover" autoPlay muted />
         
         {captionsEnabled && (
@@ -570,19 +674,22 @@ export const VideoCanvas = ({ captionStyle, captionsEnabled, recordingMode, onRe
             {permanentCaptions.map((caption) => (
               <DraggableCaption
                 key={caption.id}
-                style={captionStyle}
                 caption={caption}
                 onPositionChange={handlePermanentCaptionPositionChange}
                 onDragChange={setIsDragging}
                 onDelete={removeCaption}
                 onTextChange={handlePermanentCaptionTextChange}
+                isSelected={selectedCaptionId === caption.id}
+                onSelect={setSelectedCaptionId}
               />
             ))}
             
             {(liveCaption || partialTranscript) && (
               <div 
+                ref={liveCaptionRef}
                 className="absolute select-none text-center"
                 style={getLiveCaptionStyles()}
+                onMouseDown={handleLiveCaptionMouseDown}
               >
                 {liveCaption?.formattedText || partialTranscript}
               </div>
@@ -607,7 +714,10 @@ export const VideoCanvas = ({ captionStyle, captionsEnabled, recordingMode, onRe
         isVisible={isRecording}
       />
 
-      <div className="absolute bottom-6 flex items-center gap-4">
+      <div className={cn(
+        "absolute bottom-6 flex items-center gap-4 transition-all duration-300",
+        areControlsVisible || !isRecording ? "opacity-100 translate-y-0" : "opacity-0 translate-y-10 pointer-events-none"
+      )}>
         <Button variant="secondary" size="icon" className="rounded-full h-12 w-12" onClick={() => onRecordingModeChange("webcam")} disabled={recordingMode === "webcam"}>
           <Webcam />
         </Button>

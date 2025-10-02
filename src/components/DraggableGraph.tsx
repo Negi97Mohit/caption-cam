@@ -1,5 +1,5 @@
 // src/components/DraggableGraph.tsx
-
+import { cn } from "@/lib/utils";
 import React, { useRef } from 'react';
 import { GraphObject } from '@/types/caption';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line } from 'recharts';

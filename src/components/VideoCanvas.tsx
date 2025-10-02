@@ -20,32 +20,36 @@ const getCaptionStyleOverrides = (caption: AIDecision, baseStyle: CaptionStyle):
   switch (intent) {
     case 'title':
       intentOverrides = {
-        fontSize: baseStyle.fontSize * 2.2,
-        fontWeight: '900',
+        fontSize: baseStyle.fontSize * 2.0,
+        fontWeight: '800',
         textTransform: 'uppercase',
-        letterSpacing: '4px',
-        textShadow: '0 0 15px rgba(255, 255, 255, 0.7), 0 0 30px rgba(255, 82, 82, 0.5)',
-        WebkitTextStroke: '2px black',
+        letterSpacing: '3px',
+        textShadow: '0 4px 20px rgba(0, 0, 0, 0.4)',
+        backgroundColor: 'transparent',
       };
       break;
     case 'question':
       intentOverrides = {
-        fontSize: baseStyle.fontSize * 1.3,
-        fontWeight: '700',
-        padding: '16px 24px',
-        border: '2px solid rgba(255, 255, 255, 0.7)',
-        boxShadow: '0 0 20px rgba(100, 180, 255, 0.5)',
-        transform: 'rotate(-2.5deg)',
+        fontSize: baseStyle.fontSize * 1.2,
+        fontWeight: '600',
+        padding: '12px 20px',
+        border: '1px solid hsl(var(--border))',
+        backgroundColor: 'hsl(var(--background) / 0.5)',
+        backdropFilter: 'blur(8px)',
+        boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)',
+        transform: 'rotate(-2deg) scale(1.02)',
         maxWidth: '500px',
       };
       break;
     case 'list':
       intentOverrides = {
-        fontSize: baseStyle.fontSize * 1.1,
+        fontSize: baseStyle.fontSize,
         fontWeight: '500',
-        padding: '20px 28px',
-        borderLeft: '5px solid hsl(var(--primary))',
-        boxShadow: '0 8px 32px rgba(0, 0, 0, 0.4)',
+        padding: '16px 24px',
+        borderLeft: '3px solid hsl(var(--primary))',
+        backgroundColor: 'hsl(var(--background) / 0.5)',
+        backdropFilter: 'blur(8px)',
+        boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)',
         textAlign: 'left',
         lineHeight: '1.7',
         maxWidth: '400px',
@@ -53,42 +57,45 @@ const getCaptionStyleOverrides = (caption: AIDecision, baseStyle: CaptionStyle):
       break;
     case 'quote':
       intentOverrides = {
-        fontSize: baseStyle.fontSize * 1.5,
-        fontWeight: '600',
+        fontSize: baseStyle.fontSize * 1.4,
+        fontWeight: '500',
         backgroundColor: 'transparent',
         fontStyle: 'italic',
         textAlign: 'center',
-        textShadow: '3px 3px 8px rgba(0, 0, 0, 0.9)',
+        textShadow: '0 2px 8px rgba(0, 0, 0, 0.5)',
         maxWidth: '60%',
         '--quote-color': 'hsl(var(--primary) / 0.5)',
       };
       break;
     case 'stat':
       intentOverrides = {
-        fontSize: baseStyle.fontSize * 2.0,
-        fontWeight: '900',
-        background: 'radial-gradient(circle, hsl(var(--primary) / 0.8) 0%, hsl(var(--primary) / 0.9) 100%)',
-        color: '#FFFFFF',
-        padding: '30px',
+        fontSize: baseStyle.fontSize * 1.8,
+        fontWeight: '800',
+        background: 'hsl(var(--primary) / 0.1)',
+        color: 'hsl(var(--primary))',
+        padding: '24px',
         borderRadius: '50%',
-        boxShadow: `0 0 30px hsl(var(--primary)), 0 0 50px hsl(var(--primary)), inset 0 0 15px rgba(255,255,255,0.4)`,
+        boxShadow: `0 0 0 2px hsl(var(--primary)), 0 0 20px hsl(var(--primary) / 0.5)`,
         textAlign: 'center',
-        border: '3px solid white',
-        minWidth: '180px',
-        minHeight: '180px',
+        border: '2px solid transparent',
+        minWidth: '150px',
+        minHeight: '150px',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
         lineHeight: '1.1',
-        animation: 'glow-pulse 2s ease-in-out infinite',
       };
       break;
     case 'live':
     default:
       intentOverrides = {
         fontWeight: '600',
-        padding: '12px 20px',
-        textShadow: '1px 1px 3px rgba(0, 0, 0, 0.8)',
+        padding: '8px 16px',
+        backgroundColor: 'hsl(var(--background) / 0.5)',
+        backdropFilter: 'blur(8px)',
+        borderRadius: 'var(--radius)',
+        textShadow: '0 1px 3px rgba(0, 0, 0, 0.3)',
+        boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
         maxWidth: '90%',
         wordWrap: 'break-word',
       };
@@ -116,7 +123,6 @@ const DraggableCaption = ({ caption, onPositionChange, onDragChange, onDelete, o
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const offset = useRef({ x: 0, y: 0 });
   const [isHovered, setIsHovered] = useState(false);
-  
   const style = caption.style || {} as CaptionStyle;
 
   useLayoutEffect(() => {
@@ -182,11 +188,8 @@ const DraggableCaption = ({ caption, onPositionChange, onDragChange, onDelete, o
   return (
     <div 
       ref={dragRef} 
-      className={cn(
-        "group",
-        isSelected && "ring-4 ring-primary ring-offset-2 ring-offset-background"
-      )} 
-      style={{...captionStyles, ...(isHovered && { transform: `${captionStyles.transform} scale(1.05)`, filter: 'brightness(1.1)'})}} 
+      className={cn( "group", isSelected && "ring-2 ring-primary ring-offset-2 ring-offset-background")} 
+      style={{...captionStyles, ...(isHovered && { transform: `${captionStyles.transform} scale(1.02)`, filter: 'brightness(1.1)'})}} 
       onMouseDown={onMouseDown} 
       onMouseEnter={() => setIsHovered(true)} 
       onMouseLeave={() => setIsHovered(false)} 
@@ -195,7 +198,7 @@ const DraggableCaption = ({ caption, onPositionChange, onDragChange, onDelete, o
     >
       {caption.captionIntent === 'quote' && <span className="quote-before pointer-events-none">"</span>}
       <Move className="absolute -top-6 right-1/2 translate-x-1/2 h-5 w-5 text-white opacity-0 group-hover:opacity-100 transition-opacity drop-shadow-lg" />
-      <button className="delete-btn absolute -top-3 -right-3 z-10 h-8 w-8 bg-red-500 hover:bg-red-600 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all shadow-lg hover:scale-110" onClick={(e) => { e.stopPropagation(); if (caption.id) onDelete(caption.id); }} title="Delete caption"><X className="h-4 w-4 text-white" /></button>
+      <button className="delete-btn absolute -top-3 -right-3 z-10 h-7 w-7 bg-red-500 hover:bg-red-600 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all shadow-lg hover:scale-110" onClick={(e) => { e.stopPropagation(); if (caption.id) onDelete(caption.id); }} title="Delete caption"><X className="h-4 w-4 text-white" /></button>
       <div className="whitespace-pre-wrap" style={isStat ? {display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center'} : {}}>
         {isEditing ? (<textarea ref={textareaRef} defaultValue={caption.formattedText} onBlur={handleSave} onKeyDown={handleKeyDown} autoFocus className="w-full h-auto bg-transparent border-none outline-none resize-none" style={{ fontFamily: 'inherit', fontSize: 'inherit', fontWeight: 'inherit', color: 'inherit', lineHeight: 'inherit', letterSpacing: 'inherit', textAlign: 'inherit', textTransform: 'inherit', minWidth: '200px' }} />) : (caption.formattedText)}
       </div>
@@ -649,7 +652,7 @@ export const VideoCanvas = ({
   
   return (
     <div 
-      className="flex-1 bg-gray-900 flex justify-center items-center p-4 relative overflow-hidden" 
+      className="flex-1 relative bg-black overflow-hidden" 
       onMouseMove={handleMouseMove}
       onClick={() => setSelectedCaptionId(null)}
     >
@@ -663,12 +666,17 @@ export const VideoCanvas = ({
         .quote-after { bottom: -0.5em; right: -0.4em; }
       `}</style>
       
+      <video 
+        ref={videoRef} 
+        className="absolute inset-0 w-full h-full object-cover" 
+        autoPlay 
+        muted 
+      />
+      
       <div 
-        className="relative max-w-6xl w-full aspect-video bg-black rounded-lg overflow-hidden shadow-2xl"
+        className="absolute inset-0"
         onClick={(e) => e.stopPropagation()}
       >
-        <video ref={videoRef} className="w-full h-full object-cover" autoPlay muted />
-        
         {captionsEnabled && (
           <>
             {permanentCaptions.map((caption) => (
@@ -706,36 +714,36 @@ export const VideoCanvas = ({
             isFocused={graph.id === activeGraphId}
           />
         ))}
-      </div>
 
-      <CommandHintOverlay
-        title={activeGraphId ? "Editing Graph..." : "Voice Commands"}
-        commands={activeGraphId ? GRAPH_EDIT_COMMANDS : GENERAL_COMMANDS}
-        isVisible={isRecording}
-      />
+        <CommandHintOverlay
+          title={activeGraphId ? "Editing Graph..." : "Voice Commands"}
+          commands={activeGraphId ? GRAPH_EDIT_COMMANDS : GENERAL_COMMANDS}
+          isVisible={isRecording}
+        />
 
-      <div className={cn(
-        "absolute bottom-6 flex items-center gap-4 transition-all duration-300",
-        areControlsVisible || !isRecording ? "opacity-100 translate-y-0" : "opacity-0 translate-y-10 pointer-events-none"
-      )}>
-        <Button variant="secondary" size="icon" className="rounded-full h-12 w-12" onClick={() => onRecordingModeChange("webcam")} disabled={recordingMode === "webcam"}>
-          <Webcam />
-        </Button>
-        <Button variant="secondary" size="icon" className="rounded-full h-12 w-12" onClick={() => onRecordingModeChange("screen")} disabled={recordingMode === "screen"}>
-          <ScreenShare />
-        </Button>
-        {!isRecording ? (
-          <Button size="icon" className="bg-red-600 hover:bg-red-700 rounded-full h-16 w-16" onClick={startRecording}>
-            <Mic />
+        <div className={cn(
+          "absolute bottom-6 w-full flex items-center justify-center gap-3 transition-all duration-300",
+          areControlsVisible || !isRecording ? "opacity-100 translate-y-0" : "opacity-0 translate-y-10 pointer-events-none"
+        )}>
+          <Button variant="ghost" size="icon" className="rounded-full h-12 w-12 bg-black/30 hover:bg-black/50 backdrop-blur-sm" onClick={() => onRecordingModeChange("webcam")} disabled={recordingMode === "webcam"}>
+            <Webcam />
           </Button>
-        ) : (
-          <Button size="icon" className="bg-gray-600 hover:bg-gray-700 rounded-full h-16 w-16" onClick={handleStopRecording}>
-            <Square />
+          <Button variant="ghost" size="icon" className="rounded-full h-12 w-12 bg-black/30 hover:bg-black/50 backdrop-blur-sm" onClick={() => onRecordingModeChange("screen")} disabled={recordingMode === "screen"}>
+            <ScreenShare />
           </Button>
-        )}
-        <Button variant="secondary" size="icon" className="rounded-full h-12 w-12">
-          <Maximize />
-        </Button>
+          {!isRecording ? (
+            <Button size="icon" className="bg-red-600 hover:bg-red-700 rounded-full h-16 w-16 shadow-lg" onClick={startRecording}>
+              <Mic />
+            </Button>
+          ) : (
+            <Button size="icon" className="bg-primary hover:bg-primary/90 rounded-full h-16 w-16 shadow-lg" onClick={handleStopRecording}>
+              <Square />
+            </Button>
+          )}
+          <Button variant="ghost" size="icon" className="rounded-full h-12 w-12 bg-black/30 hover:bg-black/50 backdrop-blur-sm">
+            <Maximize />
+          </Button>
+        </div>
       </div>
     </div>
   );

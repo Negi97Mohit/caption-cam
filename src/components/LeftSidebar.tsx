@@ -72,7 +72,6 @@ export const LeftSidebar = ({
       <div className={cn("flex-1 flex flex-col overflow-hidden transition-opacity duration-200", isCollapsed && "opacity-0")}>
         {/* --- EXPANDED VIEW --- */}
         <div className="p-4 border-b">
-          <h2 className="text-lg font-semibold tracking-tight mb-2">Live Preview</h2>
           <div className="h-24 w-full rounded-lg bg-background/50 flex items-center justify-center p-2">
             <div className="px-4 py-2 rounded-md text-center truncate" style={previewStyle}>
               Your Caption

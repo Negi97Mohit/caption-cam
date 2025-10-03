@@ -16,7 +16,11 @@ const Index = () => {
   const [permanentCaptions, setPermanentCaptions] = useState<AIDecision[]>([]);
   const [selectedCaptionId, setSelectedCaptionId] = useState<string | null>(null);
 
-  // --- NEW state for resizable and collapsible sidebar ---
+  // --- NEW: State for video effects ---
+  const [backgroundEffect, setBackgroundEffect] = useState<'none' | 'blur'>('none');
+  const [isAutoFramingEnabled, setIsAutoFramingEnabled] = useState(false);
+
+  // --- State for resizable and collapsible sidebar ---
   const [sidebarWidth, setSidebarWidth] = useState(384); // Default width (w-96)
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isHoveringSidebar, setIsHoveringSidebar] = useState(false);
@@ -55,8 +59,6 @@ const Index = () => {
   return (
     <div className="h-screen flex flex-col bg-background overflow-hidden">
       <TopToolbar
-        style={captionStyle}
-        onStyleChange={setCaptionStyle}
         captionsEnabled={captionsEnabled}
         onCaptionsToggle={setCaptionsEnabled}
         isSidebarCollapsed={isSidebarCollapsed}
@@ -74,6 +76,11 @@ const Index = () => {
           onResize={setSidebarWidth} // Pass setter for resizing
           onMouseEnter={() => setIsHoveringSidebar(true)}
           onMouseLeave={() => setIsHoveringSidebar(false)}
+          // Pass new state and setters for video effects
+          backgroundEffect={backgroundEffect}
+          onBackgroundEffectChange={setBackgroundEffect}
+          isAutoFramingEnabled={isAutoFramingEnabled}
+          onAutoFramingChange={setIsAutoFramingEnabled}
         />
 
         <VideoCanvas
@@ -85,9 +92,9 @@ const Index = () => {
           setPermanentCaptions={setPermanentCaptions}
           selectedCaptionId={selectedCaptionId}
           setSelectedCaptionId={setSelectedCaptionId}
-          onCaptionPositionChange={(position) =>
-            setCaptionStyle({ ...captionStyle, position })
-          }
+          // Pass new effect state
+          backgroundEffect={backgroundEffect}
+          isAutoFramingEnabled={isAutoFramingEnabled}
         />
       </div>
     </div>

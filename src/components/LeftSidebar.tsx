@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useCallback } from "react";
 import { CaptionStyle, CaptionTemplate } from "@/types/caption";
 import { PRESET_TEMPLATES } from "@/lib/presets";
 import { StyleControls } from "./StyleControls";
@@ -8,8 +8,9 @@ import { Label } from "./ui/label";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "./ui/accordion";
 import { ScrollArea } from "./ui/scroll-area";
 import { cn } from "@/lib/utils";
-import { LayoutTemplate, Palette, Bug } from "lucide-react";
-import { Button } from "./ui/button"; // FIXED: Added the missing import for Button
+import { LayoutTemplate, Palette, Bug, Sparkles } from "lucide-react";
+import { Button } from "./ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 
 interface LeftSidebarProps {
   onSelectTemplate: (template: CaptionTemplate) => void;
@@ -21,14 +22,19 @@ interface LeftSidebarProps {
   onResize: (width: number) => void;
   onMouseEnter: () => void;
   onMouseLeave: () => void;
+  backgroundEffect: 'none' | 'blur';
+  onBackgroundEffectChange: (effect: 'none' | 'blur') => void;
+  isAutoFramingEnabled: boolean;
+  onAutoFramingChange: (enabled: boolean) => void;
 }
 
 const MIN_WIDTH = 280;
 const MAX_WIDTH = 600;
 
-export const LeftSidebar = ({ 
-  onSelectTemplate, selectedTemplate, style, onStyleChange, 
-  width, isCollapsed, onResize, onMouseEnter, onMouseLeave 
+export const LeftSidebar = ({
+  onSelectTemplate, selectedTemplate, style, onStyleChange,
+  width, isCollapsed, onResize, onMouseEnter, onMouseLeave,
+  backgroundEffect, onBackgroundEffectChange, isAutoFramingEnabled, onAutoFramingChange
 }: LeftSidebarProps) => {
   const [showDebug, setShowDebug] = useState(false);
   const isResizing = React.useRef(false);
@@ -80,7 +86,7 @@ export const LeftSidebar = ({
         </div>
 
         <ScrollArea className="flex-1">
-          <Accordion type="multiple" defaultValue={["customize"]} className="w-full">
+          <Accordion type="multiple" defaultValue={["customize", "effects"]} className="w-full">
             <AccordionItem value="templates">
               <AccordionTrigger className="px-4 text-base font-semibold">Templates</AccordionTrigger>
               <AccordionContent className="px-4">
@@ -103,6 +109,28 @@ export const LeftSidebar = ({
               <AccordionTrigger className="px-4 text-base font-semibold">Customize Style</AccordionTrigger>
               <AccordionContent className="px-4">
                 <StyleControls style={style} onStyleChange={onStyleChange} />
+              </AccordionContent>
+            </AccordionItem>
+
+            <AccordionItem value="effects">
+              <AccordionTrigger className="px-4 text-base font-semibold">Video Effects</AccordionTrigger>
+              <AccordionContent className="px-4 space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="background-effect">Background</Label>
+                  <Select value={backgroundEffect} onValueChange={(value: 'none' | 'blur') => onBackgroundEffectChange(value)}>
+                    <SelectTrigger id="background-effect">
+                      <SelectValue placeholder="Select an effect" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">None</SelectItem>
+                      <SelectItem value="blur">Blur Background</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="auto-framing-toggle" className="font-medium">Auto-framing</Label>
+                  <Switch id="auto-framing-toggle" checked={isAutoFramingEnabled} onCheckedChange={onAutoFramingChange} />
+                </div>
               </AccordionContent>
             </AccordionItem>
             
@@ -128,6 +156,9 @@ export const LeftSidebar = ({
            </Button>
            <Button variant="ghost" size="icon" className="w-10 h-10">
               <Palette className="w-5 h-5" />
+           </Button>
+           <Button variant="ghost" size="icon" className="w-10 h-10">
+              <Sparkles className="w-5 h-5" />
            </Button>
            <Button variant="ghost" size="icon" className="w-10 h-10">
               <Bug className="w-5 h-5" />

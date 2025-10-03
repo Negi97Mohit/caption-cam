@@ -10,8 +10,10 @@ import { formatCaptionWithAI, autocorrectTranscript, processEditCommand, process
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { DraggableGraph } from './DraggableGraph';
-import { CommandHintOverlay } from './CommandHintOverlay'; 
+import { CommandHintOverlay } from './CommandHintOverlay';
 import { useBrowserSpeech } from "@/hooks/useBrowserSpeech";
+import { SelfieSegmentation } from "@mediapipe/selfie_segmentation";
+import { FaceDetection } from "@mediapipe/face_detection";
 
 // (This helper function remains unchanged)
 const getCaptionStyleOverrides = (caption: AIDecision, baseStyle: CaptionStyle): React.CSSProperties => {
@@ -92,7 +94,7 @@ const DraggableCaption = ({ caption, onPositionChange, onDragChange, onDelete, o
     document.removeEventListener("mousemove", onMouseMove);
     document.removeEventListener("mouseup", onMouseUp);
   };
-  
+
   const handleSave = () => {
     if (textareaRef.current && caption.id) {
       onTextChange(caption.id, textareaRef.current.value);
@@ -121,13 +123,13 @@ const DraggableCaption = ({ caption, onPositionChange, onDragChange, onDelete, o
   };
 
   return (
-    <div 
-      ref={dragRef} 
-      className={cn( "group", isSelected && "ring-2 ring-primary ring-offset-2 ring-offset-background")} 
-      style={{...captionStyles, ...(isHovered && { transform: `${captionStyles.transform} scale(1.02)`, filter: 'brightness(1.1)'})}} 
-      onMouseDown={onMouseDown} 
-      onMouseEnter={() => setIsHovered(true)} 
-      onMouseLeave={() => setIsHovered(false)} 
+    <div
+      ref={dragRef}
+      className={cn( "group", isSelected && "ring-2 ring-primary ring-offset-2 ring-offset-background")}
+      style={{...captionStyles, ...(isHovered && { transform: `${captionStyles.transform} scale(1.02)`, filter: 'brightness(1.1)'})}}
+      onMouseDown={onMouseDown}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
       onDoubleClick={() => setIsEditing(true)}
       onClick={(e) => { e.stopPropagation(); onSelect(caption.id!); }}
     >
@@ -152,19 +154,29 @@ interface VideoCanvasProps {
   setPermanentCaptions: React.Dispatch<React.SetStateAction<AIDecision[]>>;
   selectedCaptionId: string | null;
   setSelectedCaptionId: (id: string | null) => void;
+  backgroundEffect: 'none' | 'blur';
+  isAutoFramingEnabled: boolean;
 }
 
-export const VideoCanvas = ({ 
-  captionStyle, 
-  captionsEnabled, 
-  recordingMode, 
-  onRecordingModeChange, 
+export const VideoCanvas = ({
+  captionStyle,
+  captionsEnabled,
+  recordingMode,
+  onRecordingModeChange,
   permanentCaptions,
   setPermanentCaptions,
   selectedCaptionId,
   setSelectedCaptionId,
+  backgroundEffect,
+  isAutoFramingEnabled,
 }: VideoCanvasProps) => {
   const videoRef = useRef<HTMLVideoElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const animationFrameId = useRef<number>();
+  const selfieSegmentation = useRef<SelfieSegmentation | null>(null);
+  const faceDetection = useRef<FaceDetection | null>(null);
+
+  // ... (rest of the existing state and refs) ...
   const listBufferRef = useRef<string[]>([]);
   const listTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const isWaitingForListRef = useRef(false);
@@ -172,8 +184,6 @@ export const VideoCanvas = ({
   const isProcessingQueueRef = useRef(false);
   const questionPositionToggleRef = useRef(false);
   const liveCaptionTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  
-  // UPDATED: Add counters for naming overlays
   const overlayNameCounters = useRef<{ [key: string]: number }>({ title: 0, list: 0, question: 0, quote: 0, stat: 0, graph: 0 });
 
   const [isDragging, setIsDragging] = useState(false);
@@ -181,7 +191,7 @@ export const VideoCanvas = ({
   const [liveCaption, setLiveCaption] = useState<AIDecision | null>(null);
   const [partialTranscript, setPartialTranscript] = useState("");
   const [graphs, setGraphs] = useState<GraphObject[]>([]);
-  
+
   const [liveCaptionPosition, setLiveCaptionPosition] = useState(captionStyle.position);
   const [isDraggingLive, setIsDraggingLive] = useState(false);
   const dragOffsetRef = useRef({ x: 0, y: 0 });
@@ -189,17 +199,152 @@ export const VideoCanvas = ({
 
   const [areControlsVisible, setAreControlsVisible] = useState(true);
   const hideControlsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  
+
   const { setDebugInfo } = useDebug();
   const { log } = useLog();
+
+  // --- Initialize MediaPipe Models ---
+  useEffect(() => {
+    // Initialize Selfie Segmentation for background effects
+    const segmentation = new SelfieSegmentation({
+      locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation/${file}`,
+    });
+    segmentation.setOptions({ modelSelection: 1 });
+    selfieSegmentation.current = segmentation;
+
+    // Initialize Face Detection for auto-framing
+    const detection = new FaceDetection({
+      locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_detection/${file}`,
+    });
+    detection.setOptions({ minDetectionConfidence: 0.5, model: 'short' });
+    faceDetection.current = detection;
+
+    return () => {
+      segmentation.close();
+      detection.close();
+    }
+  }, []);
+
+  // --- Main Video Processing Loop ---
+  useEffect(() => {
+    const videoElement = videoRef.current;
+    const canvasElement = canvasRef.current;
+    if (!videoElement || !canvasElement) return;
+
+    const ctx = canvasElement.getContext('2d');
+    if (!ctx) return;
+
+    let lastFacePosition = { x: 0.5, y: 0.5, width: 0.5 };
+
+    const processFrame = async () => {
+      if (videoElement.readyState < 2) {
+        animationFrameId.current = requestAnimationFrame(processFrame);
+        return;
+      }
+
+      canvasElement.width = videoElement.videoWidth;
+      canvasElement.height = videoElement.videoHeight;
+      ctx.save();
+
+      // Auto-framing logic
+      if (isAutoFramingEnabled && faceDetection.current) {
+        await faceDetection.current.send({ image: videoElement });
+      }
+
+      // Background effect logic
+      if (backgroundEffect !== 'none' && selfieSegmentation.current) {
+        await selfieSegmentation.current.send({ image: videoElement });
+      } else {
+        // Default draw if no effects
+        ctx.drawImage(videoElement, 0, 0, canvasElement.width, canvasElement.height);
+      }
+
+      ctx.restore();
+      animationFrameId.current = requestAnimationFrame(processFrame);
+    };
+
+    // Setup model listeners
+    if (selfieSegmentation.current) {
+      selfieSegmentation.current.onResults((results) => {
+        if (!ctx || !canvasElement || !videoElement) return;
+        ctx.save();
+        ctx.clearRect(0, 0, canvasElement.width, canvasElement.height);
+
+        if (backgroundEffect === 'blur') {
+          ctx.filter = 'blur(10px)';
+          ctx.drawImage(results.image, 0, 0, canvasElement.width, canvasElement.height);
+          ctx.filter = 'none';
+        }
+
+        ctx.globalCompositeOperation = 'destination-in';
+        ctx.drawImage(results.segmentationMask, 0, 0, canvasElement.width, canvasElement.height);
+
+        ctx.globalCompositeOperation = 'source-over';
+        ctx.drawImage(results.image, 0, 0, canvasElement.width, canvasElement.height);
+        ctx.restore();
+      });
+    }
+
+    if (faceDetection.current) {
+      faceDetection.current.onResults((results) => {
+        if (!isAutoFramingEnabled || !results.detections.length) {
+          lastFacePosition = { x: 0.5, y: 0.5, width: 0.5 }; // Reset if no face
+          return;
+        }
+
+        const detection = results.detections[0].boundingBox;
+        const target = {
+          x: detection.xCenter,
+          y: detection.yCenter,
+          width: Math.max(detection.width, detection.height) * 2.5, // Zoom out a bit
+        };
+
+        // Smooth transition to the new position (lerp)
+        lastFacePosition.x += (target.x - lastFacePosition.x) * 0.1;
+        lastFacePosition.y += (target.y - lastFacePosition.y) * 0.1;
+        lastFacePosition.width += (target.width - lastFacePosition.width) * 0.1;
+
+        const scale = 1 / lastFacePosition.width;
+        const x = (-lastFacePosition.x * canvasElement.width * scale) + (canvasElement.width / 2);
+        const y = (-lastFacePosition.y * canvasElement.height * scale) + (canvasElement.height / 2);
+
+        ctx.setTransform(scale, 0, 0, scale, x, y);
+      });
+    }
+
+    // Start video stream and processing loop
+    const startStream = async () => {
+      try {
+        let stream;
+        if (recordingMode === "screen" || recordingMode === "both") {
+          stream = await navigator.mediaDevices.getDisplayMedia({ video: { width: 1920, height: 1080 }, audio: true });
+        } else {
+          stream = await navigator.mediaDevices.getUserMedia({ video: { width: 1920, height: 1080 }, audio: true });
+        }
+        videoElement.srcObject = stream;
+        videoElement.play();
+        animationFrameId.current = requestAnimationFrame(processFrame);
+      } catch (error) {
+        toast.error("Could not access camera/screen.");
+      }
+    };
+    startStream();
+
+    return () => {
+      if (animationFrameId.current) cancelAnimationFrame(animationFrameId.current);
+      if (videoElement.srcObject) {
+        (videoElement.srcObject as MediaStream).getTracks().forEach((track) => track.stop());
+      }
+    };
+  }, [recordingMode, backgroundEffect, isAutoFramingEnabled]);
 
   const EDIT_TRIGGER_WORDS = ["edit", "change", "update", "add to", "append", "remove", "delete"];
   const GRAPH_TRIGGER_WORDS = ["graph", "chart", "plot", "bar chart", "line chart", "pie chart", "add", "set"];
   const GRAPH_EDIT_COMMANDS = ["add [label] with [value] percent", "change title to [new title]", "done (to exit editing)"];
-  
+
   // UPDATED: This will now be generated dynamically
   const [generalCommands, setGeneralCommands] = useState<string[]>(["create a bar chart", "create a line chart"]);
-  
+
   useEffect(() => {
     // This effect now only runs when the global captionStyle.position changes from the sidebar.
     setLiveCaptionPosition(captionStyle.position);
@@ -261,21 +406,21 @@ export const VideoCanvas = ({
     document.addEventListener("mousemove", handleLiveCaptionMouseMove);
     document.addEventListener("mouseup", handleLiveCaptionMouseUp);
   };
-  
+
   const processCaptionQueue = useCallback(() => {
     if (isProcessingQueueRef.current || captionQueueRef.current.length === 0) return;
     isProcessingQueueRef.current = true;
     const caption = captionQueueRef.current.shift()!;
     const intent = caption.captionIntent || 'live';
-    
+
     // UPDATED: Assign a name when creating the caption
     const counter = (overlayNameCounters.current[intent] || 0) + 1;
     overlayNameCounters.current[intent] = counter;
     const name = `${intent.charAt(0).toUpperCase() + intent.slice(1)} ${counter}`;
 
-    const newCaption: AIDecision = { 
-      ...caption, 
-      id: `${Date.now()}-${Math.random()}`, 
+    const newCaption: AIDecision = {
+      ...caption,
+      id: `${Date.now()}-${Math.random()}`,
       name, // Assign the generated name
       position: caption.position || { x: 50, y: 50 },
       style: captionStyle,
@@ -306,18 +451,18 @@ export const VideoCanvas = ({
           const targetGraph = graphs.find(g => g.id === activeGraphId);
           if (!targetGraph) {
             setActiveGraphId(null);
-            return; 
+            return;
           }
 
           console.log(`Updating active graph ${activeGraphId} with: "${correctedTranscript}"`);
           const graphAiResponse = await processGraphCommand(correctedTranscript, targetGraph);
           log('AI_RESPONSE', 'Graph UPDATE response received', graphAiResponse);
-          
+
           if (!graphAiResponse) {
             toast.error("Didn't understand that graph command. Try 'add [label] with [value]' or 'change title to [new title]'.");
             return;
           }
-          
+
           setDebugInfo((prev) => ({ ...prev, aiResponse: graphAiResponse as any }));
 
           const existingDataMap = new Map(targetGraph.data.map(d => [d.label.toLowerCase(), d.value]));
@@ -330,7 +475,7 @@ export const VideoCanvas = ({
           }
           const mergedData = Array.from(existingDataMap, ([label, value]) => ({ label, value }));
 
-          const updatedGraph: GraphObject = { 
+          const updatedGraph: GraphObject = {
             ...targetGraph,
             data: mergedData,
             config: {
@@ -342,7 +487,7 @@ export const VideoCanvas = ({
               yAxisLabel: graphAiResponse.config?.yAxisLabel || targetGraph.config.yAxisLabel,
             }
           };
-          
+
           setGraphs(prev => prev.map(g => (g.id === activeGraphId ? updatedGraph : g)));
 
           // @ts-ignore
@@ -362,14 +507,14 @@ export const VideoCanvas = ({
           console.log("✅ Matched 'isGraphRelated'. Entering CREATE logic.");
           const graphAiResponse = await processGraphCommand(correctedTranscript);
           log('AI_RESPONSE', 'Graph CREATE response received', graphAiResponse);
-          
+
           if (!graphAiResponse) {
             toast.error("Couldn't create graph. Try: 'Create a bar graph'");
             return;
           }
 
           setDebugInfo((prev) => ({ ...prev, aiResponse: graphAiResponse as any }));
-          
+
           // UPDATED: Assign a name when creating the graph
           const counter = (overlayNameCounters.current['graph'] || 0) + 1;
           overlayNameCounters.current['graph'] = counter;
@@ -395,11 +540,11 @@ export const VideoCanvas = ({
           };
 
           setGraphs(prev => [...prev, newGraph]);
-          
+
           setActiveGraphId(newGraph.id);
           console.log(`✅ FOCUS SET. activeGraphId is now: ${newGraph.id}`);
           toast.success("Graph created! It is now in focus.");
-          
+
           return;
         }
 
@@ -407,7 +552,7 @@ export const VideoCanvas = ({
           // Pass both captions and graphs to the AI for context
           const allOverlays = [...permanentCaptions, ...graphs];
           const editAction = await processEditCommand(correctedTranscript, allOverlays);
-          
+
           if (!editAction || !editAction.targetCaptionId) {
             toast.error("Couldn't find the overlay to edit. Try saying 'edit' plus its name (e.g., 'edit Title 1').");
             return;
@@ -416,7 +561,7 @@ export const VideoCanvas = ({
           // Find the target overlay (could be a caption or a graph)
           const targetIsCaption = permanentCaptions.some(c => c.id === editAction.targetCaptionId);
           if (targetIsCaption) {
-              setPermanentCaptions(prevCaptions => 
+              setPermanentCaptions(prevCaptions =>
                 prevCaptions.map(caption => {
                   if (caption.id !== editAction.targetCaptionId) return caption;
                   let newText = caption.formattedText;
@@ -442,7 +587,7 @@ export const VideoCanvas = ({
           }
           return;
         }
-        
+
         const aiDecision = await formatCaptionWithAI(correctedTranscript);
         log('AI_RESPONSE', 'Caption response received', aiDecision);
         setDebugInfo((prev) => ({ ...prev, aiResponse: aiDecision, error: null }));
@@ -500,7 +645,7 @@ export const VideoCanvas = ({
     },
     [setDebugInfo, captionStyle, processCaptionQueue, permanentCaptions, graphs, activeGraphId, log, setPermanentCaptions],
   );
-  
+
   const handleNewTranscriptRef = useRef(handleNewTranscript);
   useEffect(() => {
     handleNewTranscriptRef.current = handleNewTranscript;
@@ -523,7 +668,7 @@ export const VideoCanvas = ({
   const handleGraphPositionChange = (id: string, position: { x: number; y: number }) => {
     setGraphs(graphs => graphs.map(g => (g.id === id ? { ...g, position } : g)));
   };
-  
+
   const handlePermanentCaptionTextChange = (id: string, newText: string) => {
     setPermanentCaptions(captions => captions.map(c => (c.id === id ? { ...c, formattedText: newText } : c)));
   };
@@ -547,33 +692,6 @@ export const VideoCanvas = ({
     },
   });
 
-  useEffect(() => {
-    const startStream = async () => {
-      if (videoRef.current) {
-        try {
-          let stream;
-          if (recordingMode === "screen" || recordingMode === "both") {
-            stream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false });
-          } else {
-            stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
-          }
-          videoRef.current.srcObject = stream;
-        } catch (error) {
-          console.error("Error accessing media devices.", error);
-          toast.error("Could not access camera/screen.", {
-            description: "Please check permissions and try again.",
-          });
-        }
-      }
-    };
-    startStream();
-    return () => {
-      if (videoRef.current && videoRef.current.srcObject) {
-        (videoRef.current.srcObject as MediaStream).getTracks().forEach((track) => track.stop());
-      }
-    };
-  }, [recordingMode]);
-
   const handleStopRecording = () => {
     stopRecognition();
     setPermanentCaptions([]);
@@ -596,16 +714,16 @@ export const VideoCanvas = ({
 
   const getLiveCaptionStyles = () => {
     const baseStyles = getCaptionStyleOverrides(
-      liveCaption || { 
-        formattedText: partialTranscript, 
-        decision: 'SHOW', 
-        type: 'live', 
-        duration: 4, 
-        captionIntent: 'live' 
-      } as AIDecision, 
+      liveCaption || {
+        formattedText: partialTranscript,
+        decision: 'SHOW',
+        type: 'live',
+        duration: 4,
+        captionIntent: 'live'
+      } as AIDecision,
       captionStyle
     );
-    
+
     return {
       ...baseStyles,
       left: `${liveCaptionPosition.x}%`,
@@ -616,10 +734,10 @@ export const VideoCanvas = ({
       animation: liveCaption ? "slideUp 0.4s cubic-bezier(0.34, 1.56, 0.64, 1)" : "pulse 1.s ease-in-out infinite",
     };
   };
-  
+
   return (
-    <div 
-      className="flex-1 relative bg-black overflow-hidden" 
+    <div
+      className="flex-1 relative bg-black overflow-hidden"
       onMouseMove={handleMouseMove}
       onClick={() => setSelectedCaptionId(null)}
     >
@@ -632,15 +750,11 @@ export const VideoCanvas = ({
         .quote-before { top: -0.2em; left: -0.4em; }
         .quote-after { bottom: -0.5em; right: -0.4em; }
       `}</style>
-      
-      <video 
-        ref={videoRef} 
-        className="absolute inset-0 w-full h-full object-cover" 
-        autoPlay 
-        muted 
-      />
-      
-      <div 
+
+      <video ref={videoRef} className="hidden" autoPlay muted playsInline />
+      <canvas ref={canvasRef} className="absolute inset-0 w-full h-full object-cover" />
+
+      <div
         className="absolute inset-0"
         onClick={(e) => e.stopPropagation()}
       >
@@ -658,9 +772,9 @@ export const VideoCanvas = ({
                 onSelect={setSelectedCaptionId}
               />
             ))}
-            
+
             {(liveCaption || partialTranscript) && (
-              <div 
+              <div
                 ref={liveCaptionRef}
                 className="absolute select-none text-center"
                 style={getLiveCaptionStyles()}
@@ -671,7 +785,7 @@ export const VideoCanvas = ({
             )}
           </>
         )}
-        
+
         {graphs.map((graph) => (
           <DraggableGraph
             key={graph.id}

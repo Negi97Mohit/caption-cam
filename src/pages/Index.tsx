@@ -11,13 +11,14 @@ const Index = () => {
     position: { x: 50, y: 85 }, shape: "rounded", animation: "fade", outline: false, shadow: true,
     bold: false, italic: false, underline: false,
   });
-  
+
   // --- State for individual captions ---
   const [permanentCaptions, setPermanentCaptions] = useState<AIDecision[]>([]);
   const [selectedCaptionId, setSelectedCaptionId] = useState<string | null>(null);
 
-  // --- NEW: State for video effects ---
-  const [backgroundEffect, setBackgroundEffect] = useState<'none' | 'blur'>('none');
+  // --- UPDATED: State for video effects ---
+  const [backgroundEffect, setBackgroundEffect] = useState<'none' | 'blur' | 'image'>('none');
+  const [backgroundImageUrl, setBackgroundImageUrl] = useState<string | null>(null);
   const [isAutoFramingEnabled, setIsAutoFramingEnabled] = useState(false);
 
   // --- State for resizable and collapsible sidebar ---
@@ -34,7 +35,7 @@ const Index = () => {
     setSelectedTemplate(template);
     setCaptionStyle(template.style);
     if (selectedCaptionId) {
-      setPermanentCaptions(caps => 
+      setPermanentCaptions(caps =>
         caps.map(c => c.id === selectedCaptionId ? { ...c, style: template.style } : c)
       );
     }
@@ -42,7 +43,7 @@ const Index = () => {
 
   const handleStyleChange = useCallback((newStyle: CaptionStyle) => {
     if (selectedCaptionId) {
-      setPermanentCaptions(caps => 
+      setPermanentCaptions(caps =>
         caps.map(c => c.id === selectedCaptionId ? { ...c, style: newStyle } : c)
       );
     } else {
@@ -79,6 +80,8 @@ const Index = () => {
           // Pass new state and setters for video effects
           backgroundEffect={backgroundEffect}
           onBackgroundEffectChange={setBackgroundEffect}
+          backgroundImageUrl={backgroundImageUrl}
+          onBackgroundImageUrlChange={setBackgroundImageUrl}
           isAutoFramingEnabled={isAutoFramingEnabled}
           onAutoFramingChange={setIsAutoFramingEnabled}
         />
@@ -94,6 +97,7 @@ const Index = () => {
           setSelectedCaptionId={setSelectedCaptionId}
           // Pass new effect state
           backgroundEffect={backgroundEffect}
+          backgroundImageUrl={backgroundImageUrl}
           isAutoFramingEnabled={isAutoFramingEnabled}
         />
       </div>

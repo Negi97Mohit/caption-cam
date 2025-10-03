@@ -1,6 +1,7 @@
 import React, { useState, useCallback } from "react";
 import { CaptionStyle, CaptionTemplate } from "@/types/caption";
 import { PRESET_TEMPLATES } from "@/lib/presets";
+import { BACKGROUND_PRESETS, BackgroundOption } from "@/lib/backgrounds";
 import { StyleControls } from "./StyleControls";
 import { DebugPanel } from "./DebugPanel";
 import { Switch } from "./ui/switch";
@@ -8,9 +9,8 @@ import { Label } from "./ui/label";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "./ui/accordion";
 import { ScrollArea } from "./ui/scroll-area";
 import { cn } from "@/lib/utils";
-import { LayoutTemplate, Palette, Bug, Sparkles } from "lucide-react";
+import { LayoutTemplate, Palette, Bug, Sparkles, Ban, Droplets } from "lucide-react";
 import { Button } from "./ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 
 interface LeftSidebarProps {
   onSelectTemplate: (template: CaptionTemplate) => void;
@@ -22,8 +22,10 @@ interface LeftSidebarProps {
   onResize: (width: number) => void;
   onMouseEnter: () => void;
   onMouseLeave: () => void;
-  backgroundEffect: 'none' | 'blur';
-  onBackgroundEffectChange: (effect: 'none' | 'blur') => void;
+  backgroundEffect: 'none' | 'blur' | 'image';
+  onBackgroundEffectChange: (effect: 'none' | 'blur' | 'image') => void;
+  backgroundImageUrl: string | null;
+  onBackgroundImageUrlChange: (url: string | null) => void;
   isAutoFramingEnabled: boolean;
   onAutoFramingChange: (enabled: boolean) => void;
 }
@@ -34,11 +36,18 @@ const MAX_WIDTH = 600;
 export const LeftSidebar = ({
   onSelectTemplate, selectedTemplate, style, onStyleChange,
   width, isCollapsed, onResize, onMouseEnter, onMouseLeave,
-  backgroundEffect, onBackgroundEffectChange, isAutoFramingEnabled, onAutoFramingChange
+  backgroundEffect, onBackgroundEffectChange, backgroundImageUrl, onBackgroundImageUrlChange,
+  isAutoFramingEnabled, onAutoFramingChange
 }: LeftSidebarProps) => {
   const [showDebug, setShowDebug] = useState(false);
   const isResizing = React.useRef(false);
 
+  const handleBackgroundSelect = (effect: 'none' | 'blur' | 'image', url: string | null = null) => {
+    onBackgroundEffectChange(effect);
+    onBackgroundImageUrlChange(url);
+  };
+
+  // ... (mouse move/down/up handlers remain the same) ...
   const handleMouseDown = (e: React.MouseEvent) => {
     e.preventDefault();
     isResizing.current = true;
@@ -61,6 +70,7 @@ export const LeftSidebar = ({
     document.removeEventListener('mouseup', handleMouseUp);
   }, [handleMouseMove]);
 
+
   const previewStyle: React.CSSProperties = {
     fontFamily: style.fontFamily, fontSize: `${style.fontSize}px`, color: style.color,
     backgroundColor: style.backgroundColor, fontWeight: style.bold ? "bold" : "normal",
@@ -76,7 +86,6 @@ export const LeftSidebar = ({
       onMouseLeave={onMouseLeave}
     >
       <div className={cn("flex-1 flex flex-col overflow-hidden transition-opacity duration-200", isCollapsed && "opacity-0")}>
-        {/* --- EXPANDED VIEW --- */}
         <div className="p-4 border-b">
           <div className="h-24 w-full rounded-lg bg-background/50 flex items-center justify-center p-2">
             <div className="px-4 py-2 rounded-md text-center truncate" style={previewStyle}>
@@ -90,8 +99,7 @@ export const LeftSidebar = ({
             <AccordionItem value="templates">
               <AccordionTrigger className="px-4 text-base font-semibold">Templates</AccordionTrigger>
               <AccordionContent className="px-4">
-                <p className="text-sm text-muted-foreground mb-4">Select a style to get started.</p>
-                <div className="grid grid-cols-2 gap-3">
+                 <div className="grid grid-cols-2 gap-3">
                   {PRESET_TEMPLATES.map((template) => (
                     <div
                       key={template.id}
@@ -104,7 +112,7 @@ export const LeftSidebar = ({
                 </div>
               </AccordionContent>
             </AccordionItem>
-            
+
             <AccordionItem value="customize">
               <AccordionTrigger className="px-4 text-base font-semibold">Customize Style</AccordionTrigger>
               <AccordionContent className="px-4">
@@ -114,26 +122,36 @@ export const LeftSidebar = ({
 
             <AccordionItem value="effects">
               <AccordionTrigger className="px-4 text-base font-semibold">Video Effects</AccordionTrigger>
-              <AccordionContent className="px-4 space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="background-effect">Background</Label>
-                  <Select value={backgroundEffect} onValueChange={(value: 'none' | 'blur') => onBackgroundEffectChange(value)}>
-                    <SelectTrigger id="background-effect">
-                      <SelectValue placeholder="Select an effect" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">None</SelectItem>
-                      <SelectItem value="blur">Blur Background</SelectItem>
-                    </SelectContent>
-                  </Select>
+              <AccordionContent className="px-4 space-y-6">
+                <div className="space-y-3">
+                  <Label>Background</Label>
+                  <div className="grid grid-cols-3 gap-2">
+                    <Button variant={backgroundEffect === 'none' ? 'default' : 'secondary'} className="h-16 flex-col" onClick={() => handleBackgroundSelect('none')}>
+                      <Ban className="w-5 h-5 mb-1" /> None
+                    </Button>
+                    <Button variant={backgroundEffect === 'blur' ? 'default' : 'secondary'} className="h-16 flex-col" onClick={() => handleBackgroundSelect('blur')}>
+                      <Droplets className="w-5 h-5 mb-1" /> Blur
+                    </Button>
+                    {BACKGROUND_PRESETS.map((preset) => (
+                      <div
+                        key={preset.id}
+                        onClick={() => handleBackgroundSelect('image', preset.imageUrl)}
+                        className={cn(
+                          "cursor-pointer rounded-md border-2 transition-all aspect-[16/10] bg-cover bg-center",
+                          backgroundEffect === 'image' && backgroundImageUrl === preset.imageUrl ? "border-primary ring-2 ring-primary/50" : "border-border hover:border-primary/50"
+                        )}
+                        style={{ backgroundImage: `url(${preset.thumbnailUrl})` }}
+                      />
+                    ))}
+                  </div>
                 </div>
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between pt-4 border-t">
                   <Label htmlFor="auto-framing-toggle" className="font-medium">Auto-framing</Label>
                   <Switch id="auto-framing-toggle" checked={isAutoFramingEnabled} onCheckedChange={onAutoFramingChange} />
                 </div>
               </AccordionContent>
             </AccordionItem>
-            
+
             <AccordionItem value="debug">
               <AccordionTrigger className="px-4 text-base font-semibold">Debug</AccordionTrigger>
               <AccordionContent className="px-4">

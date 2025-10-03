@@ -11,101 +11,36 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { DraggableGraph } from './DraggableGraph';
 import { CommandHintOverlay } from './CommandHintOverlay'; 
-import { useBrowserSpeech } from "@/hooks/useBrowserSpeech"; // UPDATED: Import the new hook
+import { useBrowserSpeech } from "@/hooks/useBrowserSpeech";
 
+// (This helper function remains unchanged)
 const getCaptionStyleOverrides = (caption: AIDecision, baseStyle: CaptionStyle): React.CSSProperties => {
   const intent = caption.captionIntent || 'default';
   let intentOverrides: Partial<React.CSSProperties> = {};
 
   switch (intent) {
     case 'title':
-      intentOverrides = {
-        fontSize: baseStyle.fontSize * 2.0,
-        fontWeight: '800',
-        textTransform: 'uppercase',
-        letterSpacing: '3px',
-        textShadow: '0 4px 20px rgba(0, 0, 0, 0.4)',
-        backgroundColor: 'transparent',
-      };
+      intentOverrides = { fontSize: baseStyle.fontSize * 2.0, fontWeight: '800', textTransform: 'uppercase', letterSpacing: '3px', textShadow: '0 4px 20px rgba(0, 0, 0, 0.4)', backgroundColor: 'transparent' };
       break;
     case 'question':
-      intentOverrides = {
-        fontSize: baseStyle.fontSize * 1.2,
-        fontWeight: '600',
-        padding: '12px 20px',
-        border: '1px solid hsl(var(--border))',
-        backgroundColor: 'hsl(var(--background) / 0.5)',
-        backdropFilter: 'blur(8px)',
-        boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)',
-        transform: 'rotate(-2deg) scale(1.02)',
-        maxWidth: '500px',
-      };
+      intentOverrides = { fontSize: baseStyle.fontSize * 1.2, fontWeight: '600', padding: '12px 20px', border: '1px solid hsl(var(--border))', backgroundColor: 'hsl(var(--background) / 0.5)', backdropFilter: 'blur(8px)', boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)', transform: 'rotate(-2deg) scale(1.02)', maxWidth: '500px' };
       break;
     case 'list':
-      intentOverrides = {
-        fontSize: baseStyle.fontSize,
-        fontWeight: '500',
-        padding: '16px 24px',
-        borderLeft: '3px solid hsl(var(--primary))',
-        backgroundColor: 'hsl(var(--background) / 0.5)',
-        backdropFilter: 'blur(8px)',
-        boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)',
-        textAlign: 'left',
-        lineHeight: '1.7',
-        maxWidth: '400px',
-      };
+      intentOverrides = { fontSize: baseStyle.fontSize, fontWeight: '500', padding: '16px 24px', borderLeft: '3px solid hsl(var(--primary))', backgroundColor: 'hsl(var(--background) / 0.5)', backdropFilter: 'blur(8px)', boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)', textAlign: 'left', lineHeight: '1.7', maxWidth: '400px' };
       break;
     case 'quote':
-      intentOverrides = {
-        fontSize: baseStyle.fontSize * 1.4,
-        fontWeight: '500',
-        backgroundColor: 'transparent',
-        fontStyle: 'italic',
-        textAlign: 'center',
-        textShadow: '0 2px 8px rgba(0, 0, 0, 0.5)',
-        maxWidth: '60%',
-        '--quote-color': 'hsl(var(--primary) / 0.5)',
-      };
+      intentOverrides = { fontSize: baseStyle.fontSize * 1.4, fontWeight: '500', backgroundColor: 'transparent', fontStyle: 'italic', textAlign: 'center', textShadow: '0 2px 8px rgba(0, 0, 0, 0.5)', maxWidth: '60%', '--quote-color': 'hsl(var(--primary) / 0.5)' };
       break;
     case 'stat':
-      intentOverrides = {
-        fontSize: baseStyle.fontSize * 1.8,
-        fontWeight: '800',
-        background: 'hsl(var(--primary) / 0.1)',
-        color: 'hsl(var(--primary))',
-        padding: '24px',
-        borderRadius: '50%',
-        boxShadow: `0 0 0 2px hsl(var(--primary)), 0 0 20px hsl(var(--primary) / 0.5)`,
-        textAlign: 'center',
-        border: '2px solid transparent',
-        minWidth: '150px',
-        minHeight: '150px',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        lineHeight: '1.1',
-      };
+      intentOverrides = { fontSize: baseStyle.fontSize * 1.8, fontWeight: '800', background: 'hsl(var(--primary) / 0.1)', color: 'hsl(var(--primary))', padding: '24px', borderRadius: '50%', boxShadow: `0 0 0 2px hsl(var(--primary)), 0 0 20px hsl(var(--primary) / 0.5)`, textAlign: 'center', border: '2px solid transparent', minWidth: '150px', minHeight: '150px', display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: '1.1' };
       break;
-    case 'live':
     default:
-      intentOverrides = {
-        fontWeight: '600',
-        padding: '8px 16px',
-        backgroundColor: 'hsl(var(--background) / 0.5)',
-        backdropFilter: 'blur(8px)',
-        borderRadius: 'var(--radius)',
-        textShadow: '0 1px 3px rgba(0, 0, 0, 0.3)',
-        boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
-        maxWidth: '90%',
-        wordWrap: 'break-word',
-      };
+      intentOverrides = { fontWeight: '600', padding: '8px 16px', backgroundColor: 'hsl(var(--background) / 0.5)', backdropFilter: 'blur(8px)', borderRadius: 'var(--radius)', textShadow: '0 1px 3px rgba(0, 0, 0, 0.3)', boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)', maxWidth: '90%', wordWrap: 'break-word' };
       break;
   }
-  return {
-    ...baseStyle,
-    ...intentOverrides,
-  };
+  return { ...baseStyle, ...intentOverrides };
 };
+
 
 interface DraggableCaptionProps {
   caption: AIDecision;
@@ -196,8 +131,8 @@ const DraggableCaption = ({ caption, onPositionChange, onDragChange, onDelete, o
       onDoubleClick={() => setIsEditing(true)}
       onClick={(e) => { e.stopPropagation(); onSelect(caption.id!); }}
     >
+      {caption.name && <span className="absolute -top-6 left-1/2 -translate-x-1/2 bg-primary text-primary-foreground text-xs font-bold px-2 py-0.5 rounded-full opacity-0 group-hover:opacity-100 transition-opacity">{caption.name}</span>}
       {caption.captionIntent === 'quote' && <span className="quote-before pointer-events-none">"</span>}
-      <Move className="absolute -top-6 right-1/2 translate-x-1/2 h-5 w-5 text-white opacity-0 group-hover:opacity-100 transition-opacity drop-shadow-lg" />
       <button className="delete-btn absolute -top-3 -right-3 z-10 h-7 w-7 bg-red-500 hover:bg-red-600 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all shadow-lg hover:scale-110" onClick={(e) => { e.stopPropagation(); if (caption.id) onDelete(caption.id); }} title="Delete caption"><X className="h-4 w-4 text-white" /></button>
       <div className="whitespace-pre-wrap" style={isStat ? {display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center'} : {}}>
         {isEditing ? (<textarea ref={textareaRef} defaultValue={caption.formattedText} onBlur={handleSave} onKeyDown={handleKeyDown} autoFocus className="w-full h-auto bg-transparent border-none outline-none resize-none" style={{ fontFamily: 'inherit', fontSize: 'inherit', fontWeight: 'inherit', color: 'inherit', lineHeight: 'inherit', letterSpacing: 'inherit', textAlign: 'inherit', textTransform: 'inherit', minWidth: '200px' }} />) : (caption.formattedText)}
@@ -213,7 +148,6 @@ interface VideoCanvasProps {
   captionsEnabled: boolean;
   recordingMode: "webcam" | "screen" | "both";
   onRecordingModeChange: (mode: "webcam" | "screen" | "both") => void;
-  onCaptionPositionChange: (position: { x: number; y: number }) => void;
   permanentCaptions: AIDecision[];
   setPermanentCaptions: React.Dispatch<React.SetStateAction<AIDecision[]>>;
   selectedCaptionId: string | null;
@@ -238,6 +172,9 @@ export const VideoCanvas = ({
   const isProcessingQueueRef = useRef(false);
   const questionPositionToggleRef = useRef(false);
   const liveCaptionTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  
+  // UPDATED: Add counters for naming overlays
+  const overlayNameCounters = useRef<{ [key: string]: number }>({ title: 0, list: 0, question: 0, quote: 0, stat: 0, graph: 0 });
 
   const [isDragging, setIsDragging] = useState(false);
   const [activeGraphId, setActiveGraphId] = useState<string | null>(null);
@@ -258,14 +195,22 @@ export const VideoCanvas = ({
 
   const EDIT_TRIGGER_WORDS = ["edit", "change", "update", "add to", "append", "remove", "delete"];
   const GRAPH_TRIGGER_WORDS = ["graph", "chart", "plot", "bar chart", "line chart", "pie chart", "add", "set"];
-  const GRAPH_EDIT_COMMANDS = ["add [label] with [value] percent", "change the title to [new title]", "set x-axis to [label]", "done (to exit editing)"];
-  const GENERAL_COMMANDS = ["create a bar chart", "create a line chart", "edit the [caption text or type]", "select the graph (to edit)"];
+  const GRAPH_EDIT_COMMANDS = ["add [label] with [value] percent", "change title to [new title]", "done (to exit editing)"];
+  
+  // UPDATED: This will now be generated dynamically
+  const [generalCommands, setGeneralCommands] = useState<string[]>(["create a bar chart", "create a line chart"]);
   
   useEffect(() => {
-    if (!isDraggingLive) {
-      setLiveCaptionPosition(captionStyle.position);
-    }
-  }, [captionStyle.position, isDraggingLive]);
+    // This effect now only runs when the global captionStyle.position changes from the sidebar.
+    setLiveCaptionPosition(captionStyle.position);
+  }, [captionStyle.position]);
+
+  // UPDATED: Dynamically generate command hints based on on-screen overlays
+  useEffect(() => {
+    const creationCommands = ["create a bar chart", "create a line chart"];
+    const editCommands = [...permanentCaptions, ...graphs].map(overlay => `edit "${overlay.name}"`);
+    setGeneralCommands([...creationCommands, ...editCommands]);
+  }, [permanentCaptions, graphs]);
 
   const handleMouseMove = () => {
     setAreControlsVisible(true);
@@ -321,9 +266,17 @@ export const VideoCanvas = ({
     if (isProcessingQueueRef.current || captionQueueRef.current.length === 0) return;
     isProcessingQueueRef.current = true;
     const caption = captionQueueRef.current.shift()!;
+    const intent = caption.captionIntent || 'live';
+    
+    // UPDATED: Assign a name when creating the caption
+    const counter = (overlayNameCounters.current[intent] || 0) + 1;
+    overlayNameCounters.current[intent] = counter;
+    const name = `${intent.charAt(0).toUpperCase() + intent.slice(1)} ${counter}`;
+
     const newCaption: AIDecision = { 
       ...caption, 
       id: `${Date.now()}-${Math.random()}`, 
+      name, // Assign the generated name
       position: caption.position || { x: 50, y: 50 },
       style: captionStyle,
     };
@@ -368,8 +321,10 @@ export const VideoCanvas = ({
           setDebugInfo((prev) => ({ ...prev, aiResponse: graphAiResponse as any }));
 
           const existingDataMap = new Map(targetGraph.data.map(d => [d.label.toLowerCase(), d.value]));
+          // @ts-ignore
           if (graphAiResponse.data) {
-            (graphAiResponse.data as any).forEach((newDataPoint: { label: string; value: number }) => {
+            // @ts-ignore
+            graphAiResponse.data.forEach(newDataPoint => {
               existingDataMap.set(newDataPoint.label.toLowerCase(), newDataPoint.value);
             });
           }
@@ -379,15 +334,19 @@ export const VideoCanvas = ({
             ...targetGraph,
             data: mergedData,
             config: {
+              // @ts-ignore
               title: graphAiResponse.config?.title || targetGraph.config.title,
+              // @ts-ignore
               xAxisLabel: graphAiResponse.config?.xAxisLabel || targetGraph.config.xAxisLabel,
+              // @ts-ignore
               yAxisLabel: graphAiResponse.config?.yAxisLabel || targetGraph.config.yAxisLabel,
             }
           };
           
           setGraphs(prev => prev.map(g => (g.id === activeGraphId ? updatedGraph : g)));
 
-          if ((graphAiResponse as any).status === 'COMPLETE' && mergedData.length >= 2) {
+          // @ts-ignore
+          if (graphAiResponse.status === 'COMPLETE' && mergedData.length >= 2) {
             toast.success("Graph completed!");
             setActiveGraphId(null);
           } else {
@@ -399,7 +358,7 @@ export const VideoCanvas = ({
         const isGraphRelated = GRAPH_TRIGGER_WORDS.some(word => lowerTranscript.includes(word));
         const isEditCommand = EDIT_TRIGGER_WORDS.some(word => lowerTranscript.startsWith(word));
 
-        if (isGraphRelated) {
+        if (isGraphRelated && !isEditCommand) { // Ensure create commands don't get caught by edit logic
           console.log("✅ Matched 'isGraphRelated'. Entering CREATE logic.");
           const graphAiResponse = await processGraphCommand(correctedTranscript);
           log('AI_RESPONSE', 'Graph CREATE response received', graphAiResponse);
@@ -411,14 +370,24 @@ export const VideoCanvas = ({
 
           setDebugInfo((prev) => ({ ...prev, aiResponse: graphAiResponse as any }));
           
+          // UPDATED: Assign a name when creating the graph
+          const counter = (overlayNameCounters.current['graph'] || 0) + 1;
+          overlayNameCounters.current['graph'] = counter;
+          const name = `Graph ${counter}`;
+
           const newGraph: GraphObject = {
             id: `graph-${Date.now()}`,
+            name, // Assign the generated name
             type: 'graph',
-            graphType: (graphAiResponse as any).graphType || 'bar',
-            data: (graphAiResponse as any).data || [],
+            // @ts-ignore
+            graphType: graphAiResponse.graphType || 'bar',
+            data: graphAiResponse.data || [],
             config: {
+              // @ts-ignore
               title: graphAiResponse.config?.title || 'New Graph',
+              // @ts-ignore
               xAxisLabel: graphAiResponse.config?.xAxisLabel || '',
+              // @ts-ignore
               yAxisLabel: graphAiResponse.config?.yAxisLabel || '',
             },
             position: { x: 50, y: 50 },
@@ -434,31 +403,43 @@ export const VideoCanvas = ({
           return;
         }
 
-        if (isEditCommand && permanentCaptions.length > 0) {
-          const editAction = await processEditCommand(correctedTranscript, permanentCaptions);
+        if (isEditCommand && (permanentCaptions.length > 0 || graphs.length > 0)) {
+          // Pass both captions and graphs to the AI for context
+          const allOverlays = [...permanentCaptions, ...graphs];
+          const editAction = await processEditCommand(correctedTranscript, allOverlays);
+          
           if (!editAction || !editAction.targetCaptionId) {
-            toast.error("Couldn't find the caption to edit");
+            toast.error("Couldn't find the overlay to edit. Try saying 'edit' plus its name (e.g., 'edit Title 1').");
             return;
           }
-          setPermanentCaptions(prevCaptions => 
-            prevCaptions.map(caption => {
-              if (caption.id !== editAction.targetCaptionId) return caption;
-              let newText = caption.formattedText;
-              switch (editAction.command) {
-                case "EDIT": newText = editAction.newText || ""; break;
-                case "APPEND": newText = caption.formattedText + (editAction.newText || ""); break;
-                case "DELETE_LINE":
-                  if (editAction.lineToDelete) {
-                    const lines = caption.formattedText.split('\n');
-                    lines.splice(editAction.lineToDelete - 1, 1);
-                    newText = lines.join('\n');
+
+          // Find the target overlay (could be a caption or a graph)
+          const targetIsCaption = permanentCaptions.some(c => c.id === editAction.targetCaptionId);
+          if (targetIsCaption) {
+              setPermanentCaptions(prevCaptions => 
+                prevCaptions.map(caption => {
+                  if (caption.id !== editAction.targetCaptionId) return caption;
+                  let newText = caption.formattedText;
+                  switch (editAction.command) {
+                    case "EDIT": newText = editAction.newText || ""; break;
+                    case "APPEND": newText = caption.formattedText + (editAction.newText || ""); break;
+                    case "DELETE_LINE":
+                      if (editAction.lineToDelete) {
+                        const lines = caption.formattedText.split('\n');
+                        lines.splice(editAction.lineToDelete - 1, 1);
+                        newText = lines.join('\n');
+                      }
+                      break;
                   }
-                  break;
-              }
-              return { ...caption, formattedText: newText };
-            })
-          );
-          toast.success("Caption updated!");
+                  return { ...caption, formattedText: newText };
+                })
+              );
+              toast.success("Caption updated!");
+          } else {
+            // If it's not a caption, it must be a graph. Activate it for editing.
+            setActiveGraphId(editAction.targetCaptionId);
+            toast.info(`Graph "${graphs.find(g => g.id === editAction.targetCaptionId)?.name}" is now in focus for editing.`);
+          }
           return;
         }
         
@@ -557,10 +538,8 @@ export const VideoCanvas = ({
     );
   };
 
-  // UPDATED: Use the new browser speech hook
   const { isRecording, startRecognition, stopRecognition } = useBrowserSpeech({
     onFinalTranscript: useCallback((transcript: string) => {
-      // Feed the final transcript from the browser into our AI pipeline
       handleNewTranscriptRef.current(transcript);
     }, []),
     onPartialTranscript: (partial) => {
@@ -596,7 +575,7 @@ export const VideoCanvas = ({
   }, [recordingMode]);
 
   const handleStopRecording = () => {
-    stopRecognition(); // UPDATED
+    stopRecognition();
     setPermanentCaptions([]);
     setLiveCaption(null);
     setPartialTranscript("");
@@ -604,6 +583,7 @@ export const VideoCanvas = ({
     setActiveGraphId(null);
     listBufferRef.current = [];
     captionQueueRef.current = [];
+    overlayNameCounters.current = { title: 0, list: 0, question: 0, quote: 0, stat: 0, graph: 0 };
     isWaitingForListRef.current = false;
     isProcessingQueueRef.current = false;
     if (listTimeoutRef.current) clearTimeout(listTimeoutRef.current);
@@ -704,8 +684,8 @@ export const VideoCanvas = ({
 
         <CommandHintOverlay
           title={activeGraphId ? "Editing Graph..." : "Voice Commands"}
-          commands={activeGraphId ? GRAPH_EDIT_COMMANDS : GENERAL_COMMANDS}
-          isVisible={isRecording}
+          commands={activeGraphId ? GRAPH_EDIT_COMMANDS : generalCommands}
+          isVisible={isRecording && (permanentCaptions.length > 0 || graphs.length > 0)}
         />
 
         <div className={cn(

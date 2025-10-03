@@ -27,6 +27,7 @@ export interface CaptionTemplate {
 
 export interface AIDecision {
   id?: string;
+  name?: string;
   decision: "SHOW" | "HIDE";
   type: "live" | "highlight";
   duration: number | "permanent";
@@ -58,6 +59,7 @@ export interface GraphConfig {
 
 export interface GraphObject {
   id: string;
+  name?: string;
   type: 'graph';
   graphType: 'bar' | 'line' | 'pie';
   data: GraphDataPoint[];

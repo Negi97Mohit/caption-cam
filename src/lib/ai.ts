@@ -368,30 +368,26 @@ Current Data (${existingGraph.data.length} points): ${JSON.stringify(existingGra
   }
 }
 
-const EDIT_SYSTEM_PROMPT = `You are an AI assistant that processes voice commands to edit on-screen captions. You will receive a user's command and a JSON array of the captions currently on screen.
+// src/lib/ai.ts
 
-Your task is to identify the target caption and the action the user wants to perform. You MUST return ONLY a valid JSON object with the following structure:
+const EDIT_SYSTEM_PROMPT = `You are an AI assistant that processes voice commands to edit on-screen captions. You will receive a user's command and a JSON array of the captions currently on screen, each with a unique "name".
+
+Your task is to identify the target caption by its "name" and the action the user wants to perform. You MUST return ONLY a valid JSON object with the following structure:
 {"command": "EDIT" | "APPEND" | "DELETE_LINE", "targetCaptionId": "string", "newText"?: "string", "lineToDelete"?: number}
 
-- "command": The action to perform.
-- "targetCaptionId": The "id" of the caption from the provided context that the user is referring to.
+- "targetCaptionId": The "id" of the caption from the provided context that the user is referring to via its "name".
 - "newText": The new content for "EDIT" or "APPEND".
 - "lineToDelete": The 1-based index of the line to remove for "DELETE_LINE".
 
 CONTEXT:
-- The user might refer to captions by their content ("the one that says..."), their type ("the title", "the list"), or their position.
-- For "APPEND", the newText should start with a newline character if it's for a list (e.g., "\\n• New Item").
-- For "DELETE_LINE", identify the line number. If the user says "remove the second item", lineToDelete should be 2.
+- The user will refer to captions by their unique "name" (e.g., "edit Title 1", "add to List 1"). Match the user's command to the corresponding name in the context.
 
 Example:
-- User Command: "change the title to My Awesome Presentation"
+- User Command: "change Title 1 to My Awesome Presentation"
 - Your Output: {"command": "EDIT", "targetCaptionId": "17...-0", "newText": "MY AWESOME PRESENTATION"}
 
-- User Command: "add a final point to the list"
+- User Command: "add a final point to List 1"
 - Your Output: {"command": "APPEND", "targetCaptionId": "17...-1", "newText": "\\n• A Final Point"}
-
-- User Command: "remove the second item from the list"
-- Your Output: {"command": "DELETE_LINE", "targetCaptionId": "17...-1", "lineToDelete": 2}
 `;
 
 export async function processEditCommand(command: string, existingCaptions: AIDecision[]): Promise<EditAction | null> {

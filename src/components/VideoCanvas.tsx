@@ -4,7 +4,6 @@ import { useState, useRef, useEffect, useCallback, useLayoutEffect } from "react
 import { Maximize, Mic, Move, ScreenShare, Square, Webcam, X } from "lucide-react";
 import { CaptionStyle, AIDecision, GraphObject } from "@/types/caption";
 import { Button } from "@/components/ui/button";
-import { useVosk } from "@/hooks/useVosk";
 import { useDebug } from "@/context/DebugContext";
 import { useLog } from "@/context/LogContext";
 import { formatCaptionWithAI, autocorrectTranscript, processEditCommand, processGraphCommand } from "@/lib/ai";
@@ -12,6 +11,7 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { DraggableGraph } from './DraggableGraph';
 import { CommandHintOverlay } from './CommandHintOverlay'; 
+import { useBrowserSpeech } from "@/hooks/useBrowserSpeech"; // UPDATED: Import the new hook
 
 const getCaptionStyleOverrides = (caption: AIDecision, baseStyle: CaptionStyle): React.CSSProperties => {
   const intent = caption.captionIntent || 'default';
@@ -368,10 +368,8 @@ export const VideoCanvas = ({
           setDebugInfo((prev) => ({ ...prev, aiResponse: graphAiResponse as any }));
 
           const existingDataMap = new Map(targetGraph.data.map(d => [d.label.toLowerCase(), d.value]));
-          // @ts-ignore
           if (graphAiResponse.data) {
-            // @ts-ignore
-            graphAiResponse.data.forEach(newDataPoint => {
+            (graphAiResponse.data as any).forEach((newDataPoint: { label: string; value: number }) => {
               existingDataMap.set(newDataPoint.label.toLowerCase(), newDataPoint.value);
             });
           }
@@ -381,19 +379,15 @@ export const VideoCanvas = ({
             ...targetGraph,
             data: mergedData,
             config: {
-              // @ts-ignore
               title: graphAiResponse.config?.title || targetGraph.config.title,
-              // @ts-ignore
               xAxisLabel: graphAiResponse.config?.xAxisLabel || targetGraph.config.xAxisLabel,
-              // @ts-ignore
               yAxisLabel: graphAiResponse.config?.yAxisLabel || targetGraph.config.yAxisLabel,
             }
           };
           
           setGraphs(prev => prev.map(g => (g.id === activeGraphId ? updatedGraph : g)));
 
-          // @ts-ignore
-          if (graphAiResponse.status === 'COMPLETE' && mergedData.length >= 2) {
+          if ((graphAiResponse as any).status === 'COMPLETE' && mergedData.length >= 2) {
             toast.success("Graph completed!");
             setActiveGraphId(null);
           } else {
@@ -420,15 +414,11 @@ export const VideoCanvas = ({
           const newGraph: GraphObject = {
             id: `graph-${Date.now()}`,
             type: 'graph',
-            // @ts-ignore
-            graphType: graphAiResponse.graphType || 'bar',
-            data: graphAiResponse.data || [],
+            graphType: (graphAiResponse as any).graphType || 'bar',
+            data: (graphAiResponse as any).data || [],
             config: {
-              // @ts-ignore
               title: graphAiResponse.config?.title || 'New Graph',
-              // @ts-ignore
               xAxisLabel: graphAiResponse.config?.xAxisLabel || '',
-              // @ts-ignore
               yAxisLabel: graphAiResponse.config?.yAxisLabel || '',
             },
             position: { x: 50, y: 50 },
@@ -567,17 +557,14 @@ export const VideoCanvas = ({
     );
   };
 
-  const { isRecording, startRecording, stopRecording } = useVosk({
-    onTranscript: useCallback((transcript: string) => {
+  // UPDATED: Use the new browser speech hook
+  const { isRecording, startRecognition, stopRecognition } = useBrowserSpeech({
+    onFinalTranscript: useCallback((transcript: string) => {
+      // Feed the final transcript from the browser into our AI pipeline
       handleNewTranscriptRef.current(transcript);
     }, []),
     onPartialTranscript: (partial) => {
       setPartialTranscript(partial);
-    },
-    onError: (error) => {
-      toast.error(error.message, {
-        description: "Please ensure the Python server is running and you've granted microphone permissions.",
-      });
     },
   });
 
@@ -609,7 +596,7 @@ export const VideoCanvas = ({
   }, [recordingMode]);
 
   const handleStopRecording = () => {
-    stopRecording();
+    stopRecognition(); // UPDATED
     setPermanentCaptions([]);
     setLiveCaption(null);
     setPartialTranscript("");
@@ -725,14 +712,14 @@ export const VideoCanvas = ({
           "absolute bottom-6 w-full flex items-center justify-center gap-3 transition-all duration-300",
           areControlsVisible || !isRecording ? "opacity-100 translate-y-0" : "opacity-0 translate-y-10 pointer-events-none"
         )}>
-          <Button variant="ghost" size="icon" className="rounded-full h-12 w-12 bg-black/30 hover:bg-black/50 backdrop-blur-sm" onClick={() => onRecordingModeChange("webcam")} disabled={recordingMode === "webcam"}>
+          <Button variant="ghost" size="icon" className="rounded-full h-12 w-12 bg-black/30 hover:bg-black/50 backdrop-blur-sm" onClick={() => onRecordingModeChange("webcam")} disabled={isRecording || recordingMode === "webcam"}>
             <Webcam />
           </Button>
-          <Button variant="ghost" size="icon" className="rounded-full h-12 w-12 bg-black/30 hover:bg-black/50 backdrop-blur-sm" onClick={() => onRecordingModeChange("screen")} disabled={recordingMode === "screen"}>
+          <Button variant="ghost" size="icon" className="rounded-full h-12 w-12 bg-black/30 hover:bg-black/50 backdrop-blur-sm" onClick={() => onRecordingModeChange("screen")} disabled={isRecording || recordingMode === "screen"}>
             <ScreenShare />
           </Button>
           {!isRecording ? (
-            <Button size="icon" className="bg-red-600 hover:bg-red-700 rounded-full h-16 w-16 shadow-lg" onClick={startRecording}>
+            <Button size="icon" className="bg-red-600 hover:bg-red-700 rounded-full h-16 w-16 shadow-lg" onClick={startRecognition}>
               <Mic />
             </Button>
           ) : (

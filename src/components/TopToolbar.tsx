@@ -2,24 +2,24 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { CaptionStyle } from "@/types/caption";
 import { useTheme } from "next-themes";
-import { Moon, Sun, Eye, EyeOff, PanelLeftClose, PanelLeftOpen } from "lucide-react";
+import { Moon, Sun, Eye, EyeOff, PanelLeftClose, PanelLeftOpen, Sparkles, BrainCircuit } from "lucide-react";
 
 interface TopToolbarProps {
-  style: CaptionStyle;
-  onStyleChange: (style: CaptionStyle) => void;
   captionsEnabled: boolean;
   onCaptionsToggle: (enabled: boolean) => void;
-  isSidebarVisible: boolean; // ADDED: Prop to know sidebar state
-  onSidebarToggle: () => void; // ADDED: Prop to toggle sidebar
+  isSidebarVisible: boolean;
+  onSidebarToggle: () => void;
+  isAiModeEnabled: boolean; // ADDED
+  onAiModeToggle: (enabled: boolean) => void; // ADDED
 }
 
 export const TopToolbar = ({
-  style,
-  onStyleChange,
   captionsEnabled,
   onCaptionsToggle,
   isSidebarVisible,
   onSidebarToggle,
+  isAiModeEnabled,
+  onAiModeToggle,
 }: TopToolbarProps) => {
   const { theme, setTheme } = useTheme();
 
@@ -39,9 +39,8 @@ export const TopToolbar = ({
         <span className="sr-only">Toggle sidebar</span>
       </Button>
 
-
       <div className="ml-auto flex items-center gap-2">
-          <Button
+        <Button
           variant="ghost"
           size="icon"
           onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
@@ -50,6 +49,27 @@ export const TopToolbar = ({
           <Moon className="absolute h-[1.2rem] w-[1.2rem] rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
           <span className="sr-only">Toggle theme</span>
         </Button>
+        
+        {/* --- NEW: AI Mode Toggle Button --- */}
+        <Button
+          variant={isAiModeEnabled ? "default" : "secondary"}
+          size="sm"
+          onClick={() => onAiModeToggle(!isAiModeEnabled)}
+          title={isAiModeEnabled ? "Turn off AI features" : "Turn on AI features"}
+        >
+          {isAiModeEnabled ? (
+            <>
+              <Sparkles className="w-4 h-4 mr-2" />
+              AI Mode On
+            </>
+          ) : (
+            <>
+              <BrainCircuit className="w-4 h-4 mr-2" />
+              AI Mode Off
+            </>
+          )}
+        </Button>
+
         <Button
           variant={captionsEnabled ? "default" : "secondary"}
           size="sm"

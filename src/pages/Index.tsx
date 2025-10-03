@@ -16,7 +16,7 @@ const Index = () => {
   const [permanentCaptions, setPermanentCaptions] = useState<AIDecision[]>([]);
   const [selectedCaptionId, setSelectedCaptionId] = useState<string | null>(null);
 
-  // --- UPDATED: State for video effects ---
+  // --- State for video effects ---
   const [backgroundEffect, setBackgroundEffect] = useState<'none' | 'blur' | 'image'>('none');
   const [backgroundImageUrl, setBackgroundImageUrl] = useState<string | null>(null);
   const [isAutoFramingEnabled, setIsAutoFramingEnabled] = useState(false);
@@ -30,13 +30,33 @@ const Index = () => {
   const [selectedTemplate, setSelectedTemplate] = useState<CaptionTemplate | null>(null);
   const [captionsEnabled, setCaptionsEnabled] = useState(true);
   const [recordingMode, setRecordingMode] = useState<"webcam" | "screen" | "both">("webcam");
+  const [isAiModeEnabled, setIsAiModeEnabled] = useState(true);
 
+  // --- CORRECTED FUNCTION ---
   const handleTemplateSelect = (template: CaptionTemplate) => {
     setSelectedTemplate(template);
-    setCaptionStyle(template.style);
+
+    // Destructure the template's style to separate its position from other properties
+    const { position: _, ...stylesToApply } = template.style;
+
+    // Apply the new visual styles to the global default, but preserve the existing position
+    setCaptionStyle(prev => ({ ...stylesToApply, position: prev.position }));
+
+    // If a specific caption is selected, apply the new styles to it without changing its position
     if (selectedCaptionId) {
       setPermanentCaptions(caps =>
-        caps.map(c => c.id === selectedCaptionId ? { ...c, style: template.style } : c)
+        caps.map(c => {
+          if (c.id === selectedCaptionId) {
+            return {
+              ...c,
+              style: {
+                ...c.style!, // Keep the caption's existing style (which has the correct position)
+                ...stylesToApply, // Apply the new template styles over it
+              },
+            };
+          }
+          return c;
+        })
       );
     }
   };
@@ -54,7 +74,6 @@ const Index = () => {
   const selectedCaption = permanentCaptions.find(c => c.id === selectedCaptionId);
   const styleForSidebar = selectedCaption?.style || captionStyle;
 
-  // Determine if the sidebar should be in its minimal, icon-only state
   const isMinimized = isSidebarCollapsed && !isHoveringSidebar;
 
   return (
@@ -62,8 +81,10 @@ const Index = () => {
       <TopToolbar
         captionsEnabled={captionsEnabled}
         onCaptionsToggle={setCaptionsEnabled}
-        isSidebarCollapsed={isSidebarCollapsed}
+        isSidebarVisible={!isSidebarCollapsed}
         onSidebarToggle={() => setIsSidebarCollapsed(prev => !prev)}
+        isAiModeEnabled={isAiModeEnabled}
+        onAiModeToggle={setIsAiModeEnabled}
       />
 
       <div className="flex flex-1 overflow-hidden">
@@ -72,12 +93,11 @@ const Index = () => {
           selectedTemplate={selectedTemplate}
           style={styleForSidebar}
           onStyleChange={handleStyleChange}
-          width={isMinimized ? 64 : sidebarWidth} // Pass calculated width
+          width={isMinimized ? 64 : sidebarWidth}
           isCollapsed={isMinimized}
-          onResize={setSidebarWidth} // Pass setter for resizing
+          onResize={setSidebarWidth}
           onMouseEnter={() => setIsHoveringSidebar(true)}
           onMouseLeave={() => setIsHoveringSidebar(false)}
-          // Pass new state and setters for video effects
           backgroundEffect={backgroundEffect}
           onBackgroundEffectChange={setBackgroundEffect}
           backgroundImageUrl={backgroundImageUrl}
@@ -95,10 +115,10 @@ const Index = () => {
           setPermanentCaptions={setPermanentCaptions}
           selectedCaptionId={selectedCaptionId}
           setSelectedCaptionId={setSelectedCaptionId}
-          // Pass new effect state
           backgroundEffect={backgroundEffect}
           backgroundImageUrl={backgroundImageUrl}
           isAutoFramingEnabled={isAutoFramingEnabled}
+          isAiModeEnabled={isAiModeEnabled}
         />
       </div>
     </div>

@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback, useLayoutEffect } from "react";
-import { Maximize, Mic, Move, ScreenShare, Square, Webcam, X } from "lucide-react";
+import { Maximize, Mic, Move, ScreenShare, Square, Webcam, X, Maximize2 } from "lucide-react";
 import { CaptionStyle, AIDecision, GraphObject } from "@/types/caption";
 import { Button } from "@/components/ui/button";
 import { useDebug } from "@/context/DebugContext";
@@ -8,7 +8,7 @@ import { formatCaptionWithAI, autocorrectTranscript, processEditCommand, process
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { DraggableGraph } from './DraggableGraph';
-import { CommandHintOverlay } from './CommandHintOverlay'; 
+import { CommandHintOverlay } from './CommandHintOverlay';
 import { useBrowserSpeech } from "@/hooks/useBrowserSpeech";
 import { SelfieSegmentation } from "@mediapipe/selfie_segmentation";
 import { FaceDetection } from "@mediapipe/face_detection";
@@ -45,6 +45,7 @@ const getCaptionStyleOverrides = (caption: AIDecision, baseStyle: CaptionStyle):
 interface DraggableCaptionProps {
   caption: AIDecision;
   onPositionChange: (id: string, position: { x: number; y: number }) => void;
+  onResize: (id: string, size: { width: number; height: number }) => void;
   onDragChange: (isDragging: boolean) => void;
   onDelete: (id: string) => void;
   onTextChange: (id: string, newText: string) => void;
@@ -52,7 +53,7 @@ interface DraggableCaptionProps {
   onSelect: (id: string) => void;
 }
 
-const DraggableCaption = ({ caption, onPositionChange, onDragChange, onDelete, onTextChange, isSelected, onSelect }: DraggableCaptionProps) => {
+const DraggableCaption = ({ caption, onPositionChange, onResize, onDragChange, onDelete, onTextChange, isSelected, onSelect }: DraggableCaptionProps) => {
   const [isEditing, setIsEditing] = useState(false);
   const dragRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -70,7 +71,7 @@ const DraggableCaption = ({ caption, onPositionChange, onDragChange, onDelete, o
   }, [isEditing, caption.formattedText]);
 
   const onMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (isEditing || (e.target as HTMLElement).closest('.delete-btn')) return;
+    if (isEditing || (e.target as HTMLElement).closest('.delete-btn, .resize-handle')) return;
     if (!dragRef.current || !caption.id) return;
     onDragChange(true);
     const rect = dragRef.current.getBoundingClientRect();
@@ -92,7 +93,30 @@ const DraggableCaption = ({ caption, onPositionChange, onDragChange, onDelete, o
     document.removeEventListener("mousemove", onMouseMove);
     document.removeEventListener("mouseup", onMouseUp);
   };
-  
+
+  const onResizeMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
+    e.stopPropagation();
+    if (!dragRef.current || !caption.id) return;
+    const startRect = dragRef.current.getBoundingClientRect();
+    const startX = e.clientX;
+    const startY = e.clientY;
+
+    const onResizeMouseMove = (moveEvent: MouseEvent) => {
+      const newWidth = startRect.width + (moveEvent.clientX - startX);
+      const newHeight = startRect.height + (moveEvent.clientY - startY);
+      onResize(caption.id!, { width: Math.max(newWidth, 100), height: Math.max(newHeight, 50) });
+    };
+
+    const onResizeMouseUp = () => {
+      document.removeEventListener("mousemove", onResizeMouseMove);
+      document.removeEventListener("mouseup", onResizeMouseUp);
+    };
+
+    document.addEventListener("mousemove", onResizeMouseMove);
+    document.addEventListener("mouseup", onResizeMouseUp);
+  };
+
+
   const handleSave = () => {
     if (textareaRef.current && caption.id) {
       onTextChange(caption.id, textareaRef.current.value);
@@ -108,36 +132,68 @@ const DraggableCaption = ({ caption, onPositionChange, onDragChange, onDelete, o
   const dynamicStyles = getCaptionStyleOverrides(caption, style);
   const isStat = caption.captionIntent === 'stat';
 
+  // NEW: Calculate dynamic font size if the caption has been resized
+  const dynamicFontSize = caption.size
+    ? { fontSize: `${Math.max(12, caption.size.height / 3)}px` }
+    : {};
+
+
   const captionStyles: React.CSSProperties = {
     ...dynamicStyles,
+    ...dynamicFontSize, // Apply dynamic font size
     left: `${caption.position?.x ?? 50}%`,
     top: `${caption.position?.y ?? 85}%`,
+    width: caption.size ? `${caption.size.width}px` : 'auto',
+    height: caption.size ? `${caption.size.height}px` : 'auto',
     transform: `translate(-50%, -50%) ${dynamicStyles.transform || ''}`.trim(),
     transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
     animation: "zoomIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1)",
     position: 'absolute',
     cursor: 'move',
     userSelect: 'none',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
   };
 
+  // NEW: Separate styles for the textarea to ensure it inherits dynamic font size
+  const textAreaStyle: React.CSSProperties = {
+    ...dynamicFontSize,
+    fontFamily: 'inherit',
+    fontWeight: 'inherit',
+    color: 'inherit',
+    lineHeight: 'inherit',
+    letterSpacing: 'inherit',
+    textAlign: 'inherit',
+    textTransform: 'inherit',
+    minWidth: '200px'
+  }
+
   return (
-    <div 
-      ref={dragRef} 
-      className={cn( "group", isSelected && "ring-2 ring-primary ring-offset-2 ring-offset-background")} 
-      style={{...captionStyles, ...(isHovered && { transform: `${captionStyles.transform} scale(1.02)`, filter: 'brightness(1.1)'})}} 
-      onMouseDown={onMouseDown} 
-      onMouseEnter={() => setIsHovered(true)} 
-      onMouseLeave={() => setIsHovered(false)} 
+    <div
+      ref={dragRef}
+      className={cn("group", isSelected && "ring-2 ring-primary ring-offset-2 ring-offset-background")}
+      style={{ ...captionStyles, ...(isHovered && { transform: `${captionStyles.transform} scale(1.02)`, filter: 'brightness(1.1)' }) }}
+      onMouseDown={onMouseDown}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
       onDoubleClick={() => setIsEditing(true)}
       onClick={(e) => { e.stopPropagation(); onSelect(caption.id!); }}
     >
       {caption.name && <span className="absolute -top-6 left-1/2 -translate-x-1/2 bg-primary text-primary-foreground text-xs font-bold px-2 py-0.5 rounded-full opacity-0 group-hover:opacity-100 transition-opacity">{caption.name}</span>}
       {caption.captionIntent === 'quote' && <span className="quote-before pointer-events-none">"</span>}
       <button className="delete-btn absolute -top-3 -right-3 z-10 h-7 w-7 bg-red-500 hover:bg-red-600 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all shadow-lg hover:scale-110" onClick={(e) => { e.stopPropagation(); if (caption.id) onDelete(caption.id); }} title="Delete caption"><X className="h-4 w-4 text-white" /></button>
-      <div className="whitespace-pre-wrap" style={isStat ? {display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center'} : {}}>
-        {isEditing ? (<textarea ref={textareaRef} defaultValue={caption.formattedText} onBlur={handleSave} onKeyDown={handleKeyDown} autoFocus className="w-full h-auto bg-transparent border-none outline-none resize-none" style={{ fontFamily: 'inherit', fontSize: 'inherit', fontWeight: 'inherit', color: 'inherit', lineHeight: 'inherit', letterSpacing: 'inherit', textAlign: 'inherit', textTransform: 'inherit', minWidth: '200px' }} />) : (caption.formattedText)}
+      <div className="whitespace-pre-wrap" style={isStat ? { display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' } : {}}>
+        {isEditing ? (<textarea ref={textareaRef} defaultValue={caption.formattedText} onBlur={handleSave} onKeyDown={handleKeyDown} autoFocus className="w-full h-auto bg-transparent border-none outline-none resize-none text-center" style={textAreaStyle} />) : (caption.formattedText)}
       </div>
       {caption.captionIntent === 'quote' && <span className="quote-after pointer-events-none">"</span>}
+
+      <div
+        className="resize-handle absolute -bottom-2 -right-2 h-5 w-5 bg-primary rounded-full cursor-se-resize opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
+        onMouseDown={onResizeMouseDown}
+      >
+        <Maximize2 className="h-3 w-3 text-primary-foreground" />
+      </div>
     </div>
   );
 };
@@ -155,14 +211,14 @@ interface VideoCanvasProps {
   backgroundEffect: 'none' | 'blur' | 'image';
   backgroundImageUrl: string | null;
   isAutoFramingEnabled: boolean;
-  isAiModeEnabled: boolean; // ADDED
+  isAiModeEnabled: boolean;
 }
 
-export const VideoCanvas = ({ 
-  captionStyle, 
-  captionsEnabled, 
-  recordingMode, 
-  onRecordingModeChange, 
+export const VideoCanvas = ({
+  captionStyle,
+  captionsEnabled,
+  recordingMode,
+  onRecordingModeChange,
   permanentCaptions,
   setPermanentCaptions,
   selectedCaptionId,
@@ -170,7 +226,7 @@ export const VideoCanvas = ({
   backgroundEffect,
   backgroundImageUrl,
   isAutoFramingEnabled,
-  isAiModeEnabled, // ADDED
+  isAiModeEnabled,
 }: VideoCanvasProps) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -178,8 +234,7 @@ export const VideoCanvas = ({
   const selfieSegmentation = useRef<SelfieSegmentation | null>(null);
   const faceDetection = useRef<FaceDetection | null>(null);
   const backgroundImageRef = useRef<HTMLImageElement | null>(null);
-  
-  // ... (rest of the existing state and refs) ...
+
   const listBufferRef = useRef<string[]>([]);
   const listTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const isWaitingForListRef = useRef(false);
@@ -194,7 +249,7 @@ export const VideoCanvas = ({
   const [liveCaption, setLiveCaption] = useState<AIDecision | null>(null);
   const [partialTranscript, setPartialTranscript] = useState("");
   const [graphs, setGraphs] = useState<GraphObject[]>([]);
-  
+
   const [liveCaptionPosition, setLiveCaptionPosition] = useState(captionStyle.position);
   const [isDraggingLive, setIsDraggingLive] = useState(false);
   const dragOffsetRef = useRef({ x: 0, y: 0 });
@@ -202,7 +257,7 @@ export const VideoCanvas = ({
 
   const [areControlsVisible, setAreControlsVisible] = useState(true);
   const hideControlsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  
+
   const { setDebugInfo } = useDebug();
   const { log } = useLog();
 
@@ -250,7 +305,7 @@ export const VideoCanvas = ({
 
     const ctx = canvasElement.getContext('2d');
     if (!ctx) return;
-    
+
     let lastFacePosition = { x: 0.5, y: 0.5, width: 0.5 };
 
     const processFrame = async () => {
@@ -258,10 +313,10 @@ export const VideoCanvas = ({
         animationFrameId.current = requestAnimationFrame(processFrame);
         return;
       }
-      
+
       canvasElement.width = videoElement.videoWidth;
       canvasElement.height = videoElement.videoHeight;
-      
+
       if (isAutoFramingEnabled && faceDetection.current) {
         await faceDetection.current.send({ image: videoElement });
         // The transform is now applied within the onResults callback to ensure timing
@@ -271,7 +326,7 @@ export const VideoCanvas = ({
         await selfieSegmentation.current.send({ image: videoElement });
       } else {
         ctx.save();
-        if(isAutoFramingEnabled) {
+        if (isAutoFramingEnabled) {
           // Apply a smoothed transform if no other effects are running
           const scale = 1 / lastFacePosition.width;
           const x = (-lastFacePosition.x * canvasElement.width * scale) + (canvasElement.width / 2);
@@ -286,7 +341,6 @@ export const VideoCanvas = ({
     };
 
     // UPDATED AND FIXED: MediaPipe onResults listeners
-// UPDATED AND FIXED: MediaPipe onResults listeners
     if (selfieSegmentation.current) {
       selfieSegmentation.current.onResults((results) => {
         if (!ctx || !canvasElement) return;
@@ -303,7 +357,7 @@ export const VideoCanvas = ({
 
         // Draw the person segmentation mask first to isolate the person.
         ctx.drawImage(results.segmentationMask, 0, 0, canvasElement.width, canvasElement.height);
-        
+
         // Use 'source-in' to draw the original video, but only where the mask is.
         // This effectively puts ONLY the person on the canvas.
         ctx.globalCompositeOperation = 'source-in';
@@ -311,7 +365,7 @@ export const VideoCanvas = ({
 
         // Use 'destination-over' to draw the background BEHIND the person.
         ctx.globalCompositeOperation = 'destination-over';
-        
+
         // Logic for different background effects
         if (backgroundEffect === 'blur') {
           ctx.filter = 'blur(8px)';
@@ -319,11 +373,11 @@ export const VideoCanvas = ({
         } else if (backgroundEffect === 'image' && backgroundImageRef.current) {
           ctx.drawImage(backgroundImageRef.current, 0, 0, canvasElement.width, canvasElement.height);
         } else {
-           // If 'none' or image not loaded, create a simple black background.
-           ctx.fillStyle = '#000000';
-           ctx.fillRect(0, 0, canvasElement.width, canvasElement.height);
+          // If 'none' or image not loaded, create a simple black background.
+          ctx.fillStyle = '#000000';
+          ctx.fillRect(0, 0, canvasElement.width, canvasElement.height);
         }
-        
+
         ctx.restore();
       });
     }
@@ -349,19 +403,19 @@ export const VideoCanvas = ({
     }
 
     const startStream = async () => {
-        try {
-          let stream;
-          if (recordingMode === "screen" || recordingMode === "both") {
-            stream = await navigator.mediaDevices.getDisplayMedia({ video: { width: 1920, height: 1080 }, audio: true });
-          } else {
-            stream = await navigator.mediaDevices.getUserMedia({ video: { width: 1920, height: 1080 }, audio: true });
-          }
-          videoElement.srcObject = stream;
-          videoElement.play();
-          animationFrameId.current = requestAnimationFrame(processFrame);
-        } catch (error) {
-          toast.error("Could not access camera/screen.");
+      try {
+        let stream;
+        if (recordingMode === "screen" || recordingMode === "both") {
+          stream = await navigator.mediaDevices.getDisplayMedia({ video: { width: 1920, height: 1080 }, audio: true });
+        } else {
+          stream = await navigator.mediaDevices.getUserMedia({ video: { width: 1920, height: 1080 }, audio: true });
         }
+        videoElement.srcObject = stream;
+        videoElement.play();
+        animationFrameId.current = requestAnimationFrame(processFrame);
+      } catch (error) {
+        toast.error("Could not access camera/screen.");
+      }
     };
     startStream();
 
@@ -372,14 +426,14 @@ export const VideoCanvas = ({
       }
     };
   }, [recordingMode, backgroundEffect, isAutoFramingEnabled, backgroundImageUrl]);
-  
+
   const EDIT_TRIGGER_WORDS = ["edit", "change", "update", "add to", "append", "remove", "delete"];
   const GRAPH_TRIGGER_WORDS = ["graph", "chart", "plot", "bar chart", "line chart", "pie chart", "add", "set"];
   const GRAPH_EDIT_COMMANDS = ["add [label] with [value] percent", "change title to [new title]", "done (to exit editing)"];
-  
+
   // UPDATED: This will now be generated dynamically
   const [generalCommands, setGeneralCommands] = useState<string[]>(["create a bar chart", "create a line chart"]);
-  
+
   useEffect(() => {
     // This effect now only runs when the global captionStyle.position changes from the sidebar.
     setLiveCaptionPosition(captionStyle.position);
@@ -441,21 +495,21 @@ export const VideoCanvas = ({
     document.addEventListener("mousemove", handleLiveCaptionMouseMove);
     document.addEventListener("mouseup", handleLiveCaptionMouseUp);
   };
-  
+
   const processCaptionQueue = useCallback(() => {
     if (isProcessingQueueRef.current || captionQueueRef.current.length === 0) return;
     isProcessingQueueRef.current = true;
     const caption = captionQueueRef.current.shift()!;
     const intent = caption.captionIntent || 'live';
-    
+
     // UPDATED: Assign a name when creating the caption
     const counter = (overlayNameCounters.current[intent] || 0) + 1;
     overlayNameCounters.current[intent] = counter;
     const name = `${intent.charAt(0).toUpperCase() + intent.slice(1)} ${counter}`;
 
-    const newCaption: AIDecision = { 
-      ...caption, 
-      id: `${Date.now()}-${Math.random()}`, 
+    const newCaption: AIDecision = {
+      ...caption,
+      id: `${Date.now()}-${Math.random()}`,
       name, // Assign the generated name
       position: caption.position || { x: 50, y: 50 },
       style: captionStyle,
@@ -465,261 +519,261 @@ export const VideoCanvas = ({
   }, [captionStyle, setPermanentCaptions]);
 
   const handleNewTranscript = useCallback(
-      async (transcript: string) => {
-        if (isAiModeEnabled) {
-          // --- START: AI MODE ON LOGIC ---
-          log('TRANSCRIPT', 'Raw transcript received', transcript);
-          setPartialTranscript("");
-          setDebugInfo((prev) => ({ ...prev, rawTranscript: transcript, correctedTranscript: "...", aiResponse: null, error: null }));
+    async (transcript: string) => {
+      if (isAiModeEnabled) {
+        // --- START: AI MODE ON LOGIC ---
+        log('TRANSCRIPT', 'Raw transcript received', transcript);
+        setPartialTranscript("");
+        setDebugInfo((prev) => ({ ...prev, rawTranscript: transcript, correctedTranscript: "...", aiResponse: null, error: null }));
 
-          try {
-            const correctedTranscript = await autocorrectTranscript(transcript);
-            log('INFO', 'Autocorrected transcript', correctedTranscript);
-            setDebugInfo(prev => ({ ...prev, correctedTranscript }));
-            const lowerTranscript = correctedTranscript.toLowerCase();
+        try {
+          const correctedTranscript = await autocorrectTranscript(transcript);
+          log('INFO', 'Autocorrected transcript', correctedTranscript);
+          setDebugInfo(prev => ({ ...prev, correctedTranscript }));
+          const lowerTranscript = correctedTranscript.toLowerCase();
 
-            if (activeGraphId) {
-              if (lowerTranscript.includes('done') || lowerTranscript.includes('stop editing') || lowerTranscript.includes('exit')) {
-                toast.info("Graph editing finished.");
-                setActiveGraphId(null);
-                return;
-              }
+          if (activeGraphId) {
+            if (lowerTranscript.includes('done') || lowerTranscript.includes('stop editing') || lowerTranscript.includes('exit')) {
+              toast.info("Graph editing finished.");
+              setActiveGraphId(null);
+              return;
+            }
 
-              const targetGraph = graphs.find(g => g.id === activeGraphId);
-              if (!targetGraph) {
-                setActiveGraphId(null);
-                return;
-              }
+            const targetGraph = graphs.find(g => g.id === activeGraphId);
+            if (!targetGraph) {
+              setActiveGraphId(null);
+              return;
+            }
 
-              console.log(`Updating active graph ${activeGraphId} with: "${correctedTranscript}"`);
-              const graphAiResponse = await processGraphCommand(correctedTranscript, targetGraph);
-              log('AI_RESPONSE', 'Graph UPDATE response received', graphAiResponse);
+            console.log(`Updating active graph ${activeGraphId} with: "${correctedTranscript}"`);
+            const graphAiResponse = await processGraphCommand(correctedTranscript, targetGraph);
+            log('AI_RESPONSE', 'Graph UPDATE response received', graphAiResponse);
 
-              if (!graphAiResponse) {
-                toast.error("Didn't understand that graph command. Try 'add [label] with [value]' or 'change title to [new title]'.");
-                return;
-              }
+            if (!graphAiResponse) {
+              toast.error("Didn't understand that graph command. Try 'add [label] with [value]' or 'change title to [new title]'.");
+              return;
+            }
 
-              setDebugInfo((prev) => ({ ...prev, aiResponse: graphAiResponse as any }));
+            setDebugInfo((prev) => ({ ...prev, aiResponse: graphAiResponse as any }));
 
-              const existingDataMap = new Map(targetGraph.data.map(d => [d.label.toLowerCase(), d.value]));
+            const existingDataMap = new Map(targetGraph.data.map(d => [d.label.toLowerCase(), d.value]));
+            // @ts-ignore
+            if (graphAiResponse.data) {
               // @ts-ignore
-              if (graphAiResponse.data) {
+              graphAiResponse.data.forEach(newDataPoint => {
+                existingDataMap.set(newDataPoint.label.toLowerCase(), newDataPoint.value);
+              });
+            }
+            const mergedData = Array.from(existingDataMap, ([label, value]) => ({ label, value }));
+
+            const updatedGraph: GraphObject = {
+              ...targetGraph,
+              data: mergedData,
+              config: {
                 // @ts-ignore
-                graphAiResponse.data.forEach(newDataPoint => {
-                  existingDataMap.set(newDataPoint.label.toLowerCase(), newDataPoint.value);
-                });
+                title: graphAiResponse.config?.title || targetGraph.config.title,
+                // @ts-ignore
+                xAxisLabel: graphAiResponse.config?.xAxisLabel || targetGraph.config.xAxisLabel,
+                // @ts-ignore
+                yAxisLabel: graphAiResponse.config?.yAxisLabel || targetGraph.config.yAxisLabel,
               }
-              const mergedData = Array.from(existingDataMap, ([label, value]) => ({ label, value }));
+            };
 
-              const updatedGraph: GraphObject = {
-                ...targetGraph,
-                data: mergedData,
-                config: {
-                  // @ts-ignore
-                  title: graphAiResponse.config?.title || targetGraph.config.title,
-                  // @ts-ignore
-                  xAxisLabel: graphAiResponse.config?.xAxisLabel || targetGraph.config.xAxisLabel,
-                  // @ts-ignore
-                  yAxisLabel: graphAiResponse.config?.yAxisLabel || targetGraph.config.yAxisLabel,
-                }
-              };
+            setGraphs(prev => prev.map(g => (g.id === activeGraphId ? updatedGraph : g)));
 
-              setGraphs(prev => prev.map(g => (g.id === activeGraphId ? updatedGraph : g)));
+            // @ts-ignore
+            if (graphAiResponse.status === 'COMPLETE' && mergedData.length >= 2) {
+              toast.success("Graph completed!");
+              setActiveGraphId(null);
+            } else {
+              toast.info("Graph updated. Still in focus.");
+            }
+            return;
+          }
 
+          const isGraphRelated = GRAPH_TRIGGER_WORDS.some(word => lowerTranscript.includes(word));
+          const isEditCommand = EDIT_TRIGGER_WORDS.some(word => lowerTranscript.startsWith(word));
+
+          if (isGraphRelated && !isEditCommand) { // Ensure create commands don't get caught by edit logic
+            console.log("✅ Matched 'isGraphRelated'. Entering CREATE logic.");
+            const graphAiResponse = await processGraphCommand(correctedTranscript);
+            log('AI_RESPONSE', 'Graph CREATE response received', graphAiResponse);
+
+            if (!graphAiResponse) {
+              toast.error("Couldn't create graph. Try: 'Create a bar graph'");
+              return;
+            }
+
+            setDebugInfo((prev) => ({ ...prev, aiResponse: graphAiResponse as any }));
+
+            // UPDATED: Assign a name when creating the graph
+            const counter = (overlayNameCounters.current['graph'] || 0) + 1;
+            overlayNameCounters.current['graph'] = counter;
+            const name = `Graph ${counter}`;
+
+            const newGraph: GraphObject = {
+              id: `graph-${Date.now()}`,
+              name, // Assign the generated name
+              type: 'graph',
               // @ts-ignore
-              if (graphAiResponse.status === 'COMPLETE' && mergedData.length >= 2) {
-                toast.success("Graph completed!");
-                setActiveGraphId(null);
-              } else {
-                toast.info("Graph updated. Still in focus.");
-              }
-              return;
-            }
-
-            const isGraphRelated = GRAPH_TRIGGER_WORDS.some(word => lowerTranscript.includes(word));
-            const isEditCommand = EDIT_TRIGGER_WORDS.some(word => lowerTranscript.startsWith(word));
-
-            if (isGraphRelated && !isEditCommand) { // Ensure create commands don't get caught by edit logic
-              console.log("✅ Matched 'isGraphRelated'. Entering CREATE logic.");
-              const graphAiResponse = await processGraphCommand(correctedTranscript);
-              log('AI_RESPONSE', 'Graph CREATE response received', graphAiResponse);
-
-              if (!graphAiResponse) {
-                toast.error("Couldn't create graph. Try: 'Create a bar graph'");
-                return;
-              }
-
-              setDebugInfo((prev) => ({ ...prev, aiResponse: graphAiResponse as any }));
-
-              // UPDATED: Assign a name when creating the graph
-              const counter = (overlayNameCounters.current['graph'] || 0) + 1;
-              overlayNameCounters.current['graph'] = counter;
-              const name = `Graph ${counter}`;
-
-              const newGraph: GraphObject = {
-                id: `graph-${Date.now()}`,
-                name, // Assign the generated name
-                type: 'graph',
+              graphType: graphAiResponse.graphType || 'bar',
+              data: graphAiResponse.data || [],
+              config: {
                 // @ts-ignore
-                graphType: graphAiResponse.graphType || 'bar',
-                data: graphAiResponse.data || [],
-                config: {
-                  // @ts-ignore
-                  title: graphAiResponse.config?.title || 'New Graph',
-                  // @ts-ignore
-                  xAxisLabel: graphAiResponse.config?.xAxisLabel || '',
-                  // @ts-ignore
-                  yAxisLabel: graphAiResponse.config?.yAxisLabel || '',
-                },
-                position: { x: 50, y: 50 },
-                size: { width: 550, height: 400 },
-              };
+                title: graphAiResponse.config?.title || 'New Graph',
+                // @ts-ignore
+                xAxisLabel: graphAiResponse.config?.xAxisLabel || '',
+                // @ts-ignore
+                yAxisLabel: graphAiResponse.config?.yAxisLabel || '',
+              },
+              position: { x: 50, y: 50 },
+              size: { width: 550, height: 400 },
+            };
 
-              setGraphs(prev => [...prev, newGraph]);
+            setGraphs(prev => [...prev, newGraph]);
 
-              setActiveGraphId(newGraph.id);
-              console.log(`✅ FOCUS SET. activeGraphId is now: ${newGraph.id}`);
-              toast.success("Graph created! It is now in focus.");
+            setActiveGraphId(newGraph.id);
+            console.log(`✅ FOCUS SET. activeGraphId is now: ${newGraph.id}`);
+            toast.success("Graph created! It is now in focus.");
 
+            return;
+          }
+
+          if (isEditCommand && (permanentCaptions.length > 0 || graphs.length > 0)) {
+            // Pass both captions and graphs to the AI for context
+            const allOverlays = [...permanentCaptions, ...graphs];
+            const editAction = await processEditCommand(correctedTranscript, allOverlays);
+
+            if (!editAction || !editAction.targetCaptionId) {
+              toast.error("Couldn't find the overlay to edit. Try saying 'edit' plus its name (e.g., 'edit Title 1').");
               return;
             }
 
-            if (isEditCommand && (permanentCaptions.length > 0 || graphs.length > 0)) {
-              // Pass both captions and graphs to the AI for context
-              const allOverlays = [...permanentCaptions, ...graphs];
-              const editAction = await processEditCommand(correctedTranscript, allOverlays);
-
-              if (!editAction || !editAction.targetCaptionId) {
-                toast.error("Couldn't find the overlay to edit. Try saying 'edit' plus its name (e.g., 'edit Title 1').");
-                return;
-              }
-
-              // Find the target overlay (could be a caption or a graph)
-              const targetIsCaption = permanentCaptions.some(c => c.id === editAction.targetCaptionId);
-              if (targetIsCaption) {
-                setPermanentCaptions(prevCaptions =>
-                  prevCaptions.map(caption => {
-                    if (caption.id !== editAction.targetCaptionId) return caption;
-                    let newText = caption.formattedText;
-                    switch (editAction.command) {
-                      case "EDIT": newText = editAction.newText || ""; break;
-                      case "APPEND": newText = caption.formattedText + (editAction.newText || ""); break;
-                      case "DELETE_LINE":
-                        if (editAction.lineToDelete) {
-                          const lines = caption.formattedText.split('\n');
-                          lines.splice(editAction.lineToDelete - 1, 1);
-                          newText = lines.join('\n');
-                        }
-                        break;
-                    }
-                    return { ...caption, formattedText: newText };
-                  })
-                );
-                toast.success("Caption updated!");
-              } else {
-                // If it's not a caption, it must be a graph. Activate it for editing.
-                setActiveGraphId(editAction.targetCaptionId);
-                toast.info(`Graph "${graphs.find(g => g.id === editAction.targetCaptionId)?.name}" is now in focus for editing.`);
-              }
-              return;
+            // Find the target overlay (could be a caption or a graph)
+            const targetIsCaption = permanentCaptions.some(c => c.id === editAction.targetCaptionId);
+            if (targetIsCaption) {
+              setPermanentCaptions(prevCaptions =>
+                prevCaptions.map(caption => {
+                  if (caption.id !== editAction.targetCaptionId) return caption;
+                  let newText = caption.formattedText;
+                  switch (editAction.command) {
+                    case "EDIT": newText = editAction.newText || ""; break;
+                    case "APPEND": newText = caption.formattedText + (editAction.newText || ""); break;
+                    case "DELETE_LINE":
+                      if (editAction.lineToDelete) {
+                        const lines = caption.formattedText.split('\n');
+                        lines.splice(editAction.lineToDelete - 1, 1);
+                        newText = lines.join('\n');
+                      }
+                      break;
+                  }
+                  return { ...caption, formattedText: newText };
+                })
+              );
+              toast.success("Caption updated!");
+            } else {
+              // If it's not a caption, it must be a graph. Activate it for editing.
+              setActiveGraphId(editAction.targetCaptionId);
+              toast.info(`Graph "${graphs.find(g => g.id === editAction.targetCaptionId)?.name}" is now in focus for editing.`);
             }
+            return;
+          }
 
-            const aiDecision = await formatCaptionWithAI(correctedTranscript);
-            log('AI_RESPONSE', 'Caption response received', aiDecision);
-            setDebugInfo((prev) => ({ ...prev, aiResponse: aiDecision, error: null }));
+          const aiDecision = await formatCaptionWithAI(correctedTranscript);
+          log('AI_RESPONSE', 'Caption response received', aiDecision);
+          setDebugInfo((prev) => ({ ...prev, aiResponse: aiDecision, error: null }));
 
-            if (aiDecision.decision === "HIDE") {
-              setLiveCaption(null);
-              return;
-            }
+          if (aiDecision.decision === "HIDE") {
+            setLiveCaption(null);
+            return;
+          }
 
-            if (aiDecision.captionIntent === 'list') {
-              setLiveCaption(null);
-              listBufferRef.current.push(aiDecision.formattedText);
-              isWaitingForListRef.current = true;
-              if (listTimeoutRef.current) clearTimeout(listTimeoutRef.current);
-              listTimeoutRef.current = setTimeout(() => {
-                const formattedList = listBufferRef.current.map((item, idx) => item.trim().match(/^[•\-\d+\.]/) ? item : `${idx + 1}. ${item}`).join('\n');
-                const listCaption: AIDecision = { ...aiDecision, formattedText: formattedList, captionIntent: 'list', position: aiDecision.position || { x: 15, y: 50 } };
-                captionQueueRef.current.push(listCaption);
-                processCaptionQueue();
-                listBufferRef.current = [];
-                isWaitingForListRef.current = false;
-              }, 1500);
-              return;
-            }
-
-            if (isWaitingForListRef.current && listBufferRef.current.length > 0) {
-              if (listTimeoutRef.current) clearTimeout(listTimeoutRef.current);
+          if (aiDecision.captionIntent === 'list') {
+            setLiveCaption(null);
+            listBufferRef.current.push(aiDecision.formattedText);
+            isWaitingForListRef.current = true;
+            if (listTimeoutRef.current) clearTimeout(listTimeoutRef.current);
+            listTimeoutRef.current = setTimeout(() => {
               const formattedList = listBufferRef.current.map((item, idx) => item.trim().match(/^[•\-\d+\.]/) ? item : `${idx + 1}. ${item}`).join('\n');
-              const listCaption: AIDecision = { decision: 'SHOW', type: 'highlight', duration: 'permanent', formattedText: formattedList, captionIntent: 'list', position: { x: 15, y: 50 } };
+              const listCaption: AIDecision = { ...aiDecision, formattedText: formattedList, captionIntent: 'list', position: aiDecision.position || { x: 15, y: 50 } };
               captionQueueRef.current.push(listCaption);
+              processCaptionQueue();
               listBufferRef.current = [];
               isWaitingForListRef.current = false;
-            }
-
-            if (aiDecision.captionIntent === 'question' && !aiDecision.position) {
-              questionPositionToggleRef.current = !questionPositionToggleRef.current;
-              aiDecision.position = questionPositionToggleRef.current ? { x: 75, y: 20 } : { x: 25, y: 20 };
-            }
-
-            if (aiDecision.type === 'highlight') {
-              setLiveCaption(null);
-              captionQueueRef.current.push(aiDecision);
-              processCaptionQueue();
-            } else {
-              setLiveCaption({ ...aiDecision, id: Date.now().toString(), position: aiDecision.position || captionStyle.position });
-              if (liveCaptionTimeoutRef.current) clearTimeout(liveCaptionTimeoutRef.current);
-              liveCaptionTimeoutRef.current = setTimeout(() => { setLiveCaption(null); }, (aiDecision.duration as number) * 1000);
-            }
-          } catch (error) {
-            log('ERROR', 'Error in handleNewTranscript', error);
-            console.error("AI processing failed:", error);
-            setDebugInfo((prev) => ({ ...prev, error: "AI processing failed." }));
-            toast.error("Failed to process speech");
+            }, 1500);
+            return;
           }
-          // --- END: AI MODE ON LOGIC ---
-        } else {
-          // --- START: AI MODE OFF LOGIC ---
-          log('TRANSCRIPT', 'Raw transcript received (AI Mode OFF)', transcript);
-          setPartialTranscript("");
 
-          // Create a simple, temporary caption with the raw transcript
-          const simpleCaption: AIDecision = {
-            id: Date.now().toString(),
-            decision: "SHOW",
-            type: "live",
-            duration: 4,
-            formattedText: transcript,
-            captionIntent: "live",
-            position: liveCaptionPosition, // Use the current draggable position
-            style: captionStyle,
-          };
+          if (isWaitingForListRef.current && listBufferRef.current.length > 0) {
+            if (listTimeoutRef.current) clearTimeout(listTimeoutRef.current);
+            const formattedList = listBufferRef.current.map((item, idx) => item.trim().match(/^[•\-\d+\.]/) ? item : `${idx + 1}. ${item}`).join('\n');
+            const listCaption: AIDecision = { decision: 'SHOW', type: 'highlight', duration: 'permanent', formattedText: formattedList, captionIntent: 'list', position: { x: 15, y: 50 } };
+            captionQueueRef.current.push(listCaption);
+            listBufferRef.current = [];
+            isWaitingForListRef.current = false;
+          }
 
-          setLiveCaption(simpleCaption);
+          if (aiDecision.captionIntent === 'question' && !aiDecision.position) {
+            questionPositionToggleRef.current = !questionPositionToggleRef.current;
+            aiDecision.position = questionPositionToggleRef.current ? { x: 75, y: 20 } : { x: 25, y: 20 };
+          }
 
-          // Clear previous timeout and set a new one to hide the caption
-          if (liveCaptionTimeoutRef.current) clearTimeout(liveCaptionTimeoutRef.current);
-          liveCaptionTimeoutRef.current = setTimeout(() => {
+          if (aiDecision.type === 'highlight') {
             setLiveCaption(null);
-          }, (simpleCaption.duration as number) * 1000);
-          // --- END: AI MODE OFF LOGIC ---
+            captionQueueRef.current.push(aiDecision);
+            processCaptionQueue();
+          } else {
+            setLiveCaption({ ...aiDecision, id: Date.now().toString(), position: aiDecision.position || captionStyle.position });
+            if (liveCaptionTimeoutRef.current) clearTimeout(liveCaptionTimeoutRef.current);
+            liveCaptionTimeoutRef.current = setTimeout(() => { setLiveCaption(null); }, (aiDecision.duration as number) * 1000);
+          }
+        } catch (error) {
+          log('ERROR', 'Error in handleNewTranscript', error);
+          console.error("AI processing failed:", error);
+          setDebugInfo((prev) => ({ ...prev, error: "AI processing failed." }));
+          toast.error("Failed to process speech");
         }
-      },
-      [
-        isAiModeEnabled,
-        setDebugInfo,
-        captionStyle,
-        processCaptionQueue,
-        permanentCaptions,
-        graphs,
-        activeGraphId,
-        log,
-        setPermanentCaptions,
-        liveCaptionPosition
-      ],
-    );
+        // --- END: AI MODE ON LOGIC ---
+      } else {
+        // --- START: AI MODE OFF LOGIC ---
+        log('TRANSCRIPT', 'Raw transcript received (AI Mode OFF)', transcript);
+        setPartialTranscript("");
+
+        // Create a simple, temporary caption with the raw transcript
+        const simpleCaption: AIDecision = {
+          id: Date.now().toString(),
+          decision: "SHOW",
+          type: "live",
+          duration: 4,
+          formattedText: transcript,
+          captionIntent: "live",
+          position: liveCaptionPosition, // Use the current draggable position
+          style: captionStyle,
+        };
+
+        setLiveCaption(simpleCaption);
+
+        // Clear previous timeout and set a new one to hide the caption
+        if (liveCaptionTimeoutRef.current) clearTimeout(liveCaptionTimeoutRef.current);
+        liveCaptionTimeoutRef.current = setTimeout(() => {
+          setLiveCaption(null);
+        }, (simpleCaption.duration as number) * 1000);
+        // --- END: AI MODE OFF LOGIC ---
+      }
+    },
+    [
+      isAiModeEnabled,
+      setDebugInfo,
+      captionStyle,
+      processCaptionQueue,
+      permanentCaptions,
+      graphs,
+      activeGraphId,
+      log,
+      setPermanentCaptions,
+      liveCaptionPosition
+    ],
+  );
 
   const handleNewTranscriptRef = useRef(handleNewTranscript);
   useEffect(() => {
@@ -728,7 +782,7 @@ export const VideoCanvas = ({
 
   const removeCaption = useCallback((id: string) => {
     setPermanentCaptions(prev => prev.filter(c => c.id !== id));
-    if(selectedCaptionId === id) {
+    if (selectedCaptionId === id) {
       setSelectedCaptionId(null);
     }
   }, [setPermanentCaptions, selectedCaptionId, setSelectedCaptionId]);
@@ -740,12 +794,21 @@ export const VideoCanvas = ({
     }
   };
 
+  const handleGraphResize = (id: string, size: { width: number; height: number }) => {
+    setGraphs(graphs => graphs.map(g => (g.id === id ? { ...g, size } : g)));
+  };
+
+
   const handleGraphPositionChange = (id: string, position: { x: number; y: number }) => {
     setGraphs(graphs => graphs.map(g => (g.id === id ? { ...g, position } : g)));
   };
-  
+
   const handlePermanentCaptionTextChange = (id: string, newText: string) => {
     setPermanentCaptions(captions => captions.map(c => (c.id === id ? { ...c, formattedText: newText } : c)));
+  };
+
+  const handlePermanentCaptionResize = (id: string, size: { width: number; height: number }) => {
+    setPermanentCaptions(captions => captions.map(c => (c.id === id ? { ...c, size } : c)));
   };
 
   const handlePermanentCaptionPositionChange = (id: string, position: { x: number; y: number }) => {
@@ -789,16 +852,16 @@ export const VideoCanvas = ({
 
   const getLiveCaptionStyles = () => {
     const baseStyles = getCaptionStyleOverrides(
-      liveCaption || { 
-        formattedText: partialTranscript, 
-        decision: 'SHOW', 
-        type: 'live', 
-        duration: 4, 
-        captionIntent: 'live' 
-      } as AIDecision, 
+      liveCaption || {
+        formattedText: partialTranscript,
+        decision: 'SHOW',
+        type: 'live',
+        duration: 4,
+        captionIntent: 'live'
+      } as AIDecision,
       captionStyle
     );
-    
+
     return {
       ...baseStyles,
       left: `${liveCaptionPosition.x}%`,
@@ -809,10 +872,10 @@ export const VideoCanvas = ({
       animation: liveCaption ? "slideUp 0.4s cubic-bezier(0.34, 1.56, 0.64, 1)" : "pulse 1.s ease-in-out infinite",
     };
   };
-  
+
   return (
-    <div 
-      className="flex-1 relative bg-black overflow-hidden" 
+    <div
+      className="flex-1 relative bg-black overflow-hidden"
       onMouseMove={handleMouseMove}
       onClick={() => setSelectedCaptionId(null)}
     >
@@ -825,21 +888,21 @@ export const VideoCanvas = ({
         .quote-before { top: -0.2em; left: -0.4em; }
         .quote-after { bottom: -0.5em; right: -0.4em; }
       `}</style>
-      
-      <video 
-        ref={videoRef} 
-        className="hidden" 
-        autoPlay 
-        muted 
+
+      <video
+        ref={videoRef}
+        className="hidden"
+        autoPlay
+        muted
       />
-      <canvas 
-        ref={canvasRef} 
-        className="absolute inset-0 w-full h-full object-cover" 
+      <canvas
+        ref={canvasRef}
+        className="absolute inset-0 w-full h-full object-cover"
       />
-      
-      <div 
+
+      <div
         className="absolute inset-0"
-        onClick={(e) => e.stopPropagation()}
+        // CHANGED: Removed the onClick handler that was stopping propagation
       >
         {captionsEnabled && (
           <>
@@ -848,6 +911,7 @@ export const VideoCanvas = ({
                 key={caption.id}
                 caption={caption}
                 onPositionChange={handlePermanentCaptionPositionChange}
+                onResize={handlePermanentCaptionResize}
                 onDragChange={setIsDragging}
                 onDelete={removeCaption}
                 onTextChange={handlePermanentCaptionTextChange}
@@ -855,9 +919,9 @@ export const VideoCanvas = ({
                 onSelect={setSelectedCaptionId}
               />
             ))}
-            
+
             {(liveCaption || partialTranscript) && (
-              <div 
+              <div
                 ref={liveCaptionRef}
                 className="absolute select-none text-center"
                 style={getLiveCaptionStyles()}
@@ -868,12 +932,13 @@ export const VideoCanvas = ({
             )}
           </>
         )}
-        
+
         {graphs.map((graph) => (
           <DraggableGraph
             key={graph.id}
             graph={graph}
             onPositionChange={handleGraphPositionChange}
+            onResize={handleGraphResize}
             onDelete={removeGraph}
             isFocused={graph.id === activeGraphId}
           />

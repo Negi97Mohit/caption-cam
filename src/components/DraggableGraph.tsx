@@ -3,23 +3,26 @@ import { cn } from "@/lib/utils";
 import React, { useRef } from 'react';
 import { GraphObject } from '@/types/caption';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line } from 'recharts';
-import { Move, X } from 'lucide-react';
+import { Move, X, Maximize2 } from 'lucide-react'; // Import Maximize2 for resize icon
 
 interface DraggableGraphProps {
   graph: GraphObject;
   onPositionChange: (id: string, position: { x: number; y: number }) => void;
+  onResize: (id: string, size: { width: number; height: number }) => void; // ADDED
   onDelete: (id: string) => void;
-  isFocused: boolean; // NEW: To indicate if the graph is being actively edited
+  isFocused: boolean;
 }
 
 const COLORS = ['#8884d8', '#82ca9d', '#ffc658', '#ff8042', '#00C49F', '#FFBB28'];
 
-export const DraggableGraph = ({ graph, onPositionChange, onDelete, isFocused  }: DraggableGraphProps) => {
+export const DraggableGraph = ({ graph, onPositionChange, onResize, onDelete, isFocused }: DraggableGraphProps) => {
   const dragRef = useRef<HTMLDivElement>(null);
   const offset = useRef({ x: 0, y: 0 });
-
+  
+  // --- DRAG LOGIC ---
   const onMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
-    if ((e.target as HTMLElement).closest('.delete-btn') || (e.target as HTMLElement).closest('.recharts-wrapper')) return;
+    // Prevent dragging when clicking on delete, chart content, or resize handle
+    if ((e.target as HTMLElement).closest('.delete-btn, .recharts-wrapper, .resize-handle')) return;
     if (!dragRef.current) return;
     const rect = dragRef.current.getBoundingClientRect();
     offset.current = { x: e.clientX - rect.left, y: e.clientY - rect.top };
@@ -39,8 +42,32 @@ export const DraggableGraph = ({ graph, onPositionChange, onDelete, isFocused  }
     document.removeEventListener("mousemove", onMouseMove);
     document.removeEventListener("mouseup", onMouseUp);
   };
+  
+  // --- RESIZE LOGIC (NEW) ---
+  const onResizeMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
+    e.stopPropagation();
+    if (!dragRef.current) return;
+    const startRect = dragRef.current.getBoundingClientRect();
+    const startX = e.clientX;
+    const startY = e.clientY;
+
+    const onResizeMouseMove = (moveEvent: MouseEvent) => {
+        const newWidth = startRect.width + (moveEvent.clientX - startX);
+        const newHeight = startRect.height + (moveEvent.clientY - startY);
+        onResize(graph.id, { width: Math.max(newWidth, 200), height: Math.max(newHeight, 150) });
+    };
+
+    const onResizeMouseUp = () => {
+        document.removeEventListener("mousemove", onResizeMouseMove);
+        document.removeEventListener("mouseup", onResizeMouseUp);
+    };
+
+    document.addEventListener("mousemove", onResizeMouseMove);
+    document.addEventListener("mouseup", onResizeMouseUp);
+  };
 
   const renderChart = () => {
+    // ... (renderChart function remains the same)
      if (!graph.data || graph.data.length === 0) {
       return (
         <div className="w-full h-full flex items-center justify-center text-muted-foreground text-center p-4">
@@ -118,6 +145,14 @@ export const DraggableGraph = ({ graph, onPositionChange, onDelete, isFocused  }
       <ResponsiveContainer width="100%" height="85%">
         {renderChart()}
       </ResponsiveContainer>
+      
+      {/* NEW: Resize Handle */}
+      <div
+        className="resize-handle absolute -bottom-2 -right-2 h-5 w-5 bg-primary rounded-full cursor-se-resize opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
+        onMouseDown={onResizeMouseDown}
+      >
+        <Maximize2 className="h-3 w-3 text-primary-foreground" />
+      </div>
     </div>
   );
 };

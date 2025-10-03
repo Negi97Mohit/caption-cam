@@ -34,6 +34,7 @@ export interface AIDecision {
   formattedText: string;
   position?: { x: number; y: number };
   style?: CaptionStyle;
+  size?: { width: number; height: number }; // ADDED: For resizable captions
   cellIndex?: number;
   captionIntent?: string; // 'title' | 'question' | 'quote' | 'list' | 'live' | 'default'
 }

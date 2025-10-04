@@ -771,7 +771,8 @@ export const VideoCanvas = ({
       activeGraphId,
       log,
       setPermanentCaptions,
-      liveCaptionPosition
+      liveCaptionPosition,
+      activeGraphId
     ],
   );
 
@@ -821,13 +822,17 @@ export const VideoCanvas = ({
     );
   };
 
+  const handleFinalTranscript = useCallback((transcript: string) => {
+    handleNewTranscriptRef.current(transcript);
+  }, []); // Empty deps - uses ref which never changes
+
+  const handlePartialTranscript = useCallback((partial: string) => {
+    setPartialTranscript(partial);
+  }, []); // Empty deps - setPartialTranscript is stable
+
   const { isRecording, startRecognition, stopRecognition } = useBrowserSpeech({
-    onFinalTranscript: useCallback((transcript: string) => {
-      handleNewTranscriptRef.current(transcript);
-    }, []),
-    onPartialTranscript: (partial) => {
-      setPartialTranscript(partial);
-    },
+    onFinalTranscript: handleFinalTranscript,
+    onPartialTranscript: handlePartialTranscript,
   });
 
   const handleStopRecording = () => {

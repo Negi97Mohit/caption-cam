@@ -130,7 +130,6 @@ const DraggableCaption = ({ caption, onPositionChange, onResize, onDragChange, o
     document.addEventListener("mouseup", onResizeMouseUp);
   };
 
-
   const handleSave = () => {
     if (textareaRef.current && caption.id) {
       onTextChange(caption.id, textareaRef.current.value);
@@ -657,45 +656,124 @@ export const VideoCanvas = ({
           }
 
           if (isEditCommand && (permanentCaptions.length > 0 || graphs.length > 0)) {
-            // Pass both captions and graphs to the AI for context
             const allOverlays = [...permanentCaptions, ...graphs];
             const editAction = await processEditCommand(correctedTranscript, allOverlays);
 
-            if (!editAction || !editAction.targetCaptionId) {
-              toast.error("Couldn't find the overlay to edit. Try saying 'edit' plus its name (e.g., 'edit Title 1').");
+            if (!editAction || !editAction.targetId) {
+              toast.error("Couldn't identify which overlay to edit. Try saying its name more clearly (e.g., 'edit Title 1').");
               return;
             }
 
-            // Find the target overlay (could be a caption or a graph)
-            const targetIsCaption = permanentCaptions.some(c => c.id === editAction.targetCaptionId);
-            if (targetIsCaption) {
-              setPermanentCaptions(prevCaptions =>
-                prevCaptions.map(caption => {
-                  if (caption.id !== editAction.targetCaptionId) return caption;
-                  let newText = caption.formattedText;
-                  switch (editAction.command) {
-                    case "EDIT": newText = editAction.newText || ""; break;
-                    case "APPEND": newText = caption.formattedText + (editAction.newText || ""); break;
-                    case "DELETE_LINE":
-                      if (editAction.lineToDelete) {
-                        const lines = caption.formattedText.split('\n');
-                        lines.splice(editAction.lineToDelete - 1, 1);
-                        newText = lines.join('\n');
-                      }
-                      break;
+            const targetId = editAction.targetId;
+
+            // Check if target is a graph
+            const targetGraph = graphs.find(g => g.id === targetId);
+            if (targetGraph) {
+              switch (editAction.command) {
+                case 'GRAPH_ADD':
+                  if (editAction.graphData) {
+                    const existingLabels = new Set(targetGraph.data.map(d => d.label.toLowerCase()));
+                    const newData = existingLabels.has(editAction.graphData.label.toLowerCase())
+                      ? targetGraph.data.map(d => 
+                          d.label.toLowerCase() === editAction.graphData!.label.toLowerCase()
+                            ? editAction.graphData!
+                            : d
+                        )
+                      : [...targetGraph.data, editAction.graphData];
+                    
+                    setGraphs(prev => prev.map(g => 
+                      g.id === targetId ? { ...g, data: newData } : g
+                    ));
+                    toast.success(`Added ${editAction.graphData.label} to graph`);
                   }
-                  return { ...caption, formattedText: newText };
-                })
-              );
-              toast.success("Caption updated!");
-            } else {
-              // If it's not a caption, it must be a graph. Activate it for editing.
-              setActiveGraphId(editAction.targetCaptionId);
-              toast.info(`Graph "${graphs.find(g => g.id === editAction.targetCaptionId)?.name}" is now in focus for editing.`);
+                  break;
+
+                case 'GRAPH_CONFIG':
+                  if (editAction.graphConfig) {
+                    setGraphs(prev => prev.map(g =>
+                      g.id === targetId
+                        ? {
+                            ...g,
+                            config: {
+                              title: editAction.graphConfig?.title ?? g.config.title,
+                              xAxisLabel: editAction.graphConfig?.xAxisLabel ?? g.config.xAxisLabel,
+                              yAxisLabel: editAction.graphConfig?.yAxisLabel ?? g.config.yAxisLabel,
+                            }
+                          }
+                        : g
+                    ));
+                    toast.success("Graph updated");
+                  }
+                  break;
+
+                default:
+                  toast.error("Unknown graph command");
+              }
+              return;
+            }
+
+            // Target is a caption
+            const targetCaption = permanentCaptions.find(c => c.id === targetId);
+            if (!targetCaption) {
+              toast.error("Could not find the target overlay.");
+              return;
+            }
+
+            switch (editAction.command) {
+              case 'EDIT':
+                setPermanentCaptions(prev => prev.map(c =>
+                  c.id === targetId
+                    ? { ...c, formattedText: editAction.newText || c.formattedText }
+                    : c
+                ));
+                toast.success("Caption updated");
+                break;
+
+              case 'APPEND':
+                setPermanentCaptions(prev => prev.map(c =>
+                  c.id === targetId
+                    ? { ...c, formattedText: c.formattedText + (editAction.newText || '') }
+                    : c
+                ));
+                toast.success("Text added");
+                break;
+
+              case 'DELETE_LINE':
+                if (editAction.lineNumber) {
+                  setPermanentCaptions(prev => prev.map(c => {
+                    if (c.id !== targetId) return c;
+                    const lines = c.formattedText.split('\n');
+                    lines.splice(editAction.lineNumber! - 1, 1);
+                    return { ...c, formattedText: lines.join('\n') };
+                  }));
+                  toast.success(`Removed line ${editAction.lineNumber}`);
+                }
+                break;
+
+              case 'EDIT_LINE':
+                if (editAction.lineNumber && editAction.newText) {
+                  setPermanentCaptions(prev => prev.map(c => {
+                    if (c.id !== targetId) return c;
+                    const lines = c.formattedText.split('\n');
+                    const lineIdx = editAction.lineNumber! - 1;
+                    if (lineIdx >= 0 && lineIdx < lines.length) {
+                      // Preserve numbering/bullets if present
+                      const match = lines[lineIdx].match(/^(\s*[\d\-•\.]+\s*)/);
+                      const prefix = match ? match[1] : '';
+                      lines[lineIdx] = prefix + editAction.newText;
+                    }
+                    return { ...c, formattedText: lines.join('\n') };
+                  }));
+                  toast.success(`Updated line ${editAction.lineNumber}`);
+                }
+                break;
+
+              default:
+                toast.error("Unknown edit command");
             }
             return;
           }
-
+          
           const aiDecision = await formatCaptionWithAI(correctedTranscript);
           log('AI_RESPONSE', 'Caption response received', aiDecision);
           setDebugInfo((prev) => ({ ...prev, aiResponse: aiDecision, error: null }));
@@ -788,7 +866,8 @@ export const VideoCanvas = ({
       activeGraphId,
       log,
       setPermanentCaptions,
-      liveCaptionPosition
+      liveCaptionPosition,
+      activeGraphId
     ],
   );
 
@@ -838,13 +917,17 @@ export const VideoCanvas = ({
     );
   };
 
+  const handleFinalTranscript = useCallback((transcript: string) => {
+    handleNewTranscriptRef.current(transcript);
+  }, []); // Empty deps - uses ref which never changes
+
+  const handlePartialTranscript = useCallback((partial: string) => {
+    setPartialTranscript(partial);
+  }, []); // Empty deps - setPartialTranscript is stable
+
   const { isRecording, startRecognition, stopRecognition } = useBrowserSpeech({
-    onFinalTranscript: useCallback((transcript: string) => {
-      handleNewTranscriptRef.current(transcript);
-    }, []),
-    onPartialTranscript: (partial) => {
-      setPartialTranscript(partial);
-    },
+    onFinalTranscript: handleFinalTranscript,
+    onPartialTranscript: handlePartialTranscript,
   });
 
   const handleStopRecording = () => {

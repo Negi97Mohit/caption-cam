@@ -39,12 +39,17 @@ export interface AIDecision {
 }
 
 export interface EditAction {
-  command: "EDIT" | "APPEND" | "DELETE_LINE";
-  targetCaptionId: string;
-  newText?: string; // For EDIT and APPEND
-  lineToDelete?: number; // For DELETE_LINE (e.g., 1 for the first line)
+  command: "EDIT" | "APPEND" | "DELETE_LINE" | "EDIT_LINE" | "GRAPH_ADD" | "GRAPH_CONFIG";
+  targetId: string;
+  newText?: string; // For EDIT, APPEND, EDIT_LINE
+  lineNumber?: number; // For DELETE_LINE, EDIT_LINE (1-based)
+  graphData?: { label: string; value: number }; // For GRAPH_ADD
+  graphConfig?: { // For GRAPH_CONFIG
+    title?: string;
+    xAxisLabel?: string;
+    yAxisLabel?: string;
+  };
 }
-
 // --- START: NEW GRAPH TYPES ---
 export interface GraphDataPoint {
   label: string;

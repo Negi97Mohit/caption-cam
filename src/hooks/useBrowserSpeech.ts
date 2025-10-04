@@ -142,9 +142,9 @@ export const useBrowserSpeech = ({
 
     // Auto-restart on end
     const restartRecognition = () => {
-      if (!isRecordingRef.current) {
+      if (!isRecordingRef.current || isRestartingRef.current) {
         setRecognitionStatus('stopped');
-        console.log('🛑 Recognition ended (user stopped)');
+        console.log('🛑 Recognition ended (user stopped or already restarting)');
         return;
       }
 
@@ -152,7 +152,7 @@ export const useBrowserSpeech = ({
       
       clearTimeout(restartTimeoutRef.current);
       restartTimeoutRef.current = setTimeout(() => {
-        if (!isRecordingRef.current) return;
+        if (!isRecordingRef.current || isRestartingRef.current) return;
         
         try {
           console.log('🔄 Attempting to restart...');
@@ -169,7 +169,7 @@ export const useBrowserSpeech = ({
           
           if (consecutiveErrorsRef.current < 5) {
             restartTimeoutRef.current = setTimeout(() => {
-              if (isRecordingRef.current) {
+              if (isRecordingRef.current && !isRestartingRef.current) {
                 try {
                   recognition.start();
                 } catch (e) {
@@ -212,27 +212,40 @@ export const useBrowserSpeech = ({
     window.addEventListener('focus', handleFocus);
 
     // --- Silence Detection & Auto-Restart ---
-    // If no results for 30 seconds, force restart
+    // If no results for 60 seconds (increased from 30), force restart
+    const isRestartingRef = { current: false };
+    
     silenceCheckIntervalRef.current = setInterval(() => {
-      if (!isRecordingRef.current) return;
+      if (!isRecordingRef.current || isRestartingRef.current) return;
       
       const timeSinceLastResult = Date.now() - lastResultTimeRef.current;
       
-      if (timeSinceLastResult > 30000) {
-        console.warn('⚠️ No results for 30 seconds, forcing restart...');
+      if (timeSinceLastResult > 60000) { // 60 seconds instead of 30
+        console.warn('⚠️ No results for 60 seconds, forcing restart...');
+        isRestartingRef.current = true;
+        
         try {
           recognition.stop();
-          setTimeout(() => {
-            if (isRecordingRef.current) {
-              recognition.start();
-            }
-          }, 500);
         } catch (err) {
-          console.error('❌ Force restart failed', err);
+          console.error('❌ Stop failed during silence restart', err);
         }
-        lastResultTimeRef.current = Date.now();
+        
+        setTimeout(() => {
+          if (isRecordingRef.current) {
+            try {
+              recognition.start();
+              lastResultTimeRef.current = Date.now();
+              isRestartingRef.current = false;
+            } catch (err) {
+              console.error('❌ Restart failed after silence', err);
+              isRestartingRef.current = false;
+            }
+          } else {
+            isRestartingRef.current = false;
+          }
+        }, 1000);
       }
-    }, 10000); // Check every 10 seconds
+    }, 15000); // Check every 15 seconds
 
     return () => {
       console.log('🧹 Cleaning up speech recognition...');

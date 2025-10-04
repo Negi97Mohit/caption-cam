@@ -370,31 +370,98 @@ Current Data (${existingGraph.data.length} points): ${JSON.stringify(existingGra
 
 // src/lib/ai.ts
 
-const EDIT_SYSTEM_PROMPT = `You are an AI assistant that processes voice commands to edit on-screen captions. You will receive a user's command and a JSON array of the captions currently on screen, each with a unique "name".
+const EDIT_SYSTEM_PROMPT = `You are an AI assistant for editing on-screen overlays via voice. You receive a command and context about overlays with unique "name" properties.
 
-Your task is to identify the target caption by its "name" and the action the user wants to perform. You MUST return ONLY a valid JSON object with the following structure:
-{"command": "EDIT" | "APPEND" | "DELETE_LINE", "targetCaptionId": "string", "newText"?: "string", "lineToDelete"?: number}
+MATCHING RULES (CRITICAL):
+- User says "title 1", "title one", "the title" → Match overlay with name "Title 1"
+- User says "list 2", "list two", "the list" → Match overlay with name "List 2"  
+- User says "graph", "the graph", "graph one" → Match overlay with name "Graph 1"
+- Be VERY flexible with number words (one, two, first, second) and articles (the, a)
+- When only ONE overlay of a type exists, "the [type]" always matches it
 
-- "targetCaptionId": The "id" of the caption from the provided context that the user is referring to via its "name".
-- "newText": The new content for "EDIT" or "APPEND".
-- "lineToDelete": The 1-based index of the line to remove for "DELETE_LINE".
+COMMAND TYPES:
 
-CONTEXT:
-- The user will refer to captions by their unique "name" (e.g., "edit Title 1", "add to List 1"). Match the user's command to the corresponding name in the context.
+1. EDIT - Replace entire text
+   Examples: "change title to X", "edit quote to Y", "update the title"
 
-Example:
-- User Command: "change Title 1 to My Awesome Presentation"
-- Your Output: {"command": "EDIT", "targetCaptionId": "17...-0", "newText": "MY AWESOME PRESENTATION"}
+2. APPEND - Add to end (lists mainly)
+   Examples: "add another point", "add item to list", "append X to list 1"
 
-- User Command: "add a final point to List 1"
-- Your Output: {"command": "APPEND", "targetCaptionId": "17...-1", "newText": "\\n• A Final Point"}
-`;
+3. DELETE_LINE - Remove specific line (lists mainly)
+   Examples: "remove second item", "delete line 3", "remove first point from list"
 
-export async function processEditCommand(command: string, existingCaptions: AIDecision[]): Promise<EditAction | null> {
-  const context = `
-    Current Captions on screen:
-    ${JSON.stringify(existingCaptions.map(c => ({ id: c.id, captionIntent: c.captionIntent, formattedText: c.formattedText })), null, 2)}
-  `;
+4. EDIT_LINE - Change specific line (lists mainly)
+   Examples: "change first item to X", "edit line 2 to Y", "update third point"
+
+5. GRAPH_ADD - Add data to graph
+   Examples: "add Netflix with 45%", "add data point X with value Y"
+
+6. GRAPH_CONFIG - Change graph properties
+   Examples: "change title to X", "update graph title"
+
+OUTPUT JSON:
+{
+  "command": "EDIT" | "APPEND" | "DELETE_LINE" | "EDIT_LINE" | "GRAPH_ADD" | "GRAPH_CONFIG",
+  "targetId": "overlay-id-from-context",
+  "newText"?: "text for EDIT/APPEND/EDIT_LINE",
+  "lineNumber"?: number for DELETE_LINE/EDIT_LINE (1-based),
+  "graphData"?: {"label": "X", "value": number} for GRAPH_ADD,
+  "graphConfig"?: {"title"?: "X", "xAxisLabel"?: "Y"} for GRAPH_CONFIG
+}
+
+EXAMPLES:
+
+Context: [{"id":"1", "name":"Title 1", "type":"caption", "text":"OLD TITLE"}]
+Command: "change the title to Machine Learning"
+Output: {"command":"EDIT", "targetId":"1", "newText":"MACHINE LEARNING"}
+
+Context: [{"id":"2", "name":"List 1", "type":"caption", "text":"1. First\\n2. Second"}]
+Command: "add a third point about AI"
+Output: {"command":"APPEND", "targetId":"2", "newText":"\\n3. About AI"}
+
+Context: [{"id":"2", "name":"List 1", "type":"caption", "text":"1. First\\n2. Second\\n3. Third"}]
+Command: "remove the second item"
+Output: {"command":"DELETE_LINE", "targetId":"2", "lineNumber":2}
+
+Context: [{"id":"2", "name":"List 1", "type":"caption", "text":"1. First\\n2. Old text"}]
+Command: "change first item to Introduction"
+Output: {"command":"EDIT_LINE", "targetId":"2", "lineNumber":1, "newText":"Introduction"}
+
+Context: [{"id":"3", "name":"Graph 1", "type":"graph", "data":[{"label":"Netflix","value":45}]}]
+Command: "add Disney Plus with 25 percent"
+Output: {"command":"GRAPH_ADD", "targetId":"3", "graphData":{"label":"Disney Plus", "value":25}}
+
+Context: [{"id":"3", "name":"Graph 1", "type":"graph"}]
+Command: "change the title to Streaming Services"
+Output: {"command":"GRAPH_CONFIG", "targetId":"3", "graphConfig":{"title":"Streaming Services"}}`;
+
+export async function processEditCommand(
+  command: string,
+  overlays: Array<AIDecision | GraphObject>
+): Promise<any | null> {
+  // Build simplified context for AI
+  const context = overlays.map(overlay => {
+    if ('graphType' in overlay) {
+      // It's a graph
+      return {
+        id: overlay.id,
+        name: overlay.name,
+        type: 'graph',
+        graphType: overlay.graphType,
+        data: overlay.data,
+        config: overlay.config
+      };
+    } else {
+      // It's a caption
+      return {
+        id: overlay.id,
+        name: overlay.name,
+        type: 'caption',
+        intent: overlay.captionIntent,
+        text: overlay.formattedText
+      };
+    }
+  });
 
   try {
     const response = await fetch(API_URL, {
@@ -409,17 +476,25 @@ export async function processEditCommand(command: string, existingCaptions: AIDe
         model: "openai/gpt-4o",
         messages: [
           { role: "system", content: EDIT_SYSTEM_PROMPT },
-          { role: "user", content: `CONTEXT:\n${context}\n\nCOMMAND:\n"${command}"` },
+          {
+            role: "user",
+            content: `OVERLAYS ON SCREEN:\n${JSON.stringify(context, null, 2)}\n\nUSER COMMAND: "${command}"`
+          },
         ],
+        temperature: 0.1,
         response_format: { type: "json_object" },
       }),
     });
 
-    if (!response.ok) throw new Error("Edit command API failed");
+    if (!response.ok) {
+      console.error("Edit API error:", await response.text());
+      return null;
+    }
 
     const data = await response.json();
-    const rawContent = data.choices[0].message.content;
-    const parsed: EditAction = JSON.parse(rawContent);
+    const parsed = JSON.parse(data.choices[0].message.content);
+    
+    console.log("Edit AI Response:", parsed);
     return parsed;
   } catch (error) {
     console.error("Failed to process edit command:", error);

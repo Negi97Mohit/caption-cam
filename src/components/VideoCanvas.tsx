@@ -9,9 +9,9 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { DraggableGraph } from './DraggableGraph';
 import { CommandHintOverlay } from './CommandHintOverlay';
-import { useBrowserSpeech } from "@/hooks/useBrowserSpeech";
 import { SelfieSegmentation } from "@mediapipe/selfie_segmentation";
 import { FaceDetection } from "@mediapipe/face_detection";
+import { useBrowserSpeech } from "@/hooks/useBrowserSpeech";
 
 // (This helper function remains unchanged)
 const getCaptionStyleOverrides = (caption: AIDecision, baseStyle: CaptionStyle): React.CSSProperties => {

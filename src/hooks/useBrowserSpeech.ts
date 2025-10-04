@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
+import { toast } from 'sonner';
 
 export type RecognitionStatus = 'idle' | 'listening' | 'error' | 'stopped';
 
@@ -18,11 +19,27 @@ export const useBrowserSpeech = ({
   const finalTranscriptRef = useRef('');
   const isRecordingRef = useRef(false);
   const restartTimeoutRef = useRef<NodeJS.Timeout>();
+  const consecutiveErrorsRef = useRef(0);
+  const lastResultTimeRef = useRef(Date.now());
+  const silenceCheckIntervalRef = useRef<NodeJS.Timeout>();
 
   isRecordingRef.current = isRecording;
 
-  const startRecognition = useCallback(() => setIsRecording(true), []);
-  const stopRecognition = useCallback(() => setIsRecording(false), []);
+  const startRecognition = useCallback(() => {
+    console.log('🎤 Starting browser speech recognition...');
+    consecutiveErrorsRef.current = 0;
+    setIsRecording(true);
+  }, []);
+
+  const stopRecognition = useCallback(() => {
+    console.log('🛑 Stopping browser speech recognition...');
+    setIsRecording(false);
+    consecutiveErrorsRef.current = 0;
+    if (silenceCheckIntervalRef.current) {
+      clearInterval(silenceCheckIntervalRef.current);
+      silenceCheckIntervalRef.current = undefined;
+    }
+  }, []);
 
   // Initialize SpeechRecognition
   useEffect(() => {
@@ -30,7 +47,8 @@ export const useBrowserSpeech = ({
       (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
 
     if (!SpeechRecognition) {
-      console.error('Speech recognition not supported in this browser.');
+      console.error('❌ Speech recognition not supported in this browser.');
+      toast.error('Speech recognition is not supported in your browser. Please use Chrome, Edge, or Safari.');
       setRecognitionStatus('error');
       return;
     }
@@ -39,84 +57,233 @@ export const useBrowserSpeech = ({
     recognition.continuous = true;
     recognition.interimResults = true;
     recognition.lang = 'en-US';
+    recognition.maxAlternatives = 1;
+    
     recognitionRef.current = recognition;
 
+    // --- Event Handlers ---
     recognition.onstart = () => {
-      console.log('✅ Speech recognition started');
+      console.log('✅ Speech recognition started successfully');
       setRecognitionStatus('listening');
+      consecutiveErrorsRef.current = 0;
+      lastResultTimeRef.current = Date.now();
+      toast.success('Voice recognition active', { duration: 2000 });
     };
 
-    recognition.onresult = (event) => {
+    recognition.onresult = (event: SpeechRecognitionEvent) => {
+      lastResultTimeRef.current = Date.now();
+      consecutiveErrorsRef.current = 0; // Reset errors on successful result
+      
       let interimTranscript = '';
+      
       for (let i = event.resultIndex; i < event.results.length; i++) {
         const transcript = event.results[i][0].transcript;
+        
         if (event.results[i].isFinal) {
+          console.log('📝 Final transcript:', transcript);
           finalTranscriptRef.current += transcript + ' ';
         } else {
           interimTranscript += transcript;
         }
       }
 
-      if (interimTranscript) onPartialTranscript(interimTranscript);
+      // Send partial transcripts for live display
+      if (interimTranscript) {
+        onPartialTranscript(interimTranscript);
+      }
 
+      // Send final transcripts for processing
       if (finalTranscriptRef.current.trim()) {
-        onFinalTranscript(finalTranscriptRef.current.trim());
+        const finalText = finalTranscriptRef.current.trim();
+        onFinalTranscript(finalText);
         finalTranscriptRef.current = '';
       }
     };
 
-    recognition.onerror = (event) => {
+    recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
       console.error('❌ Speech recognition error:', event.error);
-      setRecognitionStatus('error');
+      consecutiveErrorsRef.current++;
+
+      // Handle specific error types
+      switch (event.error) {
+        case 'no-speech':
+          console.log('⚠️ No speech detected, will auto-restart...');
+          // Don't show error toast for no-speech, it's normal
+          break;
+        case 'audio-capture':
+          toast.error('Microphone error. Check your audio settings.');
+          setRecognitionStatus('error');
+          break;
+        case 'not-allowed':
+          toast.error('Microphone permission denied. Please allow microphone access.');
+          setRecognitionStatus('error');
+          setIsRecording(false);
+          break;
+        case 'network':
+          toast.error('Network error. Check your internet connection.');
+          break;
+        case 'aborted':
+          console.log('ℹ️ Recognition aborted (usually normal during restart)');
+          break;
+        default:
+          if (consecutiveErrorsRef.current >= 3) {
+            toast.error(`Speech recognition error: ${event.error}`);
+            setRecognitionStatus('error');
+          }
+      }
+
+      // Stop if too many consecutive errors
+      if (consecutiveErrorsRef.current >= 5) {
+        console.error('❌ Too many errors, stopping recognition');
+        setIsRecording(false);
+        setRecognitionStatus('error');
+      }
     };
 
     // Auto-restart on end
     const restartRecognition = () => {
-      if (isRecordingRef.current) {
-        clearTimeout(restartTimeoutRef.current);
-        restartTimeoutRef.current = setTimeout(() => {
-          try {
-            recognition.start();
-          } catch (err) {
-            console.warn('Restart failed, retrying in 500ms', err);
-            restartTimeoutRef.current = setTimeout(() => recognition.start(), 500);
-          }
-        }, 300);
-      } else {
+      if (!isRecordingRef.current) {
         setRecognitionStatus('stopped');
+        console.log('🛑 Recognition ended (user stopped)');
+        return;
       }
+
+      console.log('🔄 Recognition ended, restarting...');
+      
+      clearTimeout(restartTimeoutRef.current);
+      restartTimeoutRef.current = setTimeout(() => {
+        if (!isRecordingRef.current) return;
+        
+        try {
+          console.log('🔄 Attempting to restart...');
+          recognition.start();
+        } catch (err: any) {
+          // Handle "recognition already started" error
+          if (err.message && err.message.includes('already started')) {
+            console.log('⚠️ Recognition already running, no need to restart');
+            return;
+          }
+          
+          console.warn('⚠️ Restart failed, retrying in 500ms', err);
+          consecutiveErrorsRef.current++;
+          
+          if (consecutiveErrorsRef.current < 5) {
+            restartTimeoutRef.current = setTimeout(() => {
+              if (isRecordingRef.current) {
+                try {
+                  recognition.start();
+                } catch (e) {
+                  console.error('❌ Retry also failed', e);
+                }
+              }
+            }, 500);
+          }
+        }
+      }, 300);
     };
 
     recognition.onend = restartRecognition;
 
-    // Resume on focus / visibility change
+    // --- Resume on focus / visibility change ---
     const handleVisibility = () => {
       if (document.visibilityState === 'visible' && isRecordingRef.current) {
-        try { recognition.start(); } catch {}
+        console.log('👁️ Tab visible, ensuring recognition is active...');
+        try {
+          recognition.start();
+        } catch (err) {
+          // Already started, ignore
+        }
       }
     };
+
+    const handleFocus = () => {
+      if (isRecordingRef.current) {
+        console.log('🎯 Window focused, ensuring recognition is active...');
+        lastResultTimeRef.current = Date.now(); // Reset silence timer
+        try {
+          recognition.start();
+        } catch (err) {
+          // Already started, ignore
+        }
+      }
+    };
+
     document.addEventListener('visibilitychange', handleVisibility);
-    window.addEventListener('focus', handleVisibility);
+    window.addEventListener('focus', handleFocus);
+
+    // --- Silence Detection & Auto-Restart ---
+    // If no results for 30 seconds, force restart
+    silenceCheckIntervalRef.current = setInterval(() => {
+      if (!isRecordingRef.current) return;
+      
+      const timeSinceLastResult = Date.now() - lastResultTimeRef.current;
+      
+      if (timeSinceLastResult > 30000) {
+        console.warn('⚠️ No results for 30 seconds, forcing restart...');
+        try {
+          recognition.stop();
+          setTimeout(() => {
+            if (isRecordingRef.current) {
+              recognition.start();
+            }
+          }, 500);
+        } catch (err) {
+          console.error('❌ Force restart failed', err);
+        }
+        lastResultTimeRef.current = Date.now();
+      }
+    }, 10000); // Check every 10 seconds
 
     return () => {
+      console.log('🧹 Cleaning up speech recognition...');
       clearTimeout(restartTimeoutRef.current);
-      recognition.stop();
+      if (silenceCheckIntervalRef.current) {
+        clearInterval(silenceCheckIntervalRef.current);
+      }
+      try {
+        recognition.stop();
+      } catch (err) {
+        // Ignore errors during cleanup
+      }
       document.removeEventListener('visibilitychange', handleVisibility);
-      window.removeEventListener('focus', handleVisibility);
+      window.removeEventListener('focus', handleFocus);
     };
   }, [onFinalTranscript, onPartialTranscript]);
 
   // Start / stop based on isRecording state
   useEffect(() => {
     if (isRecording) {
+      console.log('🚀 Starting recognition...');
       finalTranscriptRef.current = '';
-      try { recognitionRef.current?.start(); } catch (err) {
-        console.warn('start() failed:', err);
+      lastResultTimeRef.current = Date.now();
+      try {
+        recognitionRef.current?.start();
+      } catch (err: any) {
+        if (err.message && err.message.includes('already started')) {
+          console.log('ℹ️ Recognition already running');
+        } else {
+          console.error('❌ Failed to start:', err);
+          toast.error('Failed to start voice recognition');
+        }
       }
     } else {
-      recognitionRef.current?.stop();
+      console.log('⏸️ Stopping recognition...');
+      try {
+        recognitionRef.current?.stop();
+      } catch (err) {
+        // Ignore errors during stop
+      }
+      if (silenceCheckIntervalRef.current) {
+        clearInterval(silenceCheckIntervalRef.current);
+        silenceCheckIntervalRef.current = undefined;
+      }
     }
   }, [isRecording]);
 
-  return { isRecording, startRecognition, stopRecognition, recognitionStatus };
+  return { 
+    isRecording, 
+    startRecognition, 
+    stopRecognition, 
+    recognitionStatus 
+  };
 };

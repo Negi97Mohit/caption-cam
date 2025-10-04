@@ -1,5 +1,7 @@
+// src/components/LeftSidebar.tsx
+
 import React, { useState, useCallback } from "react";
-import { CaptionStyle, CaptionTemplate } from "@/types/caption";
+import { CaptionStyle, CaptionTemplate, AIDecision, GraphObject } from "@/types/caption";
 import { PRESET_TEMPLATES } from "@/lib/presets";
 import { BACKGROUND_PRESETS } from "@/lib/backgrounds";
 import { StyleControls } from "./StyleControls";
@@ -9,9 +11,10 @@ import { Label } from "./ui/label";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "./ui/accordion";
 import { ScrollArea } from "./ui/scroll-area";
 import { cn } from "@/lib/utils";
-import { LayoutTemplate, Palette, Bug, Sparkles, Ban, Droplets, Text } from "lucide-react";
+import { LayoutTemplate, Palette, Bug, Sparkles, Ban, Droplets, Text, Wand2 } from "lucide-react";
 import { Button } from "./ui/button";
 import { Textarea } from "./ui/textarea";
+import { CustomStylesSelector } from "./CustomStylesSelector";
 
 interface LeftSidebarProps {
   onSelectTemplate: (template: CaptionTemplate) => void;
@@ -30,6 +33,10 @@ interface LeftSidebarProps {
   isAutoFramingEnabled: boolean;
   onAutoFramingChange: (enabled: boolean) => void;
   onTextSubmit: (text: string) => void;
+  permanentCaptions: AIDecision[];
+  graphs: GraphObject[];
+  selectedCaptionId: string | null;
+  onCustomStyleSelect: (style: Partial<CaptionStyle>) => void;
 }
 
 const MIN_WIDTH = 280;
@@ -39,7 +46,8 @@ export const LeftSidebar = ({
   onSelectTemplate, selectedTemplate, style, onStyleChange,
   width, isCollapsed, onResize, onMouseEnter, onMouseLeave,
   backgroundEffect, onBackgroundEffectChange, backgroundImageUrl, onBackgroundImageUrlChange,
-  isAutoFramingEnabled, onAutoFramingChange, onTextSubmit
+  isAutoFramingEnabled, onAutoFramingChange, onTextSubmit,
+  permanentCaptions, graphs, selectedCaptionId, onCustomStyleSelect
 }: LeftSidebarProps) => {
   const [showDebug, setShowDebug] = useState(false);
   const [manualText, setManualText] = useState("");
@@ -104,12 +112,10 @@ export const LeftSidebar = ({
         <ScrollArea className="flex-1 px-4">
           <Accordion type="multiple" defaultValue={["customize", "effects"]} className="w-full">
             <AccordionItem value="templates">
-              {/* CHANGED: Added flex layout to prevent text wrapping */}
               <AccordionTrigger className="text-base font-semibold flex items-center gap-2">
                 <LayoutTemplate className="w-4 h-4 flex-shrink-0" /> 
                 <span className="flex-1 text-left truncate">Templates</span>
               </AccordionTrigger>
-              {/* CHANGED: Removed padding from content, added to inner div */}
               <AccordionContent>
                  <div className="pt-2 grid grid-cols-2 gap-3">
                   {PRESET_TEMPLATES.map((template) => (
@@ -121,6 +127,22 @@ export const LeftSidebar = ({
                       <img src={template.preview} alt={template.name} className="w-full rounded-md aspect-[2/1] object-cover" />
                     </div>
                   ))}
+                </div>
+              </AccordionContent>
+            </AccordionItem>
+            
+            <AccordionItem value="suggested-styles">
+              <AccordionTrigger className="text-base font-semibold flex items-center gap-2">
+                <Wand2 className="w-4 h-4 flex-shrink-0" />
+                <span className="flex-1 text-left truncate">Suggested Styles</span>
+              </AccordionTrigger>
+              <AccordionContent>
+                <div className="pt-2">
+                  <CustomStylesSelector
+                    overlays={[...permanentCaptions, ...graphs]}
+                    selectedOverlayId={selectedCaptionId}
+                    onSelectStyle={onCustomStyleSelect}
+                  />
                 </div>
               </AccordionContent>
             </AccordionItem>

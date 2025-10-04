@@ -56,8 +56,6 @@ const Index = () => {
   // --- Central AI Processing Logic ---
   const processTranscript = useCallback(async (transcript: string) => {
     if (!isAiModeEnabled) {
-        // AI Mode OFF Logic: just show a simple live caption (this part is handled in VideoCanvas for now)
-        // For simplicity, we'll focus on AI mode logic here as it affects permanent state.
         toast.info("AI Mode is off. Only temporary captions will be shown.");
         return;
     }
@@ -92,7 +90,6 @@ const Index = () => {
           setTimeout(() => { isProcessingQueueRef.current = false; processCaptionQueue(); }, 100);
         };
 
-
         if (activeGraphId) {
             if (lowerTranscript.includes('done') || lowerTranscript.includes('stop editing') || lowerTranscript.includes('exit')) {
                 toast.info("Graph editing finished.");
@@ -107,7 +104,7 @@ const Index = () => {
             const graphAiResponse = await processGraphCommand(correctedTranscript, targetGraph);
             log('AI_RESPONSE', 'Graph UPDATE response received', graphAiResponse);
             if (graphAiResponse) {
-                setGraphs(prev => prev.map(g => (g.id === activeGraphId ? { ...g, ...graphAiResponse, data: (graphAiResponse.data || g.data)} : g)));
+                setGraphs(prev => prev.map(g => (g.id === activeGraphId ? { ...targetGraph, ...graphAiResponse, data: (graphAiResponse.data || targetGraph.data)} : g)));
                 toast.info("Graph updated.");
             }
             return;
@@ -185,8 +182,6 @@ const Index = () => {
         if (aiDecision.type === 'highlight') {
             captionQueueRef.current.push(aiDecision);
             processCaptionQueue();
-        } else {
-            // Live caption logic remains in VideoCanvas as it's purely transient UI
         }
     } catch (error) {
         log('ERROR', 'Error in processTranscript', error);
@@ -194,8 +189,7 @@ const Index = () => {
         setDebugInfo((prev) => ({ ...prev, error: "AI processing failed." }));
         toast.error("Failed to process speech");
     }
-}, [isAiModeEnabled, permanentCaptions, graphs, activeGraphId, captionStyle, log, setDebugInfo, setPermanentCaptions, setGraphs, setActiveGraphId]);
-
+  }, [isAiModeEnabled, permanentCaptions, graphs, activeGraphId, captionStyle, log, setDebugInfo, setPermanentCaptions, setGraphs, setActiveGraphId]);
 
   const handleTemplateSelect = (template: CaptionTemplate) => {
     setSelectedTemplate(template);
@@ -224,7 +218,30 @@ const Index = () => {
     } else {
       setCaptionStyle(newStyle);
     }
-  }, [selectedCaptionId]);
+  }, [selectedCaptionId, setPermanentCaptions]);
+  
+  const handleCustomStyleSelect = (customStyle: Partial<CaptionStyle>) => {
+    if (!selectedCaptionId) {
+      toast.info("Please select an overlay on the canvas first to apply a style.");
+      return;
+    }
+
+    setPermanentCaptions(caps =>
+      caps.map(c => {
+        if (c.id === selectedCaptionId) {
+          return {
+            ...c,
+            style: {
+              ...c.style!,
+              ...customStyle,
+            },
+          };
+        }
+        return c;
+      })
+    );
+    toast.success("Style applied to selected overlay!");
+  };
 
   const selectedCaption = permanentCaptions.find(c => c.id === selectedCaptionId);
   const styleForSidebar = selectedCaption?.style || captionStyle;
@@ -260,6 +277,10 @@ const Index = () => {
           isAutoFramingEnabled={isAutoFramingEnabled}
           onAutoFramingChange={setIsAutoFramingEnabled}
           onTextSubmit={processTranscript}
+          permanentCaptions={permanentCaptions}
+          graphs={graphs}
+          selectedCaptionId={selectedCaptionId}
+          onCustomStyleSelect={handleCustomStyleSelect}
         />
 
         <VideoCanvas

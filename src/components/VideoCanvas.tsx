@@ -38,7 +38,7 @@ const getCaptionStyleOverrides = (caption: AIDecision, baseStyle: CaptionStyle):
       intentOverrides = { fontWeight: '600', padding: '8px 16px', backgroundColor: 'hsl(var(--background) / 0.5)', backdropFilter: 'blur(8px)', borderRadius: 'var(--radius)', textShadow: '0 1px 3px rgba(0, 0, 0, 0.3)', boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)', maxWidth: '90%', wordWrap: 'break-word' };
       break;
   }
-  return { ...baseStyle, ...intentOverrides };
+  return { ...intentOverrides, ...baseStyle };
 };
 
 const getAnimationClasses = (animation: CaptionAnimation | undefined) => {

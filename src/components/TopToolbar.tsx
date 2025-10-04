@@ -28,7 +28,7 @@ export const TopToolbar = ({
       {/* Logo */}
       <div className="flex items-center gap-2">
         <div className="w-8 h-8 rounded-lg bg-gradient-primary" />
-        <span className="font-bold text-xl">gaki がき/ガキ</span>
+        <span className="font-bold text-xl">gaki がき</span>
       </div>
 
       <Separator orientation="vertical" className="h-8" />

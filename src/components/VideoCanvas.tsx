@@ -41,6 +41,20 @@ const getCaptionStyleOverrides = (caption: AIDecision, baseStyle: CaptionStyle):
   return { ...baseStyle, ...intentOverrides };
 };
 
+const getAnimationClasses = (animation: CaptionAnimation | undefined) => {
+  switch (animation) {
+    case "bounce":
+      return "animate-bounce";
+    case "fade":
+      return "animate-fade-in";
+    case "slide-up":
+      return "animate-slide-up";
+    case "karaoke": // The karaoke style also uses a slide-up entrance
+      return "animate-slide-up";
+    default:
+      return "";
+  }
+};
 
 interface DraggableCaptionProps {
   caption: AIDecision;
@@ -147,7 +161,6 @@ const DraggableCaption = ({ caption, onPositionChange, onResize, onDragChange, o
     height: caption.size ? `${caption.size.height}px` : 'auto',
     transform: `translate(-50%, -50%) ${dynamicStyles.transform || ''}`.trim(),
     transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
-    animation: "zoomIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1)",
     position: 'absolute',
     cursor: 'move',
     userSelect: 'none',
@@ -172,8 +185,12 @@ const DraggableCaption = ({ caption, onPositionChange, onResize, onDragChange, o
   return (
     <div
       ref={dragRef}
-      className={cn("group", isSelected && "ring-2 ring-primary ring-offset-2 ring-offset-background")}
-      style={{ ...captionStyles, ...(isHovered && { transform: `${captionStyles.transform} scale(1.02)`, filter: 'brightness(1.1)' }) }}
+      className={cn(
+        "group",
+        isSelected && "ring-2 ring-primary ring-offset-2 ring-offset-background",
+        getAnimationClasses(caption.style?.animation)
+      )}
+        style={{ ...captionStyles, ...(isHovered && { transform: `${captionStyles.transform} scale(1.02)`, filter: 'brightness(1.1)' }) }}
       onMouseDown={onMouseDown}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
@@ -869,7 +886,6 @@ export const VideoCanvas = ({
       transform: "translate(-50%, -50%)",
       opacity: liveCaption ? 1 : 0.7,
       cursor: isDraggingLive ? 'grabbing' : 'grab',
-      animation: liveCaption ? "slideUp 0.4s cubic-bezier(0.34, 1.56, 0.64, 1)" : "pulse 1.s ease-in-out infinite",
     };
   };
 
@@ -921,12 +937,17 @@ export const VideoCanvas = ({
             ))}
 
             {(liveCaption || partialTranscript) && (
-              <div
-                ref={liveCaptionRef}
-                className="absolute select-none text-center"
-                style={getLiveCaptionStyles()}
-                onMouseDown={handleLiveCaptionMouseDown}
-              >
+            <div
+              ref={liveCaptionRef}
+              className={cn(
+                "absolute select-none text-center",
+                liveCaption
+                  ? getAnimationClasses(liveCaption.style?.animation || captionStyle.animation)
+                  : "animate-pulse"
+              )}
+              style={getLiveCaptionStyles()}
+              onMouseDown={handleLiveCaptionMouseDown}
+            >
                 {liveCaption?.formattedText || partialTranscript}
               </div>
             )}

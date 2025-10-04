@@ -24,6 +24,26 @@ export const PRESET_TEMPLATES: CaptionTemplate[] = [
     },
   },
   {
+    id: "karaoke-highlight",
+    name: "Karaoke Highlight",
+    description: "Bright, clear text on a bottom banner, styled for karaoke.",
+    preview: "https://placehold.co/600x120/1e1e1e/00F5FF/png?text=Karaoke+Style",
+    style: {
+      fontFamily: "Bebas Neue",
+      fontSize: 42,
+      color: "#00F5FF", // A bright cyan color
+      backgroundColor: "rgba(30, 30, 30, 0.9)", // A dark, semi-transparent bar
+      position: { x: 50, y: 90 }, // Positioned at the bottom
+      shape: "rectangular",
+      animation: "slide-up",
+      outline: false,
+      shadow: true,
+      bold: true,
+      italic: false,
+      underline: false,
+    },
+  },
+  {
     id: "news-ticker",
     name: "News Ticker",
     description: "A classic news-style lower-third banner.",

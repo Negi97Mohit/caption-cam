@@ -1,6 +1,5 @@
 export type CaptionShape = "rectangular" | "rounded" | "pill" | "speech-bubble" | "banner";
-export type CaptionAnimation = "fade" | "bounce" | "karaoke" | "none";
-
+export type CaptionAnimation = "fade" | "bounce" | "karaoke" | "none" | "slide-up";
 export interface CaptionStyle {
   fontFamily: string;
   fontSize: number;

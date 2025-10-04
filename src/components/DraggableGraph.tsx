@@ -30,14 +30,27 @@ export const DraggableGraph = ({ graph, onPositionChange, onResize, onDelete, is
     document.addEventListener("mouseup", onMouseUp);
   };
 
+  // Find and replace the onMouseMove function in DraggableGraph.tsx
   const onMouseMove = (e: MouseEvent) => {
     if (!dragRef.current) return;
     const parentRect = dragRef.current.parentElement!.getBoundingClientRect();
-    const x = ((e.clientX - parentRect.left - offset.current.x) / parentRect.width) * 100;
-    const y = ((e.clientY - parentRect.top - offset.current.y) / parentRect.height) * 100;
-    onPositionChange(graph.id, { x, y });
-  };
+    const elementRect = dragRef.current.getBoundingClientRect(); // Get element's own size
 
+    // Calculate the new top-left position relative to the parent
+    const newLeft = e.clientX - parentRect.left - offset.current.x;
+    const newTop = e.clientY - parentRect.top - offset.current.y;
+
+    // CORRECTED: Calculate the new CENTER of the element
+    const newCenterX = newLeft + elementRect.width / 2;
+    const newCenterY = newTop + elementRect.height / 2;
+
+    // Convert the center coordinates to percentages
+    const x = (newCenterX / parentRect.width) * 100;
+    const y = (newCenterY / parentRect.height) * 100;
+
+    // Apply bounds to keep the graph from going too far off-screen
+    onPositionChange(graph.id, { x: Math.max(0, Math.min(100, x)), y: Math.max(0, Math.min(100, y)) });
+  };
   const onMouseUp = () => {
     document.removeEventListener("mousemove", onMouseMove);
     document.removeEventListener("mouseup", onMouseUp);

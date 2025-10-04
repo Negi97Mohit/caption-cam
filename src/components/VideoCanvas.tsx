@@ -94,14 +94,28 @@ const DraggableCaption = ({ caption, onPositionChange, onResize, onDragChange, o
     document.addEventListener("mouseup", onMouseUp);
   };
 
+// Find this function within DraggableCaption and replace it
+
   const onMouseMove = (e: MouseEvent) => {
     if (!dragRef.current || !caption.id) return;
     const parentRect = dragRef.current.parentElement!.getBoundingClientRect();
-    const x = ((e.clientX - parentRect.left - offset.current.x) / parentRect.width) * 100;
-    const y = ((e.clientY - parentRect.top - offset.current.y) / parentRect.height) * 100;
+    const elementRect = dragRef.current.getBoundingClientRect(); // Get element's own size
+
+    // Calculate the new top-left position relative to the parent
+    const newLeft = e.clientX - parentRect.left - offset.current.x;
+    const newTop = e.clientY - parentRect.top - offset.current.y;
+
+    // CORRECTED: Calculate the new CENTER of the element
+    const newCenterX = newLeft + elementRect.width / 2;
+    const newCenterY = newTop + elementRect.height / 2;
+
+    // Convert the center coordinates to percentages
+    const x = (newCenterX / parentRect.width) * 100;
+    const y = (newCenterY / parentRect.height) * 100;
+
     onPositionChange(caption.id, { x: Math.max(0, Math.min(100, x)), y: Math.max(0, Math.min(100, y)) });
   };
-
+  
   const onMouseUp = () => {
     onDragChange(false);
     document.removeEventListener("mousemove", onMouseMove);
@@ -228,6 +242,11 @@ interface VideoCanvasProps {
   backgroundImageUrl: string | null;
   isAutoFramingEnabled: boolean;
   isAiModeEnabled: boolean;
+  graphs: GraphObject[];
+  activeGraphId: string | null;
+  onProcessTranscript: (transcript: string) => void;
+  setGraphs: React.Dispatch<React.SetStateAction<GraphObject[]>>;
+  setActiveGraphId: React.Dispatch<React.SetStateAction<string | null>>;
 }
 
 export const VideoCanvas = ({
@@ -243,6 +262,11 @@ export const VideoCanvas = ({
   backgroundImageUrl,
   isAutoFramingEnabled,
   isAiModeEnabled,
+  graphs,
+  activeGraphId,
+  onProcessTranscript,
+  setGraphs,
+  setActiveGraphId,
 }: VideoCanvasProps) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -261,10 +285,8 @@ export const VideoCanvas = ({
   const overlayNameCounters = useRef<{ [key: string]: number }>({ title: 0, list: 0, question: 0, quote: 0, stat: 0, graph: 0 });
 
   const [isDragging, setIsDragging] = useState(false);
-  const [activeGraphId, setActiveGraphId] = useState<string | null>(null);
   const [liveCaption, setLiveCaption] = useState<AIDecision | null>(null);
   const [partialTranscript, setPartialTranscript] = useState("");
-  const [graphs, setGraphs] = useState<GraphObject[]>([]);
 
   const [liveCaptionPosition, setLiveCaptionPosition] = useState(captionStyle.position);
   const [isDraggingLive, setIsDraggingLive] = useState(false);
@@ -536,338 +558,10 @@ export const VideoCanvas = ({
 
   const handleNewTranscript = useCallback(
     async (transcript: string) => {
-      if (isAiModeEnabled) {
-        // --- START: AI MODE ON LOGIC ---
-        log('TRANSCRIPT', 'Raw transcript received', transcript);
-        setPartialTranscript("");
-        setDebugInfo((prev) => ({ ...prev, rawTranscript: transcript, correctedTranscript: "...", aiResponse: null, error: null }));
-
-        try {
-          const correctedTranscript = await autocorrectTranscript(transcript);
-          log('INFO', 'Autocorrected transcript', correctedTranscript);
-          setDebugInfo(prev => ({ ...prev, correctedTranscript }));
-          const lowerTranscript = correctedTranscript.toLowerCase();
-
-          if (activeGraphId) {
-            if (lowerTranscript.includes('done') || lowerTranscript.includes('stop editing') || lowerTranscript.includes('exit')) {
-              toast.info("Graph editing finished.");
-              setActiveGraphId(null);
-              return;
-            }
-
-            const targetGraph = graphs.find(g => g.id === activeGraphId);
-            if (!targetGraph) {
-              setActiveGraphId(null);
-              return;
-            }
-
-            console.log(`Updating active graph ${activeGraphId} with: "${correctedTranscript}"`);
-            const graphAiResponse = await processGraphCommand(correctedTranscript, targetGraph);
-            log('AI_RESPONSE', 'Graph UPDATE response received', graphAiResponse);
-
-            if (!graphAiResponse) {
-              toast.error("Didn't understand that graph command. Try 'add [label] with [value]' or 'change title to [new title]'.");
-              return;
-            }
-
-            setDebugInfo((prev) => ({ ...prev, aiResponse: graphAiResponse as any }));
-
-            const existingDataMap = new Map(targetGraph.data.map(d => [d.label.toLowerCase(), d.value]));
-            // @ts-ignore
-            if (graphAiResponse.data) {
-              // @ts-ignore
-              graphAiResponse.data.forEach(newDataPoint => {
-                existingDataMap.set(newDataPoint.label.toLowerCase(), newDataPoint.value);
-              });
-            }
-            const mergedData = Array.from(existingDataMap, ([label, value]) => ({ label, value }));
-
-            const updatedGraph: GraphObject = {
-              ...targetGraph,
-              data: mergedData,
-              config: {
-                // @ts-ignore
-                title: graphAiResponse.config?.title || targetGraph.config.title,
-                // @ts-ignore
-                xAxisLabel: graphAiResponse.config?.xAxisLabel || targetGraph.config.xAxisLabel,
-                // @ts-ignore
-                yAxisLabel: graphAiResponse.config?.yAxisLabel || targetGraph.config.yAxisLabel,
-              }
-            };
-
-            setGraphs(prev => prev.map(g => (g.id === activeGraphId ? updatedGraph : g)));
-
-            // @ts-ignore
-            if (graphAiResponse.status === 'COMPLETE' && mergedData.length >= 2) {
-              toast.success("Graph completed!");
-              setActiveGraphId(null);
-            } else {
-              toast.info("Graph updated. Still in focus.");
-            }
-            return;
-          }
-
-          const isGraphRelated = GRAPH_TRIGGER_WORDS.some(word => lowerTranscript.includes(word));
-          const isEditCommand = EDIT_TRIGGER_WORDS.some(word => lowerTranscript.startsWith(word));
-
-          if (isGraphRelated && !isEditCommand) { // Ensure create commands don't get caught by edit logic
-            console.log("✅ Matched 'isGraphRelated'. Entering CREATE logic.");
-            const graphAiResponse = await processGraphCommand(correctedTranscript);
-            log('AI_RESPONSE', 'Graph CREATE response received', graphAiResponse);
-
-            if (!graphAiResponse) {
-              toast.error("Couldn't create graph. Try: 'Create a bar graph'");
-              return;
-            }
-
-            setDebugInfo((prev) => ({ ...prev, aiResponse: graphAiResponse as any }));
-
-            // UPDATED: Assign a name when creating the graph
-            const counter = (overlayNameCounters.current['graph'] || 0) + 1;
-            overlayNameCounters.current['graph'] = counter;
-            const name = `Graph ${counter}`;
-
-            const newGraph: GraphObject = {
-              id: `graph-${Date.now()}`,
-              name, // Assign the generated name
-              type: 'graph',
-              // @ts-ignore
-              graphType: graphAiResponse.graphType || 'bar',
-              data: graphAiResponse.data || [],
-              config: {
-                // @ts-ignore
-                title: graphAiResponse.config?.title || 'New Graph',
-                // @ts-ignore
-                xAxisLabel: graphAiResponse.config?.xAxisLabel || '',
-                // @ts-ignore
-                yAxisLabel: graphAiResponse.config?.yAxisLabel || '',
-              },
-              position: { x: 50, y: 50 },
-              size: { width: 550, height: 400 },
-            };
-
-            setGraphs(prev => [...prev, newGraph]);
-
-            setActiveGraphId(newGraph.id);
-            console.log(`✅ FOCUS SET. activeGraphId is now: ${newGraph.id}`);
-            toast.success("Graph created! It is now in focus.");
-
-            return;
-          }
-
-          if (isEditCommand && (permanentCaptions.length > 0 || graphs.length > 0)) {
-            const allOverlays = [...permanentCaptions, ...graphs];
-            const editAction = await processEditCommand(correctedTranscript, allOverlays);
-
-            if (!editAction || !editAction.targetId) {
-              toast.error("Couldn't identify which overlay to edit. Try saying its name more clearly (e.g., 'edit Title 1').");
-              return;
-            }
-
-            const targetId = editAction.targetId;
-
-            // Check if target is a graph
-            const targetGraph = graphs.find(g => g.id === targetId);
-            if (targetGraph) {
-              switch (editAction.command) {
-                case 'GRAPH_ADD':
-                  if (editAction.graphData) {
-                    const existingLabels = new Set(targetGraph.data.map(d => d.label.toLowerCase()));
-                    const newData = existingLabels.has(editAction.graphData.label.toLowerCase())
-                      ? targetGraph.data.map(d => 
-                          d.label.toLowerCase() === editAction.graphData!.label.toLowerCase()
-                            ? editAction.graphData!
-                            : d
-                        )
-                      : [...targetGraph.data, editAction.graphData];
-                    
-                    setGraphs(prev => prev.map(g => 
-                      g.id === targetId ? { ...g, data: newData } : g
-                    ));
-                    toast.success(`Added ${editAction.graphData.label} to graph`);
-                  }
-                  break;
-
-                case 'GRAPH_CONFIG':
-                  if (editAction.graphConfig) {
-                    setGraphs(prev => prev.map(g =>
-                      g.id === targetId
-                        ? {
-                            ...g,
-                            config: {
-                              title: editAction.graphConfig?.title ?? g.config.title,
-                              xAxisLabel: editAction.graphConfig?.xAxisLabel ?? g.config.xAxisLabel,
-                              yAxisLabel: editAction.graphConfig?.yAxisLabel ?? g.config.yAxisLabel,
-                            }
-                          }
-                        : g
-                    ));
-                    toast.success("Graph updated");
-                  }
-                  break;
-
-                default:
-                  toast.error("Unknown graph command");
-              }
-              return;
-            }
-
-            // Target is a caption
-            const targetCaption = permanentCaptions.find(c => c.id === targetId);
-            if (!targetCaption) {
-              toast.error("Could not find the target overlay.");
-              return;
-            }
-
-            switch (editAction.command) {
-              case 'EDIT':
-                setPermanentCaptions(prev => prev.map(c =>
-                  c.id === targetId
-                    ? { ...c, formattedText: editAction.newText || c.formattedText }
-                    : c
-                ));
-                toast.success("Caption updated");
-                break;
-
-              case 'APPEND':
-                setPermanentCaptions(prev => prev.map(c =>
-                  c.id === targetId
-                    ? { ...c, formattedText: c.formattedText + (editAction.newText || '') }
-                    : c
-                ));
-                toast.success("Text added");
-                break;
-
-              case 'DELETE_LINE':
-                if (editAction.lineNumber) {
-                  setPermanentCaptions(prev => prev.map(c => {
-                    if (c.id !== targetId) return c;
-                    const lines = c.formattedText.split('\n');
-                    lines.splice(editAction.lineNumber! - 1, 1);
-                    return { ...c, formattedText: lines.join('\n') };
-                  }));
-                  toast.success(`Removed line ${editAction.lineNumber}`);
-                }
-                break;
-
-              case 'EDIT_LINE':
-                if (editAction.lineNumber && editAction.newText) {
-                  setPermanentCaptions(prev => prev.map(c => {
-                    if (c.id !== targetId) return c;
-                    const lines = c.formattedText.split('\n');
-                    const lineIdx = editAction.lineNumber! - 1;
-                    if (lineIdx >= 0 && lineIdx < lines.length) {
-                      // Preserve numbering/bullets if present
-                      const match = lines[lineIdx].match(/^(\s*[\d\-•\.]+\s*)/);
-                      const prefix = match ? match[1] : '';
-                      lines[lineIdx] = prefix + editAction.newText;
-                    }
-                    return { ...c, formattedText: lines.join('\n') };
-                  }));
-                  toast.success(`Updated line ${editAction.lineNumber}`);
-                }
-                break;
-
-              default:
-                toast.error("Unknown edit command");
-            }
-            return;
-          }
-          
-          const aiDecision = await formatCaptionWithAI(correctedTranscript);
-          log('AI_RESPONSE', 'Caption response received', aiDecision);
-          setDebugInfo((prev) => ({ ...prev, aiResponse: aiDecision, error: null }));
-
-          if (aiDecision.decision === "HIDE") {
-            setLiveCaption(null);
-            return;
-          }
-
-          if (aiDecision.captionIntent === 'list') {
-            setLiveCaption(null);
-            listBufferRef.current.push(aiDecision.formattedText);
-            isWaitingForListRef.current = true;
-            if (listTimeoutRef.current) clearTimeout(listTimeoutRef.current);
-            listTimeoutRef.current = setTimeout(() => {
-              const formattedList = listBufferRef.current.map((item, idx) => item.trim().match(/^[•\-\d+\.]/) ? item : `${idx + 1}. ${item}`).join('\n');
-              const listCaption: AIDecision = { ...aiDecision, formattedText: formattedList, captionIntent: 'list', position: aiDecision.position || { x: 15, y: 50 } };
-              captionQueueRef.current.push(listCaption);
-              processCaptionQueue();
-              listBufferRef.current = [];
-              isWaitingForListRef.current = false;
-            }, 1500);
-            return;
-          }
-
-          if (isWaitingForListRef.current && listBufferRef.current.length > 0) {
-            if (listTimeoutRef.current) clearTimeout(listTimeoutRef.current);
-            const formattedList = listBufferRef.current.map((item, idx) => item.trim().match(/^[•\-\d+\.]/) ? item : `${idx + 1}. ${item}`).join('\n');
-            const listCaption: AIDecision = { decision: 'SHOW', type: 'highlight', duration: 'permanent', formattedText: formattedList, captionIntent: 'list', position: { x: 15, y: 50 } };
-            captionQueueRef.current.push(listCaption);
-            listBufferRef.current = [];
-            isWaitingForListRef.current = false;
-          }
-
-          if (aiDecision.captionIntent === 'question' && !aiDecision.position) {
-            questionPositionToggleRef.current = !questionPositionToggleRef.current;
-            aiDecision.position = questionPositionToggleRef.current ? { x: 75, y: 20 } : { x: 25, y: 20 };
-          }
-
-          if (aiDecision.type === 'highlight') {
-            setLiveCaption(null);
-            captionQueueRef.current.push(aiDecision);
-            processCaptionQueue();
-          } else {
-            setLiveCaption({ ...aiDecision, id: Date.now().toString(), position: aiDecision.position || captionStyle.position });
-            if (liveCaptionTimeoutRef.current) clearTimeout(liveCaptionTimeoutRef.current);
-            liveCaptionTimeoutRef.current = setTimeout(() => { setLiveCaption(null); }, (aiDecision.duration as number) * 1000);
-          }
-        } catch (error) {
-          log('ERROR', 'Error in handleNewTranscript', error);
-          console.error("AI processing failed:", error);
-          setDebugInfo((prev) => ({ ...prev, error: "AI processing failed." }));
-          toast.error("Failed to process speech");
-        }
-        // --- END: AI MODE ON LOGIC ---
-      } else {
-        // --- START: AI MODE OFF LOGIC ---
-        log('TRANSCRIPT', 'Raw transcript received (AI Mode OFF)', transcript);
-        setPartialTranscript("");
-
-        // Create a simple, temporary caption with the raw transcript
-        const simpleCaption: AIDecision = {
-          id: Date.now().toString(),
-          decision: "SHOW",
-          type: "live",
-          duration: 4,
-          formattedText: transcript,
-          captionIntent: "live",
-          position: liveCaptionPosition, // Use the current draggable position
-          style: captionStyle,
-        };
-
-        setLiveCaption(simpleCaption);
-
-        // Clear previous timeout and set a new one to hide the caption
-        if (liveCaptionTimeoutRef.current) clearTimeout(liveCaptionTimeoutRef.current);
-        liveCaptionTimeoutRef.current = setTimeout(() => {
-          setLiveCaption(null);
-        }, (simpleCaption.duration as number) * 1000);
-        // --- END: AI MODE OFF LOGIC ---
-      }
+       onProcessTranscript(transcript);
     },
     [
-      isAiModeEnabled,
-      setDebugInfo,
-      captionStyle,
-      processCaptionQueue,
-      permanentCaptions,
-      graphs,
-      activeGraphId,
-      log,
-      setPermanentCaptions,
-      liveCaptionPosition,
-      activeGraphId
+      onProcessTranscript
     ],
   );
 

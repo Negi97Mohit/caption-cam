@@ -1,8 +1,14 @@
-import { useState, useCallback, useEffect } from "react";
+// src/pages/Index.tsx
+
+import { useState, useCallback, useEffect, useRef } from "react";
 import { VideoCanvas } from "@/components/VideoCanvas";
 import { LeftSidebar } from "@/components/LeftSidebar";
 import { TopToolbar } from "@/components/TopToolbar";
-import { CaptionStyle, CaptionTemplate, AIDecision } from "@/types/caption";
+import { CaptionStyle, CaptionTemplate, AIDecision, GraphObject } from "@/types/caption";
+import { formatCaptionWithAI, autocorrectTranscript, processEditCommand, processGraphCommand } from "@/lib/ai";
+import { toast } from "sonner";
+import { useLog } from "@/context/LogContext";
+import { useDebug } from "@/context/DebugContext";
 
 const Index = () => {
   // --- Default caption style state ---
@@ -15,6 +21,10 @@ const Index = () => {
   // --- State for individual captions ---
   const [permanentCaptions, setPermanentCaptions] = useState<AIDecision[]>([]);
   const [selectedCaptionId, setSelectedCaptionId] = useState<string | null>(null);
+
+  // --- State for graphs (lifted from VideoCanvas) ---
+  const [graphs, setGraphs] = useState<GraphObject[]>([]);
+  const [activeGraphId, setActiveGraphId] = useState<string | null>(null);
 
   // --- State for video effects ---
   const [backgroundEffect, setBackgroundEffect] = useState<'none' | 'blur' | 'image'>('none');
@@ -32,27 +42,172 @@ const Index = () => {
   const [recordingMode, setRecordingMode] = useState<"webcam" | "screen" | "both">("webcam");
   const [isAiModeEnabled, setIsAiModeEnabled] = useState(true);
 
-  // --- CORRECTED FUNCTION ---
+  // --- Context and Refs for AI Logic ---
+  const { log } = useLog();
+  const { setDebugInfo } = useDebug();
+  const listBufferRef = useRef<string[]>([]);
+  const listTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const isWaitingForListRef = useRef(false);
+  const captionQueueRef = useRef<AIDecision[]>([]);
+  const isProcessingQueueRef = useRef(false);
+  const questionPositionToggleRef = useRef(false);
+  const overlayNameCounters = useRef<{ [key: string]: number }>({ title: 0, list: 0, question: 0, quote: 0, stat: 0, graph: 0 });
+
+  // --- Central AI Processing Logic ---
+  const processTranscript = useCallback(async (transcript: string) => {
+    if (!isAiModeEnabled) {
+        // AI Mode OFF Logic: just show a simple live caption (this part is handled in VideoCanvas for now)
+        // For simplicity, we'll focus on AI mode logic here as it affects permanent state.
+        toast.info("AI Mode is off. Only temporary captions will be shown.");
+        return;
+    }
+
+    log('TRANSCRIPT', 'Raw transcript received', transcript);
+    setDebugInfo((prev) => ({ ...prev, rawTranscript: transcript, correctedTranscript: "...", aiResponse: null, error: null }));
+
+    try {
+        const correctedTranscript = await autocorrectTranscript(transcript);
+        log('INFO', 'Autocorrected transcript', correctedTranscript);
+        setDebugInfo(prev => ({ ...prev, correctedTranscript }));
+        const lowerTranscript = correctedTranscript.toLowerCase();
+
+        const processCaptionQueue = () => {
+          if (isProcessingQueueRef.current || captionQueueRef.current.length === 0) return;
+          isProcessingQueueRef.current = true;
+          const caption = captionQueueRef.current.shift()!;
+          const intent = caption.captionIntent || 'live';
+      
+          const counter = (overlayNameCounters.current[intent] || 0) + 1;
+          overlayNameCounters.current[intent] = counter;
+          const name = `${intent.charAt(0).toUpperCase() + intent.slice(1)} ${counter}`;
+      
+          const newCaption: AIDecision = {
+            ...caption,
+            id: `${Date.now()}-${Math.random()}`,
+            name,
+            position: caption.position || { x: 50, y: 50 },
+            style: captionStyle,
+          };
+          setPermanentCaptions(prev => [...prev, newCaption]);
+          setTimeout(() => { isProcessingQueueRef.current = false; processCaptionQueue(); }, 100);
+        };
+
+
+        if (activeGraphId) {
+            if (lowerTranscript.includes('done') || lowerTranscript.includes('stop editing') || lowerTranscript.includes('exit')) {
+                toast.info("Graph editing finished.");
+                setActiveGraphId(null);
+                return;
+            }
+            const targetGraph = graphs.find(g => g.id === activeGraphId);
+            if (!targetGraph) {
+                setActiveGraphId(null);
+                return;
+            }
+            const graphAiResponse = await processGraphCommand(correctedTranscript, targetGraph);
+            log('AI_RESPONSE', 'Graph UPDATE response received', graphAiResponse);
+            if (graphAiResponse) {
+                setGraphs(prev => prev.map(g => (g.id === activeGraphId ? { ...g, ...graphAiResponse, data: (graphAiResponse.data || g.data)} : g)));
+                toast.info("Graph updated.");
+            }
+            return;
+        }
+
+        const isGraphRelated = ["graph", "chart", "plot"].some(word => lowerTranscript.includes(word));
+        if (isGraphRelated) {
+            const graphAiResponse = await processGraphCommand(correctedTranscript);
+            log('AI_RESPONSE', 'Graph CREATE response received', graphAiResponse);
+            if (graphAiResponse && graphAiResponse.graphType && graphAiResponse.config) {
+                 const counter = (overlayNameCounters.current['graph'] || 0) + 1;
+                 overlayNameCounters.current['graph'] = counter;
+                 const name = `Graph ${counter}`;
+
+                const newGraph: GraphObject = {
+                    id: `graph-${Date.now()}`,
+                    name,
+                    type: 'graph',
+                    graphType: graphAiResponse.graphType,
+                    data: graphAiResponse.data || [],
+                    config: graphAiResponse.config,
+                    position: { x: 50, y: 50 },
+                    size: { width: 550, height: 400 },
+                };
+                setGraphs(prev => [...prev, newGraph]);
+                setActiveGraphId(newGraph.id);
+                toast.success("Graph created! It is now in focus for editing.");
+            }
+            return;
+        }
+
+        const isEditCommand = ["edit", "change", "update", "add to"].some(word => lowerTranscript.startsWith(word));
+        if (isEditCommand && (permanentCaptions.length > 0 || graphs.length > 0)) {
+            const allOverlays = [...permanentCaptions, ...graphs];
+            const editAction = await processEditCommand(correctedTranscript, allOverlays);
+            if (editAction?.targetCaptionId) {
+                 const targetIsCaption = permanentCaptions.some(c => c.id === editAction.targetCaptionId);
+                 if (targetIsCaption) {
+                    setPermanentCaptions(prev => prev.map(cap => {
+                      if (cap.id === editAction.targetCaptionId) {
+                        return {...cap, formattedText: editAction.newText || cap.formattedText};
+                      }
+                      return cap;
+                    }));
+                    toast.success("Caption updated!");
+                 } else {
+                    setActiveGraphId(editAction.targetCaptionId);
+                    toast.info(`Graph in focus for editing.`);
+                 }
+            }
+            return;
+        }
+        
+        const aiDecision = await formatCaptionWithAI(correctedTranscript);
+        log('AI_RESPONSE', 'Caption response received', aiDecision);
+        setDebugInfo((prev) => ({ ...prev, aiResponse: aiDecision, error: null }));
+
+        if (aiDecision.decision === "HIDE") return;
+
+        if (aiDecision.captionIntent === 'list') {
+          listBufferRef.current.push(aiDecision.formattedText);
+          isWaitingForListRef.current = true;
+          if (listTimeoutRef.current) clearTimeout(listTimeoutRef.current);
+          listTimeoutRef.current = setTimeout(() => {
+            const formattedList = listBufferRef.current.map((item, idx) => `${idx + 1}. ${item}`).join('\n');
+            const listCaption: AIDecision = { ...aiDecision, formattedText: formattedList, captionIntent: 'list' };
+            captionQueueRef.current.push(listCaption);
+            processCaptionQueue();
+            listBufferRef.current = [];
+            isWaitingForListRef.current = false;
+          }, 1500);
+          return;
+        }
+        
+        if (aiDecision.type === 'highlight') {
+            captionQueueRef.current.push(aiDecision);
+            processCaptionQueue();
+        } else {
+            // Live caption logic remains in VideoCanvas as it's purely transient UI
+        }
+    } catch (error) {
+        log('ERROR', 'Error in processTranscript', error);
+        console.error("AI processing failed:", error);
+        setDebugInfo((prev) => ({ ...prev, error: "AI processing failed." }));
+        toast.error("Failed to process speech");
+    }
+}, [isAiModeEnabled, permanentCaptions, graphs, activeGraphId, captionStyle, log, setDebugInfo, setPermanentCaptions, setGraphs, setActiveGraphId]);
+
+
   const handleTemplateSelect = (template: CaptionTemplate) => {
     setSelectedTemplate(template);
-
-    // Destructure the template's style to separate its position from other properties
     const { position: _, ...stylesToApply } = template.style;
-
-    // Apply the new visual styles to the global default, but preserve the existing position
     setCaptionStyle(prev => ({ ...stylesToApply, position: prev.position }));
-
-    // If a specific caption is selected, apply the new styles to it without changing its position
     if (selectedCaptionId) {
       setPermanentCaptions(caps =>
         caps.map(c => {
           if (c.id === selectedCaptionId) {
             return {
               ...c,
-              style: {
-                ...c.style!, // Keep the caption's existing style (which has the correct position)
-                ...stylesToApply, // Apply the new template styles over it
-              },
+              style: { ...c.style!, ...stylesToApply },
             };
           }
           return c;
@@ -104,6 +259,7 @@ const Index = () => {
           onBackgroundImageUrlChange={setBackgroundImageUrl}
           isAutoFramingEnabled={isAutoFramingEnabled}
           onAutoFramingChange={setIsAutoFramingEnabled}
+          onTextSubmit={processTranscript}
         />
 
         <VideoCanvas
@@ -119,6 +275,11 @@ const Index = () => {
           backgroundImageUrl={backgroundImageUrl}
           isAutoFramingEnabled={isAutoFramingEnabled}
           isAiModeEnabled={isAiModeEnabled}
+          graphs={graphs}
+          setGraphs={setGraphs}
+          activeGraphId={activeGraphId}
+          setActiveGraphId={setActiveGraphId}
+          onProcessTranscript={processTranscript}
         />
       </div>
     </div>

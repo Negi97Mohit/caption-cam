@@ -1,7 +1,7 @@
 import React, { useState, useCallback } from "react";
 import { CaptionStyle, CaptionTemplate } from "@/types/caption";
 import { PRESET_TEMPLATES } from "@/lib/presets";
-import { BACKGROUND_PRESETS, BackgroundOption } from "@/lib/backgrounds";
+import { BACKGROUND_PRESETS } from "@/lib/backgrounds";
 import { StyleControls } from "./StyleControls";
 import { DebugPanel } from "./DebugPanel";
 import { Switch } from "./ui/switch";
@@ -9,8 +9,9 @@ import { Label } from "./ui/label";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "./ui/accordion";
 import { ScrollArea } from "./ui/scroll-area";
 import { cn } from "@/lib/utils";
-import { LayoutTemplate, Palette, Bug, Sparkles, Ban, Droplets } from "lucide-react";
+import { LayoutTemplate, Palette, Bug, Sparkles, Ban, Droplets, Text } from "lucide-react";
 import { Button } from "./ui/button";
+import { Textarea } from "./ui/textarea";
 
 interface LeftSidebarProps {
   onSelectTemplate: (template: CaptionTemplate) => void;
@@ -28,6 +29,7 @@ interface LeftSidebarProps {
   onBackgroundImageUrlChange: (url: string | null) => void;
   isAutoFramingEnabled: boolean;
   onAutoFramingChange: (enabled: boolean) => void;
+  onTextSubmit: (text: string) => void;
 }
 
 const MIN_WIDTH = 280;
@@ -37,17 +39,23 @@ export const LeftSidebar = ({
   onSelectTemplate, selectedTemplate, style, onStyleChange,
   width, isCollapsed, onResize, onMouseEnter, onMouseLeave,
   backgroundEffect, onBackgroundEffectChange, backgroundImageUrl, onBackgroundImageUrlChange,
-  isAutoFramingEnabled, onAutoFramingChange
+  isAutoFramingEnabled, onAutoFramingChange, onTextSubmit
 }: LeftSidebarProps) => {
   const [showDebug, setShowDebug] = useState(false);
+  const [manualText, setManualText] = useState("");
   const isResizing = React.useRef(false);
 
   const handleBackgroundSelect = (effect: 'none' | 'blur' | 'image', url: string | null = null) => {
     onBackgroundEffectChange(effect);
     onBackgroundImageUrlChange(url);
   };
+  
+  const handleTextSubmit = () => {
+    if (!manualText.trim()) return;
+    onTextSubmit(manualText);
+    setManualText(""); // Clear input after submission
+  };
 
-  // ... (mouse move/down/up handlers remain the same) ...
   const handleMouseDown = (e: React.MouseEvent) => {
     e.preventDefault();
     isResizing.current = true;
@@ -69,7 +77,6 @@ export const LeftSidebar = ({
     document.removeEventListener('mousemove', handleMouseMove);
     document.removeEventListener('mouseup', handleMouseUp);
   }, [handleMouseMove]);
-
 
   const previewStyle: React.CSSProperties = {
     fontFamily: style.fontFamily, fontSize: `${style.fontSize}px`, color: style.color,
@@ -94,12 +101,17 @@ export const LeftSidebar = ({
           </div>
         </div>
 
-        <ScrollArea className="flex-1">
+        <ScrollArea className="flex-1 px-4">
           <Accordion type="multiple" defaultValue={["customize", "effects"]} className="w-full">
             <AccordionItem value="templates">
-              <AccordionTrigger className="px-4 text-base font-semibold">Templates</AccordionTrigger>
-              <AccordionContent className="px-4">
-                 <div className="grid grid-cols-2 gap-3">
+              {/* CHANGED: Added flex layout to prevent text wrapping */}
+              <AccordionTrigger className="text-base font-semibold flex items-center gap-2">
+                <LayoutTemplate className="w-4 h-4 flex-shrink-0" /> 
+                <span className="flex-1 text-left truncate">Templates</span>
+              </AccordionTrigger>
+              {/* CHANGED: Removed padding from content, added to inner div */}
+              <AccordionContent>
+                 <div className="pt-2 grid grid-cols-2 gap-3">
                   {PRESET_TEMPLATES.map((template) => (
                     <div
                       key={template.id}
@@ -114,77 +126,109 @@ export const LeftSidebar = ({
             </AccordionItem>
 
             <AccordionItem value="customize">
-              <AccordionTrigger className="px-4 text-base font-semibold">Customize Style</AccordionTrigger>
-              <AccordionContent className="px-4">
-                <StyleControls style={style} onStyleChange={onStyleChange} />
+              <AccordionTrigger className="text-base font-semibold flex items-center gap-2">
+                <Palette className="w-4 h-4 flex-shrink-0" />
+                <span className="flex-1 text-left truncate">Customize Style</span>
+              </AccordionTrigger>
+              <AccordionContent>
+                <div className="pt-2">
+                  <StyleControls style={style} onStyleChange={onStyleChange} />
+                </div>
               </AccordionContent>
             </AccordionItem>
 
             <AccordionItem value="effects">
-              <AccordionTrigger className="px-4 text-base font-semibold">Video Effects</AccordionTrigger>
-              <AccordionContent className="px-4 space-y-6">
-                <div className="space-y-3">
-                  <Label>Background</Label>
-                  <div className="grid grid-cols-3 gap-2">
-                    <Button variant={backgroundEffect === 'none' ? 'default' : 'secondary'} className="h-16 flex-col" onClick={() => handleBackgroundSelect('none')}>
-                      <Ban className="w-5 h-5 mb-1" /> None
-                    </Button>
-                    <Button variant={backgroundEffect === 'blur' ? 'default' : 'secondary'} className="h-16 flex-col" onClick={() => handleBackgroundSelect('blur')}>
-                      <Droplets className="w-5 h-5 mb-1" /> Blur
-                    </Button>
-                    {BACKGROUND_PRESETS.map((preset) => (
-                      <div
-                        key={preset.id}
-                        onClick={() => handleBackgroundSelect('image', preset.imageUrl)}
-                        className={cn(
-                          "cursor-pointer rounded-md border-2 transition-all aspect-[16/10] bg-cover bg-center",
-                          backgroundEffect === 'image' && backgroundImageUrl === preset.imageUrl ? "border-primary ring-2 ring-primary/50" : "border-border hover:border-primary/50"
-                        )}
-                        style={{ backgroundImage: `url(${preset.thumbnailUrl})` }}
-                      />
-                    ))}
+              <AccordionTrigger className="text-base font-semibold flex items-center gap-2">
+                <Sparkles className="w-4 h-4 flex-shrink-0" />
+                <span className="flex-1 text-left truncate">Video Effects</span>
+              </AccordionTrigger>
+              <AccordionContent>
+                <div className="pt-2 space-y-6">
+                  <div className="space-y-3">
+                    <Label>Background</Label>
+                    <div className="grid grid-cols-3 gap-2">
+                      <Button variant={backgroundEffect === 'none' ? 'default' : 'secondary'} className="h-16 flex-col" onClick={() => handleBackgroundSelect('none')}>
+                        <Ban className="w-5 h-5 mb-1" /> None
+                      </Button>
+                      <Button variant={backgroundEffect === 'blur' ? 'default' : 'secondary'} className="h-16 flex-col" onClick={() => handleBackgroundSelect('blur')}>
+                        <Droplets className="w-5 h-5 mb-1" /> Blur
+                      </Button>
+                      {BACKGROUND_PRESETS.map((preset) => (
+                        <div
+                          key={preset.id}
+                          onClick={() => handleBackgroundSelect('image', preset.imageUrl)}
+                          className={cn(
+                            "cursor-pointer rounded-md border-2 transition-all aspect-[16/10] bg-cover bg-center",
+                            backgroundEffect === 'image' && backgroundImageUrl === preset.imageUrl ? "border-primary ring-2 ring-primary/50" : "border-border hover:border-primary/50"
+                          )}
+                          style={{ backgroundImage: `url(${preset.thumbnailUrl})` }}
+                        />
+                      ))}
+                    </div>
                   </div>
-                </div>
-                <div className="flex items-center justify-between pt-4 border-t">
-                  <Label htmlFor="auto-framing-toggle" className="font-medium">Auto-framing</Label>
-                  <Switch id="auto-framing-toggle" checked={isAutoFramingEnabled} onCheckedChange={onAutoFramingChange} />
+                  <div className="flex items-center justify-between pt-4 border-t">
+                    <Label htmlFor="auto-framing-toggle" className="font-medium">Auto-framing</Label>
+                    <Switch id="auto-framing-toggle" checked={isAutoFramingEnabled} onCheckedChange={onAutoFramingChange} />
+                  </div>
                 </div>
               </AccordionContent>
             </AccordionItem>
+            
+            <AccordionItem value="text-input">
+                <AccordionTrigger className="text-base font-semibold flex items-center gap-2">
+                    <Text className="w-4 h-4 flex-shrink-0" />
+                    <span className="flex-1 text-left truncate">Manual Text Input</span>
+                </AccordionTrigger>
+                <AccordionContent>
+                  <div className="pt-2 space-y-4">
+                      <Label htmlFor="manual-caption">Enter text to generate a caption or command</Label>
+                      <Textarea
+                          id="manual-caption"
+                          placeholder="e.g., Let's talk about quarterly earnings..."
+                          value={manualText}
+                          onChange={(e) => setManualText(e.target.value)}
+                          onKeyDown={(e) => {
+                              if (e.key === 'Enter' && !e.shiftKey) {
+                                  e.preventDefault();
+                                  handleTextSubmit();
+                              }
+                          }}
+                      />
+                      <Button onClick={handleTextSubmit} className="w-full">
+                          Generate
+                      </Button>
+                  </div>
+                </AccordionContent>
+            </AccordionItem>
 
             <AccordionItem value="debug">
-              <AccordionTrigger className="px-4 text-base font-semibold">Debug</AccordionTrigger>
-              <AccordionContent className="px-4">
-                <div className="flex items-center justify-between mb-4">
-                  <Label htmlFor="debug-panel-toggle" className="font-medium">Show Debug Panel</Label>
-                  <Switch id="debug-panel-toggle" checked={showDebug} onCheckedChange={setShowDebug} />
+              <AccordionTrigger className="text-base font-semibold flex items-center gap-2">
+                <Bug className="w-4 h-4 flex-shrink-0" />
+                <span className="flex-1 text-left truncate">Debug</span>
+              </AccordionTrigger>
+              <AccordionContent>
+                <div className="pt-2">
+                  <div className="flex items-center justify-between mb-4">
+                    <Label htmlFor="debug-panel-toggle" className="font-medium">Show Debug Panel</Label>
+                    <Switch id="debug-panel-toggle" checked={showDebug} onCheckedChange={setShowDebug} />
+                  </div>
+                  {showDebug && <DebugPanel />}
                 </div>
-                {showDebug && <DebugPanel />}
               </AccordionContent>
             </AccordionItem>
           </Accordion>
         </ScrollArea>
       </div>
 
-      {/* --- COLLAPSED / MINIMIZED VIEW --- */}
       <div className={cn("absolute top-0 left-0 h-full w-full flex flex-col items-center py-4 gap-4 transition-opacity duration-200", !isCollapsed && "opacity-0 pointer-events-none")}>
         <div className="flex flex-col gap-2">
-           <Button variant="ghost" size="icon" className="w-10 h-10">
-              <LayoutTemplate className="w-5 h-5" />
-           </Button>
-           <Button variant="ghost" size="icon" className="w-10 h-10">
-              <Palette className="w-5 h-5" />
-           </Button>
-           <Button variant="ghost" size="icon" className="w-10 h-10">
-              <Sparkles className="w-5 h-5" />
-           </Button>
-           <Button variant="ghost" size="icon" className="w-10 h-10">
-              <Bug className="w-5 h-5" />
-           </Button>
+           <Button variant="ghost" size="icon" className="w-10 h-10"><LayoutTemplate className="w-5 h-5" /></Button>
+           <Button variant="ghost" size="icon" className="w-10 h-10"><Palette className="w-5 h-5" /></Button>
+           <Button variant="ghost" size="icon" className="w-10 h-10"><Sparkles className="w-5 h-5" /></Button>
+           <Button variant="ghost" size="icon" className="w-10 h-10"><Bug className="w-5 h-5" /></Button>
         </div>
       </div>
 
-      {/* --- RESIZE HANDLE --- */}
       <div
         className="absolute top-0 right-0 h-full w-2 cursor-col-resize group"
         onMouseDown={handleMouseDown}

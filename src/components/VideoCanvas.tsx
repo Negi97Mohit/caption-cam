@@ -8,19 +8,17 @@ import { FaceDetection } from "@mediapipe/face_detection";
 import { useBrowserSpeech } from "@/hooks/useBrowserSpeech";
 import { Rnd } from 'react-rnd';
 import * as Babel from '@babel/standalone';
-import { GeneratedOverlay } from "@/pages/Index";
+import { GeneratedOverlay } from "@/types/caption";
 
 // --- DYNAMIC CODE RENDERER COMPONENT ---
-const DynamicCodeRenderer = ({ overlay, onLayoutChange, onRemove }) => {
+const DynamicCodeRenderer = ({ overlay, onLayoutChange, onRemove, containerSize }) => {
     const [Component, setComponent] = useState(null);
     const [error, setError] = useState(null);
 
     useEffect(() => {
         try {
             setError(null);
-            // Transpile JSX code string into standard JS using Babel Standalone
             const transformedCode = Babel.transform(overlay.componentCode, { presets: ['react'] }).code;
-            // Safely create the component function from the transpiled code
             const componentFunction = new Function('React', `return ${transformedCode}`);
             setComponent(() => componentFunction(React));
         } catch (e) {
@@ -30,6 +28,15 @@ const DynamicCodeRenderer = ({ overlay, onLayoutChange, onRemove }) => {
         }
     }, [overlay.componentCode]);
     
+    const position = {
+      x: (overlay.layout.position.x / 100) * containerSize.width,
+      y: (overlay.layout.position.y / 100) * containerSize.height,
+    };
+    const size = {
+      width: (overlay.layout.size.width / 100) * containerSize.width,
+      height: (overlay.layout.size.height / 100) * containerSize.height,
+    };
+
     const content = error ? (
         <div className="w-full h-full p-2 bg-red-900 text-white overflow-auto">
             <h4 className="font-bold">Render Error</h4>
@@ -37,24 +44,40 @@ const DynamicCodeRenderer = ({ overlay, onLayoutChange, onRemove }) => {
         </div>
     ) : Component ? <Component /> : <div>Loading...</div>;
 
+    if (!containerSize.width || !containerSize.height) {
+        return null;
+    }
+
     return (
         <Rnd
-            default={{ 
-              x: overlay.layout.position.x, 
-              y: overlay.layout.position.y,
-              width: overlay.layout.size.width,
-              height: overlay.layout.size.height
-            }}
+            size={size}
+            position={position}
             minWidth={50} minHeight={50} bounds="parent"
-            onDragStop={(e, d) => onLayoutChange(overlay.id, 'position', { x: d.x, y: d.y })}
+            onDragStop={(e, d) => {
+                const newPosition = {
+                    x: (d.x / containerSize.width) * 100,
+                    y: (d.y / containerSize.height) * 100,
+                };
+                onLayoutChange(overlay.id, 'position', newPosition);
+            }}
             onResizeStop={(e, dir, ref, delta, pos) => {
-                onLayoutChange(overlay.id, 'size', { width: ref.style.width, height: ref.style.height });
-                onLayoutChange(overlay.id, 'position', pos);
+                const newSize = {
+                    width: (parseInt(ref.style.width, 10) / containerSize.width) * 100,
+                    height: (parseInt(ref.style.height, 10) / containerSize.height) * 100,
+                };
+                const newPosition = {
+                    x: (pos.x / containerSize.width) * 100,
+                    y: (pos.y / containerSize.height) * 100,
+                };
+                onLayoutChange(overlay.id, 'size', newSize);
+                onLayoutChange(overlay.id, 'position', newPosition);
             }}
             style={{ zIndex: overlay.layout.zIndex }}
-            className="flex items-center justify-center border-2 border-transparent hover:border-blue-500 hover:border-dashed group bg-black/10"
+            className="flex items-center justify-center border-2 border-transparent hover:border-blue-500 hover:border-dashed group"
         >
-            {content}
+            <div id={overlay.id} className="w-full h-full relative flex items-center justify-center">
+              {content}
+            </div>
             <button
                 onClick={() => onRemove(overlay.id)}
                 className="absolute -top-3 -right-3 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
@@ -103,6 +126,23 @@ export const VideoCanvas = ({
   const [partialTranscript, setPartialTranscript] = useState("");
   const [areControlsVisible, setAreControlsVisible] = useState(true);
   const hideControlsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const overlayContainerRef = useRef<HTMLDivElement>(null);
+  const [containerSize, setContainerSize] = useState({ width: 0, height: 0 });
+
+  useEffect(() => {
+    const container = overlayContainerRef.current;
+    if (!container) return;
+
+    const resizeObserver = new ResizeObserver(() => {
+      setContainerSize({
+        width: container.clientWidth,
+        height: container.clientHeight,
+      });
+    });
+
+    resizeObserver.observe(container);
+    return () => resizeObserver.disconnect();
+  }, []);
 
   useEffect(() => {
     if (backgroundEffect === 'image' && backgroundImageUrl) {
@@ -269,13 +309,14 @@ export const VideoCanvas = ({
         className="absolute inset-0 w-full h-full object-cover transition-all duration-500"
         style={{ filter: videoFilter }}
       />
-      <div className="absolute inset-0">
+      <div ref={overlayContainerRef} className="absolute inset-0">
         {captionsEnabled && generatedOverlays.map(overlay => (
           <DynamicCodeRenderer
             key={overlay.id}
             overlay={overlay}
             onLayoutChange={onOverlayLayoutChange}
             onRemove={onRemoveOverlay}
+            containerSize={containerSize}
           />
         ))}
         {isRecording && partialTranscript && (

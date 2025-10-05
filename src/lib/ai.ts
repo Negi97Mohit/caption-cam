@@ -14,6 +14,7 @@ You are the master AI control agent for a real-time video application. Your sole
 **CRITICAL INSTRUCTIONS:**
 - Your response MUST be a single, valid JSON object.
 - **Do NOT nest the parameters inside a "parameters" key.** All keys ('tool', 'componentCode', 'layout', 'style', 'filter', 'theme') must be at the top level of the JSON object.
+- **All \`layout\` position and size values MUST be percentages (a number from 0 to 100) relative to the video canvas.** For example, \`{"x": 50, "y": 50}\` is the center, and \`{"width": 25, "height": 20}\` is 25% of the canvas width and 20% of its height.
 
 You have the following tools available:
 
@@ -22,7 +23,7 @@ You have the following tools available:
    - **Top-Level Keys:**
      - \`tool\`: "generate_ui_component"
      - \`componentCode\`: A string of self-contained React functional component code. It must use inline styles and only the 'React' import.
-     - \`layout\`: An object with \`position\` {x, y} and \`size\` {width, height}.
+     - \`layout\`: An object with \`position\` {x, y} and \`size\` {width, height}, with all values as percentages (0-100).
 
 **2. \`apply_live_caption_style\`**
    - **Purpose:** Styles the real-time, temporary captions that appear as the user is speaking.
@@ -49,7 +50,7 @@ You have the following tools available:
     {
       "tool": "generate_ui_component",
       "componentCode": "() => { const [timeLeft, setTimeLeft] = React.useState(300); React.useEffect(() => { if (timeLeft <= 0) return; const timer = setInterval(() => setTimeLeft(t => t - 1), 1000); return () => clearInterval(timer); }, [timeLeft]); const minutes = Math.floor(timeLeft / 60); const seconds = timeLeft % 60; return <div style={{ fontFamily: 'monospace', fontSize: '3rem', color: '#00ff00', backgroundColor: 'rgba(0,0,0,0.7)', padding: '10px 20px', borderRadius: '10px' }}>{minutes}:{seconds < 10 ? '0' : ''}{seconds}</div>; }",
-      "layout": { "position": { "x": 100, "y": 100 }, "size": { "width": 300, "height": 100 }, "zIndex": 20 }
+      "layout": { "position": { "x": 10, "y": 10 }, "size": { "width": 30, "height": 15 }, "zIndex": 20 }
     }
 
 - User: "make my live captions look like they're on fire"
@@ -73,13 +74,16 @@ function robustJsonParse(text: string): object | null {
     }
 }
 
+// Helper to check if a string is a valid hex color
+const isValidHex = (color: string) => /^#([0-9A-F]{3}){1,2}$/i.test(color);
+
 export async function processCommandWithAgent(command: string): Promise<AICommand | null> {
     if (!API_KEY) {
         console.error("API Key Missing");
         return {
             tool: 'generate_ui_component',
             componentCode: "() => <div style={{color: 'white', backgroundColor: 'red', padding: '10px'}}>API Key Missing in .env file.</div>",
-            layout: { position: { x: 100, y: 150 }, size: { width: 400, height: 50 }, zIndex: 100 }
+            layout: { position: { x: 25, y: 40 }, size: { width: 50, height: 10 }, zIndex: 100 }
         };
     }
     
@@ -107,16 +111,27 @@ export async function processCommandWithAgent(command: string): Promise<AIComman
         const data = await res.json();
         const content = data?.choices?.[0]?.message?.content;
         if (!content) throw new Error("Empty AI response");
+        
         const parsedCommand = robustJsonParse(content);
         if (!parsedCommand) throw new Error("Failed to parse valid JSON from AI response.");
+
+        // FIX: Wrap theme generation in a try/catch to prevent crashes
         if (parsedCommand.tool === 'change_app_theme' && parsedCommand.theme) {
-            const theme = parsedCommand.theme;
-            const primary = theme.primary || '#8A2BE2';
-            const colormap = interpolate([primary, '#FFFFFF']);
-            theme.primary_foreground = colormap(0.9);
-            const bgColormap = interpolate([theme.background || '#000000', '#FFFFFF']);
-            theme.card = bgColormap(0.1);
-            theme.border = bgColormap(0.15);
+            try {
+                const theme = parsedCommand.theme;
+                const primary = isValidHex(theme.primary) ? theme.primary : '#8A2BE2';
+                const background = isValidHex(theme.background) ? theme.background : '#000000';
+                
+                const colormap = interpolate([primary, '#FFFFFF']);
+                theme.primary_foreground = colormap(0.9);
+                
+                const bgColormap = interpolate([background, '#FFFFFF']);
+                theme.card = bgColormap(0.1);
+                theme.border = bgColormap(0.15);
+            } catch (themeError) {
+                console.error("Could not generate theme from AI colors:", themeError);
+                // The command can still proceed without the derived colors.
+            }
         }
         return parsedCommand as AICommand;
     } catch (err) {
@@ -124,8 +139,7 @@ export async function processCommandWithAgent(command: string): Promise<AIComman
          return {
             tool: 'generate_ui_component',
             componentCode: `() => <div style={{color: 'white', backgroundColor: 'red', padding: '10px'}}>Error: ${err.message}</div>`,
-            layout: { position: { x: 100, y: 150 }, size: { width: 400, height: 50 }, zIndex: 100 }
+            layout: { position: { x: 25, y: 40 }, size: { width: 50, height: 10 }, zIndex: 100 }
         };
     }
 }
-

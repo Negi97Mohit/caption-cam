@@ -26,6 +26,14 @@ export type GeneratedLayout = {
   zIndex: number;
 };
 
+// Add the optional preview field
+export interface GeneratedOverlay {
+  id: string;
+  componentCode: string;
+  layout: GeneratedLayout;
+  preview?: string; // To store the base64 image data URL
+}
+
 // Represents a command for the AI to generate a brand new UI component
 export interface GenerateUICommand {
   tool: 'generate_ui_component';

@@ -1,34 +1,22 @@
-
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback } from "react";
 import { VideoCanvas } from "@/components/VideoCanvas";
 import { LeftSidebar } from "@/components/LeftSidebar";
 import { TopToolbar } from "@/components/TopToolbar";
-import { CaptionStyle, AICommand } from "@/types/caption";
+import { CaptionStyle, GeneratedOverlay, AICommand } from "@/types/caption";
 import { processCommandWithAgent } from "@/lib/ai";
 import { toast } from "sonner";
 import { useLog } from "@/context/LogContext";
 import { useDebug } from "@/context/DebugContext";
-
-// Define the type for our dynamically generated overlays
-export type GeneratedOverlay = {
-  id: string;
-  componentCode: string;
-  layout: {
-    position: { x: number; y: number };
-    size: { width: number | string; height: number | string };
-    zIndex: number;
-  };
-};
+import { useLocalStorage } from "@/hooks/useLocalStorage";
+import { toPng } from 'html-to-image';
 
 const Index = () => {
-  // State for generated overlay components
-  const [generatedOverlays, setGeneratedOverlays] = useState<GeneratedOverlay[]>([]);
-  
-  // State for dynamically applied styles and effects
+  const [savedOverlays, setSavedOverlays] = useLocalStorage<GeneratedOverlay[]>("savedOverlays", []);
+  const [activeOverlays, setActiveOverlays] = useState<GeneratedOverlay[]>([]);
   const [liveCaptionStyle, setLiveCaptionStyle] = useState<React.CSSProperties>({});
   const [videoFilter, setVideoFilter] = useState<string>('none');
+  const [isProcessingAi, setIsProcessingAi] = useState(false);
 
-  // --- Other existing state ---
   const [captionStyle, setCaptionStyle] = useState<CaptionStyle>({
     fontFamily: "Inter", fontSize: 24, color: "#FFFFFF", backgroundColor: "rgba(0, 0, 0, 0.8)",
     position: { x: 50, y: 85 }, shape: "rounded", animation: "fade", outline: false, shadow: true,
@@ -47,10 +35,8 @@ const Index = () => {
   const { log } = useLog();
   const { setDebugInfo } = useDebug();
   
-  // Function to apply theme changes to the document's root element
   const applyTheme = (theme) => {
     const root = document.documentElement;
-    // Simple hex to HSL conversion for ShadCN compatibility
     const hexToHsl = (hex) => {
         let r = 0, g = 0, b = 0;
         if (hex.length === 4) {
@@ -86,35 +72,56 @@ const Index = () => {
     if (theme.primary_foreground) root.style.setProperty('--primary-foreground', hexToHsl(theme.primary_foreground));
   };
 
+  const generatePreview = useCallback((overlayId: string) => {
+    const node = document.getElementById(overlayId);
+    if (node) {
+      toPng(node, { cacheBust: true, style: { background: 'transparent' } })
+        .then((dataUrl) => {
+          setSavedOverlays(prev => 
+            prev.map(o => o.id === overlayId ? { ...o, preview: dataUrl } : o)
+          );
+        })
+        .catch((err) => {
+          console.error('Failed to generate preview image', err);
+        });
+    }
+  }, [setSavedOverlays]);
 
-  // --- NEW MASTER AI COMMAND PROCESSOR ---
   const processTranscript = useCallback(async (transcript: string) => {
     if (!isAiModeEnabled) {
       toast.info("AI Mode is off. Turn it on to use AI commands.");
       return;
     }
+    if (isProcessingAi) {
+        toast.info("AI is already working on a previous command.");
+        return;
+    }
 
     log('TRANSCRIPT', 'Processing command', transcript);
     setDebugInfo((prev) => ({ ...prev, rawTranscript: transcript, aiResponse: null, error: null }));
-    toast.loading("AI is thinking...");
+    const thinkingToast = toast.loading("AI is thinking...");
+    setIsProcessingAi(true);
 
     try {
-      const command = await processCommandWithAgent(transcript);
+      const command = await processCommandWithAgent(transcript) as AICommand;
       log('AI_RESPONSE', 'Agent command received', command);
       setDebugInfo((prev) => ({ ...prev, aiResponse: command as any }));
 
       if (!command) throw new Error("AI did not return a valid command.");
 
-      // --- COMMAND DISPATCHER ---
       switch (command.tool) {
         case 'generate_ui_component':
           const newOverlay: GeneratedOverlay = {
-            id: `gen-${Date.now()}`,
+            id: `overlay-${Date.now()}`,
             componentCode: command.componentCode,
-            layout: command.layout || { position: { x: 100, y: 100 }, size: { width: 300, height: 150 }, zIndex: 10 },
+            layout: command.layout || { position: { x: 10, y: 10 }, size: { width: 30, height: 15 }, zIndex: 10 },
           };
-          setGeneratedOverlays(prev => [...prev, newOverlay]);
+          
+          setActiveOverlays(prev => [...prev, newOverlay]);
+          setSavedOverlays(prev => [...prev, newOverlay]);
           toast.success("AI generated a new overlay!");
+
+          setTimeout(() => generatePreview(newOverlay.id), 500);
           break;
 
         case 'apply_live_caption_style':
@@ -138,18 +145,32 @@ const Index = () => {
     } catch (error) {
       log('ERROR', 'Error in processTranscript', error);
       setDebugInfo((prev) => ({ ...prev, error: "AI command processing failed." }));
-      toast.error("AI command failed: " + error.message);
+      toast.error("AI command failed: " + (error as Error).message);
+    } finally {
+        setIsProcessingAi(false);
+        toast.dismiss(thinkingToast);
     }
-  }, [isAiModeEnabled, log, setDebugInfo]);
+  }, [isAiModeEnabled, log, setDebugInfo, isProcessingAi, setSavedOverlays, generatePreview]);
 
   const handleLayoutChange = (id: string, key: 'position' | 'size', value: any) => {
-      setGeneratedOverlays(prev => prev.map(o => 
+      const updater = (prev: GeneratedOverlay[]) => prev.map(o => 
           o.id === id ? { ...o, layout: { ...o.layout, [key]: value } } : o
-      ));
+      );
+      setActiveOverlays(updater);
+      setSavedOverlays(updater);
   };
   
   const handleRemoveOverlay = (id: string) => {
-      setGeneratedOverlays(prev => prev.filter(o => o.id !== id));
+      setActiveOverlays(prev => prev.filter(o => o.id !== id));
+      toast.info("Overlay removed from canvas. It remains in your saved list.");
+  };
+
+  const addSavedOverlayToCanvas = (overlay: GeneratedOverlay) => {
+    if (activeOverlays.find(o => o.id === overlay.id)) {
+        toast.warning("This overlay is already on the canvas.");
+        return;
+    }
+    setActiveOverlays(prev => [...prev, overlay]);
   };
 
   const isMinimized = isSidebarCollapsed && !isHoveringSidebar;
@@ -180,6 +201,12 @@ const Index = () => {
           onBackgroundImageUrlChange={setBackgroundImageUrl}
           isAutoFramingEnabled={isAutoFramingEnabled}
           onAutoFramingChange={setIsAutoFramingEnabled}
+          savedOverlays={savedOverlays}
+          onAddSavedOverlay={addSavedOverlayToCanvas}
+          onDeleteSavedOverlay={(id) => {
+            setSavedOverlays(prev => prev.filter(o => o.id !== id));
+            setActiveOverlays(prev => prev.filter(o => o.id !== id));
+          }}
           onTextSubmit={processTranscript}
         />
 
@@ -191,7 +218,7 @@ const Index = () => {
           backgroundImageUrl={backgroundImageUrl}
           isAutoFramingEnabled={isAutoFramingEnabled}
           onProcessTranscript={processTranscript}
-          generatedOverlays={generatedOverlays}
+          generatedOverlays={activeOverlays}
           onOverlayLayoutChange={handleLayoutChange}
           onRemoveOverlay={handleRemoveOverlay}
           liveCaptionStyle={liveCaptionStyle}

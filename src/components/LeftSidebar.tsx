@@ -1,7 +1,6 @@
 // src/components/LeftSidebar.tsx
-
 import React, { useState, useCallback } from "react";
-import { CaptionStyle } from "@/types/caption";
+import { CaptionStyle, GeneratedOverlay } from "@/types/caption";
 import { StyleControls } from "./StyleControls";
 import { DebugPanel } from "./DebugPanel";
 import { Switch } from "./ui/switch";
@@ -9,11 +8,10 @@ import { Label } from "./ui/label";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "./ui/accordion";
 import { ScrollArea } from "./ui/scroll-area";
 import { cn } from "@/lib/utils";
-import { Palette, Bug, Sparkles, Ban, Droplets, Text } from "lucide-react";
+import { Palette, Bug, Sparkles, Ban, Droplets, Text, Trash2 } from "lucide-react";
 import { Button } from "./ui/button";
 import { Textarea } from "./ui/textarea";
 import { BACKGROUND_PRESETS } from "@/lib/backgrounds";
-
 
 interface LeftSidebarProps {
   style: CaptionStyle;
@@ -29,6 +27,9 @@ interface LeftSidebarProps {
   onBackgroundImageUrlChange: (url: string | null) => void;
   isAutoFramingEnabled: boolean;
   onAutoFramingChange: (enabled: boolean) => void;
+  savedOverlays: GeneratedOverlay[];
+  onAddSavedOverlay: (overlay: GeneratedOverlay) => void;
+  onDeleteSavedOverlay: (id: string) => void;
   onTextSubmit: (text: string) => void;
 }
 
@@ -39,7 +40,9 @@ export const LeftSidebar = ({
   style, onStyleChange,
   width, isCollapsed, onResize, onMouseEnter, onMouseLeave,
   backgroundEffect, onBackgroundEffectChange, backgroundImageUrl, onBackgroundImageUrlChange,
-  isAutoFramingEnabled, onAutoFramingChange, onTextSubmit
+  isAutoFramingEnabled, onAutoFramingChange,
+  savedOverlays, onAddSavedOverlay, onDeleteSavedOverlay,
+  onTextSubmit
 }: LeftSidebarProps) => {
   const [showDebug, setShowDebug] = useState(false);
   const [manualText, setManualText] = useState("");
@@ -92,7 +95,7 @@ export const LeftSidebar = ({
         </div>
 
         <ScrollArea className="flex-1 px-4">
-          <Accordion type="multiple" defaultValue={["text-input", "effects"]} className="w-full">
+          <Accordion type="multiple" defaultValue={["text-input", "saved-overlays", "effects"]} className="w-full">
             
             <AccordionItem value="text-input">
                 <AccordionTrigger className="text-base font-semibold flex items-center gap-2">
@@ -125,6 +128,49 @@ export const LeftSidebar = ({
                             <li>display the current time, updating every second</li>
                         </ul>
                     </div>
+                  </div>
+                </AccordionContent>
+            </AccordionItem>
+
+            <AccordionItem value="saved-overlays">
+                <AccordionTrigger className="text-base font-semibold flex items-center gap-2">
+                    <Sparkles className="w-4 h-4 flex-shrink-0" />
+                    <span className="flex-1 text-left truncate">Saved Overlays</span>
+                </AccordionTrigger>
+                <AccordionContent>
+                  <div className="pt-2 space-y-3">
+                      {savedOverlays.length === 0 ? (
+                        <p className="text-sm text-muted-foreground text-center p-4">
+                          Generated overlays will be saved here for reuse.
+                        </p>
+                      ) : (
+                        <div className="grid grid-cols-2 gap-3">
+                          {savedOverlays.map(overlay => (
+                            <div key={overlay.id} className="group relative aspect-video rounded-md bg-secondary/50 flex items-center justify-center overflow-hidden border">
+                              <button 
+                                className="w-full h-full"
+                                onClick={() => onAddSavedOverlay(overlay)}
+                                title={`Add overlay to canvas`}
+                              >
+                                {overlay.preview ? (
+                                    <img src={overlay.preview} alt="Overlay preview" className="w-full h-full object-contain" />
+                                ) : (
+                                    <span className="text-xs text-muted-foreground">No Preview</span>
+                                )}
+                              </button>
+                              <Button 
+                                variant="destructive"
+                                size="icon" 
+                                className="absolute top-1 right-1 h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
+                                onClick={() => onDeleteSavedOverlay(overlay.id)}
+                                title="Delete saved overlay"
+                              >
+                                  <Trash2 className="w-3 h-3" />
+                              </Button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
                   </div>
                 </AccordionContent>
             </AccordionItem>
@@ -208,4 +254,3 @@ export const LeftSidebar = ({
     </aside>
   );
 };
-

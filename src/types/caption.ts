@@ -1,5 +1,7 @@
 export type CaptionShape = "rectangular" | "rounded" | "pill" | "speech-bubble" | "banner";
 export type CaptionAnimation = "fade" | "bounce" | "karaoke" | "none" | "slide-up";
+
+// This style is now a 'base' style, primarily for text, but can be used by the AI
 export interface CaptionStyle {
   fontFamily: string;
   fontSize: number;
@@ -16,59 +18,47 @@ export interface CaptionStyle {
   underline: boolean;
 }
 
-export interface CaptionTemplate {
-  id: string;
-  name: string;
-  description: string;
-  style: CaptionStyle;
-  preview: string;
+// --- NEW AI AGENT TYPES ---
+
+export type GeneratedLayout = {
+  position: { x: number; y: number };
+  size: { width: number | string; height: number | string };
+  zIndex: number;
+};
+
+// Represents a command for the AI to generate a brand new UI component
+export interface GenerateUICommand {
+  tool: 'generate_ui_component';
+  componentCode: string;
+  layout: GeneratedLayout;
 }
 
-export interface AIDecision {
-  id?: string;
-  name?: string;
-  decision: "SHOW" | "HIDE";
-  type: "live" | "highlight";
-  duration: number | "permanent";
-  formattedText: string;
-  position?: { x: number; y: number };
-  style?: CaptionStyle;
-  size?: { width: number; height: number }; // ADDED: For resizable captions
-  cellIndex?: number;
-  captionIntent?: string; // 'title' | 'question' | 'quote' | 'list' | 'live' | 'default'
+// Represents a command to apply a CSS filter to the main video feed
+export interface ApplyVideoEffectCommand {
+  tool: 'apply_video_effect';
+  filter: string; // e.g., 'grayscale(100%)', 'sepia(80%)', 'blur(5px)'
 }
 
-export interface EditAction {
-  command: "EDIT" | "APPEND" | "DELETE_LINE" | "EDIT_LINE" | "GRAPH_ADD" | "GRAPH_CONFIG";
-  targetId: string;
-  newText?: string; // For EDIT, APPEND, EDIT_LINE
-  lineNumber?: number; // For DELETE_LINE, EDIT_LINE (1-based)
-  graphData?: { label: string; value: number }; // For GRAPH_ADD
-  graphConfig?: { // For GRAPH_CONFIG
-    title?: string;
-    xAxisLabel?: string;
-    yAxisLabel?: string;
+// Represents a command to apply inline CSS styles to the live partial transcript
+export interface ApplyLiveCaptionStyleCommand {
+  tool: 'apply_live_caption_style';
+  style: React.CSSProperties;
+}
+
+// Represents a command to change the overall application theme (CSS variables)
+export interface ChangeAppThemeCommand {
+  tool: 'change_app_theme';
+  theme: {
+    primary: string;
+    secondary: string;
+    background: string;
+    foreground: string;
+    // These will be derived in the AI function
+    primary_foreground?: string;
+    card?: string;
+    border?: string;
   };
 }
-// --- START: NEW GRAPH TYPES ---
-export interface GraphDataPoint {
-  label: string;
-  value: number;
-}
 
-export interface GraphConfig {
-  title?: string;
-  xAxisLabel?: string;
-  yAxisLabel?: string;
-}
-
-export interface GraphObject {
-  id: string;
-  name?: string;
-  type: 'graph';
-  graphType: 'bar' | 'line' | 'pie';
-  data: GraphDataPoint[];
-  config: GraphConfig;
-  position: { x: number; y: number };
-  size: { width: number; height: number };
-}
+// A union type representing any possible command the AI can return
+export type AICommand = GenerateUICommand | ApplyVideoEffectCommand | ApplyLiveCaptionStyleCommand | ChangeAppThemeCommand;

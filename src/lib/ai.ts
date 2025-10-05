@@ -1,56 +1,83 @@
 // src/lib/ai.ts
-
-// The old AI functions have been removed and replaced with a single, powerful generative function.
+import { AICommand } from "@/types/caption";
+import interpolate from 'color-interpolate';
 
 const API_KEY = import.meta.env.VITE_OPENROUTER_API_KEY;
 const API_URL = "https://openrouter.ai/api/v1/chat/completions";
-const SITE_URL = import.meta.env.VITE_APP_SITE_URL;
-const APP_NAME = import.meta.env.VITE_APP_NAME;
+const SITE_URL = import.meta.env.VITE_APP_SITE_URL || "http://localhost:5173";
+const APP_NAME = import.meta.env.VITE_APP_NAME || "Generative Video Editor";
 
+// --- THE NEW AI COMMAND AGENT MASTER PROMPT ---
+const MASTER_PROMPT_AGENT = `
+You are the master AI control agent for a real-time video application. Your sole purpose is to analyze a user's natural language command and translate it into a single, flat JSON object representing a tool to be used.
 
-// --- REVISED CORE AI "MASTER PROMPT V2" ---
-// This new prompt instructs the AI to act as a React component developer.
-const MASTER_PROMPT_V2 = `
-You are an expert AI frontend developer specializing in React. Your task is to translate a user's natural language command into a single, self-contained React functional component as a string of code.
+**CRITICAL INSTRUCTIONS:**
+- Your response MUST be a single, valid JSON object.
+- **Do NOT nest the parameters inside a "parameters" key.** All keys ('tool', 'componentCode', 'layout', 'style', 'filter', 'theme') must be at the top level of the JSON object.
 
-**CRITICAL RULES:**
+You have the following tools available:
 
-1.  **GENERATE CODE:** You MUST return a block of React component code. Do NOT just describe it.
-2.  **SELF-CONTAINED:** The component must be entirely self-contained. It should not rely on any external imports other than React. Use React hooks (useState, useEffect) for any state or animation.
-3.  **FUNCTIONAL COMPONENT:** The component MUST be a standard React functional component.
-4.  **STYLING:** Use inline CSS for all styling.
-5.  **NO PROPS:** The component should not expect any props. All necessary data or text should be hardcoded into the component based on the user's prompt.
+**1. \`generate_ui_component\`**
+   - **Purpose:** Creates a brand new, visible overlay component on the video canvas.
+   - **Top-Level Keys:**
+     - \`tool\`: "generate_ui_component"
+     - \`componentCode\`: A string of self-contained React functional component code. It must use inline styles and only the 'React' import.
+     - \`layout\`: An object with \`position\` {x, y} and \`size\` {width, height}.
 
-**OUTPUT FORMAT (JSON ONLY):**
-You must respond with a single JSON object. The key "componentCode" must contain the React component code as a single, escaped string. The "layout" key should provide sensible defaults for initial placement and size.
+**2. \`apply_live_caption_style\`**
+   - **Purpose:** Styles the real-time, temporary captions that appear as the user is speaking.
+   - **Top-Level Keys:**
+     - \`tool\`: "apply_live_caption_style"
+     - \`style\`: A JSON object of React inline CSS properties (e.g., \`{ "color": "red" }\`).
 
-{
-  "componentCode": "...",
-  "layout": {
-    "position": { "x": number, "y": number },
-    "size": { "width": number, "height": number },
-    "zIndex": 10
-  }
-}
+**3. \`apply_video_effect\`**
+   - **Purpose:** Applies a real-time visual effect to the entire video feed.
+   - **Top-Level Keys:**
+     - \`tool\`: "apply_video_effect"
+     - \`filter\`: A CSS \`filter\` string (e.g., "grayscale(100%)").
 
-**EXAMPLES:**
+**4. \`change_app_theme\`**
+   - **Purpose:** Modifies the overall look and feel of the application's user interface.
+   - **Top-Level Keys:**
+     - \`tool\`: "change_app_theme"
+     - \`theme\`: A JSON object with \`primary\`, \`secondary\`, \`background\`, and \`foreground\` color values.
 
-* **User:** "a simple button that says click me"
-* **AI \`componentCode\` Output:**
-    "() => { return <button style={{ padding: '10px 20px', borderRadius: '8px', border: 'none', background: 'linear-gradient(45deg, #6a11cb, #2575fc)', color: 'white', cursor: 'pointer' }}>Click Me</button>; }"
+**Example Scenarios:**
 
-* **User:** "show a pulsating circle that glows"
-* **AI \`componentCode\` Output:**
-    "() => { const [scale, setScale] = React.useState(1); React.useEffect(() => { const interval = setInterval(() => { setScale(s => s === 1 ? 1.1 : 1); }, 500); return () => clearInterval(interval); }, []); return <div style={{ width: '100px', height: '100px', borderRadius: '50%', background: 'radial-gradient(circle, #ff00de, #4a00e0)', transition: 'transform 0.5s, box-shadow 0.5s', transform: \`scale(\${scale})\`, boxShadow: \`0 0 20px 5px #ff00de\` }} />; }"
+- User: "add a 5 minute countdown timer"
+  - Your Response (a single JSON object):
+    {
+      "tool": "generate_ui_component",
+      "componentCode": "() => { const [timeLeft, setTimeLeft] = React.useState(300); React.useEffect(() => { if (timeLeft <= 0) return; const timer = setInterval(() => setTimeLeft(t => t - 1), 1000); return () => clearInterval(timer); }, [timeLeft]); const minutes = Math.floor(timeLeft / 60); const seconds = timeLeft % 60; return <div style={{ fontFamily: 'monospace', fontSize: '3rem', color: '#00ff00', backgroundColor: 'rgba(0,0,0,0.7)', padding: '10px 20px', borderRadius: '10px' }}>{minutes}:{seconds < 10 ? '0' : ''}{seconds}</div>; }",
+      "layout": { "position": { "x": 100, "y": 100 }, "size": { "width": 300, "height": 100 }, "zIndex": 20 }
+    }
 
-* **User:** "display the current time, updating every second"
-* **AI \`componentCode\` Output:**
-    "() => { const [time, setTime] = React.useState(new Date()); React.useEffect(() => { const timer = setInterval(() => setTime(new Date()), 1000); return () => clearInterval(timer); }, []); return <div style={{ fontFamily: 'monospace', fontSize: '2rem', color: '#00ff00', backgroundColor: 'black', padding: '10px 20px', borderRadius: '5px' }}>{time.toLocaleTimeString()}</div>; }"
+- User: "make my live captions look like they're on fire"
+  - Your Response (a single JSON object):
+    {
+      "tool": "apply_live_caption_style",
+      "style": { "background": "linear-gradient(to top, #ff8a00, #e52e71)", "color": "white", "fontWeight": "bold", "textShadow": "0 0 5px #000" }
+    }
 `;
 
-export async function generateComponentCodeWithAI(command: string): Promise<any> {
+function robustJsonParse(text: string): object | null {
+    const firstBrace = text.indexOf('{');
+    const lastBrace = text.lastIndexOf('}');
+    if (firstBrace === -1 || lastBrace === -1 || lastBrace < firstBrace) return null;
+    const jsonString = text.substring(firstBrace, lastBrace + 1);
+    try {
+        return JSON.parse(jsonString);
+    } catch (error) {
+        console.error("JSON.parse failed:", error);
+        return null;
+    }
+}
+
+export async function processCommandWithAgent(command: string): Promise<AICommand | null> {
     if (!API_KEY) {
+        console.error("API Key Missing");
         return {
+            tool: 'generate_ui_component',
             componentCode: "() => <div style={{color: 'white', backgroundColor: 'red', padding: '10px'}}>API Key Missing in .env file.</div>",
             layout: { position: { x: 100, y: 150 }, size: { width: 400, height: 50 }, zIndex: 100 }
         };
@@ -68,7 +95,7 @@ export async function generateComponentCodeWithAI(command: string): Promise<any>
             body: JSON.stringify({
                 model: "openai/gpt-4o",
                 messages: [
-                    { role: "system", content: MASTER_PROMPT_V2 },
+                    { role: "system", content: MASTER_PROMPT_AGENT },
                     { role: "user", content: command }
                 ],
                 temperature: 0.5,
@@ -77,18 +104,28 @@ export async function generateComponentCodeWithAI(command: string): Promise<any>
         });
 
         if (!res.ok) throw new Error(`AI API error: ${res.status}`);
-
         const data = await res.json();
         const content = data?.choices?.[0]?.message?.content;
         if (!content) throw new Error("Empty AI response");
-        
-        return JSON.parse(content);
-
+        const parsedCommand = robustJsonParse(content);
+        if (!parsedCommand) throw new Error("Failed to parse valid JSON from AI response.");
+        if (parsedCommand.tool === 'change_app_theme' && parsedCommand.theme) {
+            const theme = parsedCommand.theme;
+            const primary = theme.primary || '#8A2BE2';
+            const colormap = interpolate([primary, '#FFFFFF']);
+            theme.primary_foreground = colormap(0.9);
+            const bgColormap = interpolate([theme.background || '#000000', '#FFFFFF']);
+            theme.card = bgColormap(0.1);
+            theme.border = bgColormap(0.15);
+        }
+        return parsedCommand as AICommand;
     } catch (err) {
-        console.error("generateComponentCodeWithAI error:", err);
-        return {
-            componentCode: `() => <div style={{color: 'white', backgroundColor: 'red', padding: '10px'}}>Error generating component: ${err.message}</div>`,
+        console.error("processCommandWithAgent error:", err);
+         return {
+            tool: 'generate_ui_component',
+            componentCode: `() => <div style={{color: 'white', backgroundColor: 'red', padding: '10px'}}>Error: ${err.message}</div>`,
             layout: { position: { x: 100, y: 150 }, size: { width: 400, height: 50 }, zIndex: 100 }
         };
     }
 }
+

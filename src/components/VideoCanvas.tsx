@@ -11,7 +11,6 @@ import * as Babel from '@babel/standalone';
 import { GeneratedOverlay } from "@/pages/Index";
 
 // --- DYNAMIC CODE RENDERER COMPONENT ---
-// This component is responsible for transpiling and rendering the AI-generated code.
 const DynamicCodeRenderer = ({ overlay, onLayoutChange, onRemove }) => {
     const [Component, setComponent] = useState(null);
     const [error, setError] = useState(null);
@@ -20,12 +19,8 @@ const DynamicCodeRenderer = ({ overlay, onLayoutChange, onRemove }) => {
         try {
             setError(null);
             // Transpile JSX code string into standard JS using Babel Standalone
-            const transformedCode = Babel.transform(overlay.componentCode, {
-                presets: ['react']
-            }).code;
-
+            const transformedCode = Babel.transform(overlay.componentCode, { presets: ['react'] }).code;
             // Safely create the component function from the transpiled code
-            // The 'React' variable is passed into the function's scope
             const componentFunction = new Function('React', `return ${transformedCode}`);
             setComponent(() => componentFunction(React));
         } catch (e) {
@@ -40,11 +35,7 @@ const DynamicCodeRenderer = ({ overlay, onLayoutChange, onRemove }) => {
             <h4 className="font-bold">Render Error</h4>
             <pre className="text-xs whitespace-pre-wrap">{error}</pre>
         </div>
-    ) : Component ? (
-        <Component />
-    ) : (
-        <div>Loading component...</div>
-    );
+    ) : Component ? <Component /> : <div>Loading...</div>;
 
     return (
         <Rnd
@@ -54,13 +45,11 @@ const DynamicCodeRenderer = ({ overlay, onLayoutChange, onRemove }) => {
               width: overlay.layout.size.width,
               height: overlay.layout.size.height
             }}
-            minWidth={50}
-            minHeight={50}
-            bounds="parent"
+            minWidth={50} minHeight={50} bounds="parent"
             onDragStop={(e, d) => onLayoutChange(overlay.id, 'position', { x: d.x, y: d.y })}
-            onResizeStop={(e, direction, ref, delta, position) => {
+            onResizeStop={(e, dir, ref, delta, pos) => {
                 onLayoutChange(overlay.id, 'size', { width: ref.style.width, height: ref.style.height });
-                onLayoutChange(overlay.id, 'position', position);
+                onLayoutChange(overlay.id, 'position', pos);
             }}
             style={{ zIndex: overlay.layout.zIndex }}
             className="flex items-center justify-center border-2 border-transparent hover:border-blue-500 hover:border-dashed group bg-black/10"
@@ -87,6 +76,8 @@ interface VideoCanvasProps {
   generatedOverlays: GeneratedOverlay[];
   onOverlayLayoutChange: (id: string, key: 'position' | 'size', value: any) => void;
   onRemoveOverlay: (id: string) => void;
+  liveCaptionStyle: React.CSSProperties;
+  videoFilter: string;
 }
 
 export const VideoCanvas = ({
@@ -99,7 +90,9 @@ export const VideoCanvas = ({
   onProcessTranscript,
   generatedOverlays,
   onOverlayLayoutChange,
-  onRemoveOverlay
+  onRemoveOverlay,
+  liveCaptionStyle,
+  videoFilter
 }: VideoCanvasProps) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -111,7 +104,6 @@ export const VideoCanvas = ({
   const [areControlsVisible, setAreControlsVisible] = useState(true);
   const hideControlsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Load background image when URL changes
   useEffect(() => {
     if (backgroundEffect === 'image' && backgroundImageUrl) {
       const img = new Image();
@@ -123,7 +115,6 @@ export const VideoCanvas = ({
     }
   }, [backgroundEffect, backgroundImageUrl]);
 
-  // --- Initialize MediaPipe Models ---
   useEffect(() => {
     const segmentation = new SelfieSegmentation({ locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation/${file}` });
     segmentation.setOptions({ modelSelection: 1 });
@@ -139,7 +130,6 @@ export const VideoCanvas = ({
     }
   }, []);
 
-  // --- Main Video Processing Loop ---
   useEffect(() => {
     const videoElement = videoRef.current;
     const canvasElement = canvasRef.current;
@@ -155,14 +145,11 @@ export const VideoCanvas = ({
         animationFrameId.current = requestAnimationFrame(processFrame);
         return;
       }
-
       canvasElement.width = videoElement.videoWidth;
       canvasElement.height = videoElement.videoHeight;
-
       if (isAutoFramingEnabled && faceDetection.current) {
         await faceDetection.current.send({ image: videoElement });
       }
-
       if (backgroundEffect !== 'none' && selfieSegmentation.current) {
         await selfieSegmentation.current.send({ image: videoElement });
       } else {
@@ -176,7 +163,6 @@ export const VideoCanvas = ({
         ctx.drawImage(videoElement, 0, 0, canvasElement.width, canvasElement.height);
         ctx.restore();
       }
-
       animationFrameId.current = requestAnimationFrame(processFrame);
     };
 
@@ -260,30 +246,29 @@ export const VideoCanvas = ({
     onFinalTranscript: handleFinalTranscript,
     onPartialTranscript: handlePartialTranscript,
   });
-
-  const handleMouseMove = () => {
-    setAreControlsVisible(true);
-    if (hideControlsTimeoutRef.current) {
-      clearTimeout(hideControlsTimeoutRef.current);
-    }
-    hideControlsTimeoutRef.current = setTimeout(() => {
-      if (!isRecording) return;
-      setAreControlsVisible(false);
-    }, 3000);
+  
+  const baseLiveCaptionStyle: React.CSSProperties = {
+    position: 'absolute',
+    bottom: '8%',
+    left: '50%',
+    transform: 'translateX(-50%)',
+    background: 'rgba(0,0,0,0.6)',
+    color: 'white',
+    padding: '8px 16px',
+    borderRadius: '8px',
+    textAlign: 'center',
+    maxWidth: '90%',
+    transition: 'all 0.3s ease',
   };
 
-  useEffect(() => {
-    return () => {
-      if (hideControlsTimeoutRef.current) {
-        clearTimeout(hideControlsTimeoutRef.current);
-      }
-    };
-  }, [isRecording]);
-
   return (
-    <div className="flex-1 relative bg-black overflow-hidden" onMouseMove={handleMouseMove}>
+    <div className="flex-1 relative bg-black overflow-hidden">
       <video ref={videoRef} className="hidden" autoPlay muted playsInline />
-      <canvas ref={canvasRef} className="absolute inset-0 w-full h-full object-cover" />
+      <canvas 
+        ref={canvasRef} 
+        className="absolute inset-0 w-full h-full object-cover transition-all duration-500"
+        style={{ filter: videoFilter }}
+      />
       <div className="absolute inset-0">
         {captionsEnabled && generatedOverlays.map(overlay => (
           <DynamicCodeRenderer
@@ -294,24 +279,24 @@ export const VideoCanvas = ({
           />
         ))}
         {isRecording && partialTranscript && (
-          <div className="absolute bottom-20 left-1/2 -translate-x-1/2 bg-black/50 text-white p-2 rounded-md animate-pulse">
+          <div style={{ ...baseLiveCaptionStyle, ...liveCaptionStyle }}>
             {partialTranscript}
           </div>
         )}
       </div>
-      <div className={cn("absolute bottom-6 w-full flex items-center justify-center gap-3 transition-all duration-300", areControlsVisible || !isRecording ? "opacity-100 translate-y-0" : "opacity-0 translate-y-10 pointer-events-none")}>
-        <Button variant="ghost" size="icon" className="rounded-full h-12 w-12 bg-black/30 backdrop-blur-sm hover:bg-black/50" onClick={() => onRecordingModeChange("webcam")} disabled={isRecording}>
+      <div className={cn("absolute bottom-6 w-full flex items-center justify-center gap-3 transition-all duration-300", areControlsVisible || !isRecording ? "opacity-100" : "opacity-0")}>
+        <Button variant="ghost" size="icon" className="rounded-full h-12 w-12 bg-black/30 backdrop-blur-sm" onClick={() => onRecordingModeChange("webcam")} disabled={isRecording}>
           <Webcam />
         </Button>
-        <Button variant="ghost" size="icon" className="rounded-full h-12 w-12 bg-black/30 backdrop-blur-sm hover:bg-black/50" onClick={() => onRecordingModeChange("screen")} disabled={isRecording}>
+        <Button variant="ghost" size="icon" className="rounded-full h-12 w-12 bg-black/30 backdrop-blur-sm" onClick={() => onRecordingModeChange("screen")} disabled={isRecording}>
           <ScreenShare />
         </Button>
         {!isRecording ? (
-          <Button size="icon" className="bg-red-600 hover:bg-red-700 rounded-full h-16 w-16 shadow-lg" onClick={startRecognition}>
+          <Button size="icon" className="bg-red-600 hover:bg-red-700 rounded-full h-16 w-16" onClick={startRecognition}>
             <Mic />
           </Button>
         ) : (
-          <Button size="icon" className="bg-primary hover:bg-primary/90 rounded-full h-16 w-16 shadow-lg" onClick={stopRecognition}>
+          <Button size="icon" className="bg-primary rounded-full h-16 w-16" onClick={stopRecognition}>
             <Square />
           </Button>
         )}
@@ -319,4 +304,3 @@ export const VideoCanvas = ({
     </div>
   );
 };
-

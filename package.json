@@ -11,6 +11,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@babel/standalone": "^7.28.4",
     "@hookform/resolvers": "^3.10.0",
     "@mediapipe/face_detection": "^0.4.1646425229",
     "@mediapipe/selfie_segmentation": "^0.1.1675465746",
@@ -45,6 +46,7 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",
+    "color-interpolate": "^2.0.0",
     "date-fns": "^3.6.0",
     "embla-carousel-react": "^8.6.0",
     "input-otp": "^1.4.2",
@@ -55,6 +57,7 @@
     "react-dom": "^18.3.1",
     "react-hook-form": "^7.61.1",
     "react-resizable-panels": "^2.1.9",
+    "react-rnd": "^10.5.2",
     "react-router-dom": "^6.30.1",
     "recharts": "^2.15.4",
     "sonner": "^1.7.4",

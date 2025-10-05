@@ -1,9 +1,7 @@
 // src/components/LeftSidebar.tsx
 
 import React, { useState, useCallback } from "react";
-import { CaptionStyle, CaptionTemplate, AIDecision, GraphObject } from "@/types/caption";
-import { PRESET_TEMPLATES } from "@/lib/presets";
-import { BACKGROUND_PRESETS } from "@/lib/backgrounds";
+import { CaptionStyle } from "@/types/caption";
 import { StyleControls } from "./StyleControls";
 import { DebugPanel } from "./DebugPanel";
 import { Switch } from "./ui/switch";
@@ -11,14 +9,13 @@ import { Label } from "./ui/label";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "./ui/accordion";
 import { ScrollArea } from "./ui/scroll-area";
 import { cn } from "@/lib/utils";
-import { LayoutTemplate, Palette, Bug, Sparkles, Ban, Droplets, Text, Wand2 } from "lucide-react";
+import { Palette, Bug, Sparkles, Ban, Droplets, Text } from "lucide-react";
 import { Button } from "./ui/button";
 import { Textarea } from "./ui/textarea";
-import { CustomStylesSelector } from "./CustomStylesSelector";
+import { BACKGROUND_PRESETS } from "@/lib/backgrounds";
+
 
 interface LeftSidebarProps {
-  onSelectTemplate: (template: CaptionTemplate) => void;
-  selectedTemplate: CaptionTemplate | null;
   style: CaptionStyle;
   onStyleChange: (style: CaptionStyle) => void;
   width: number;
@@ -33,35 +30,30 @@ interface LeftSidebarProps {
   isAutoFramingEnabled: boolean;
   onAutoFramingChange: (enabled: boolean) => void;
   onTextSubmit: (text: string) => void;
-  permanentCaptions: AIDecision[];
-  graphs: GraphObject[];
-  selectedCaptionId: string | null;
-  onCustomStyleSelect: (style: Partial<CaptionStyle>) => void;
 }
 
 const MIN_WIDTH = 280;
 const MAX_WIDTH = 600;
 
 export const LeftSidebar = ({
-  onSelectTemplate, selectedTemplate, style, onStyleChange,
+  style, onStyleChange,
   width, isCollapsed, onResize, onMouseEnter, onMouseLeave,
   backgroundEffect, onBackgroundEffectChange, backgroundImageUrl, onBackgroundImageUrlChange,
-  isAutoFramingEnabled, onAutoFramingChange, onTextSubmit,
-  permanentCaptions, graphs, selectedCaptionId, onCustomStyleSelect
+  isAutoFramingEnabled, onAutoFramingChange, onTextSubmit
 }: LeftSidebarProps) => {
   const [showDebug, setShowDebug] = useState(false);
   const [manualText, setManualText] = useState("");
   const isResizing = React.useRef(false);
 
-  const handleBackgroundSelect = (effect: 'none' | 'blur' | 'image', url: string | null = null) => {
-    onBackgroundEffectChange(effect);
-    onBackgroundImageUrlChange(url);
-  };
-  
   const handleTextSubmit = () => {
     if (!manualText.trim()) return;
     onTextSubmit(manualText);
-    setManualText(""); // Clear input after submission
+    setManualText("");
+  };
+  
+  const handleBackgroundSelect = (effect: 'none' | 'blur' | 'image', url: string | null = null) => {
+    onBackgroundEffectChange(effect);
+    onBackgroundImageUrlChange(url);
   };
 
   const handleMouseDown = (e: React.MouseEvent) => {
@@ -86,12 +78,6 @@ export const LeftSidebar = ({
     document.removeEventListener('mouseup', handleMouseUp);
   }, [handleMouseMove]);
 
-  const previewStyle: React.CSSProperties = {
-    fontFamily: style.fontFamily, fontSize: `${style.fontSize}px`, color: style.color,
-    backgroundColor: style.backgroundColor, fontWeight: style.bold ? "bold" : "normal",
-    fontStyle: style.italic ? "italic" : "normal", textDecoration: style.underline ? "underline" : "none",
-    textShadow: style.shadow ? "2px 2px 4px rgba(0,0,0,0.5)" : "none",
-  };
 
   return (
     <aside
@@ -102,58 +88,55 @@ export const LeftSidebar = ({
     >
       <div className={cn("flex-1 flex flex-col overflow-hidden transition-opacity duration-200", isCollapsed && "opacity-0")}>
         <div className="p-4 border-b">
-          <div className="h-24 w-full rounded-lg bg-background/50 flex items-center justify-center p-2">
-            <div className="px-4 py-2 rounded-md text-center truncate" style={previewStyle}>
-              Your Caption
-            </div>
-          </div>
+           <h2 className="text-xl font-semibold">AI Overlay Engine</h2>
         </div>
 
         <ScrollArea className="flex-1 px-4">
-          <Accordion type="multiple" defaultValue={["customize", "effects"]} className="w-full">
-            <AccordionItem value="templates">
-              <AccordionTrigger className="text-base font-semibold flex items-center gap-2">
-                <LayoutTemplate className="w-4 h-4 flex-shrink-0" /> 
-                <span className="flex-1 text-left truncate">Templates</span>
-              </AccordionTrigger>
-              <AccordionContent>
-                 <div className="pt-2 grid grid-cols-2 gap-3">
-                  {PRESET_TEMPLATES.map((template) => (
-                    <div
-                      key={template.id}
-                      className={`cursor-pointer rounded-lg border-2 transition-all ${selectedTemplate?.id === template.id ? "border-primary ring-2 ring-primary/50" : "border-border hover:border-primary/50"}`}
-                      onClick={() => onSelectTemplate(template)}
-                    >
-                      <img src={template.preview} alt={template.name} className="w-full rounded-md aspect-[2/1] object-cover" />
-                    </div>
-                  ))}
-                </div>
-              </AccordionContent>
-            </AccordionItem>
+          <Accordion type="multiple" defaultValue={["text-input", "effects"]} className="w-full">
             
-            <AccordionItem value="suggested-styles">
-              <AccordionTrigger className="text-base font-semibold flex items-center gap-2">
-                <Wand2 className="w-4 h-4 flex-shrink-0" />
-                <span className="flex-1 text-left truncate">Suggested Styles</span>
-              </AccordionTrigger>
-              <AccordionContent>
-                <div className="pt-2">
-                  <CustomStylesSelector
-                    overlays={[...permanentCaptions, ...graphs]}
-                    selectedOverlayId={selectedCaptionId}
-                    onSelectStyle={onCustomStyleSelect}
-                  />
-                </div>
-              </AccordionContent>
+            <AccordionItem value="text-input">
+                <AccordionTrigger className="text-base font-semibold flex items-center gap-2">
+                    <Text className="w-4 h-4 flex-shrink-0" />
+                    <span className="flex-1 text-left truncate">Generate Overlay</span>
+                </AccordionTrigger>
+                <AccordionContent>
+                  <div className="pt-2 space-y-4">
+                      <Label htmlFor="manual-caption">Describe the overlay to generate:</Label>
+                      <Textarea
+                          id="manual-caption"
+                          placeholder="e.g., a timer that counts down from 5 minutes"
+                          value={manualText}
+                          onChange={(e) => setManualText(e.target.value)}
+                          onKeyDown={(e) => {
+                              if (e.key === 'Enter' && !e.shiftKey) {
+                                  e.preventDefault();
+                                  handleTextSubmit();
+                              }
+                          }}
+                      />
+                      <Button onClick={handleTextSubmit} className="w-full">
+                          Generate with AI
+                      </Button>
+                       <div className="mt-4">
+                        <h3 className="font-semibold mb-2 text-sm">Examples:</h3>
+                        <ul className="text-xs text-muted-foreground list-disc list-inside space-y-1">
+                            <li>a simple button that says "click me"</li>
+                            <li>show a pulsating circle that glows</li>
+                            <li>display the current time, updating every second</li>
+                        </ul>
+                    </div>
+                  </div>
+                </AccordionContent>
             </AccordionItem>
 
             <AccordionItem value="customize">
               <AccordionTrigger className="text-base font-semibold flex items-center gap-2">
                 <Palette className="w-4 h-4 flex-shrink-0" />
-                <span className="flex-1 text-left truncate">Customize Style</span>
+                <span className="flex-1 text-left truncate">Base Text Style</span>
               </AccordionTrigger>
               <AccordionContent>
                 <div className="pt-2">
+                  <p className="text-sm text-muted-foreground mb-4">Base styles for any generated text. The AI may override these.</p>
                   <StyleControls style={style} onStyleChange={onStyleChange} />
                 </div>
               </AccordionContent>
@@ -165,7 +148,7 @@ export const LeftSidebar = ({
                 <span className="flex-1 text-left truncate">Video Effects</span>
               </AccordionTrigger>
               <AccordionContent>
-                <div className="pt-2 space-y-6">
+                 <div className="pt-2 space-y-6">
                   <div className="space-y-3">
                     <Label>Background</Label>
                     <div className="grid grid-cols-3 gap-2">
@@ -195,36 +178,9 @@ export const LeftSidebar = ({
                 </div>
               </AccordionContent>
             </AccordionItem>
-            
-            <AccordionItem value="text-input">
-                <AccordionTrigger className="text-base font-semibold flex items-center gap-2">
-                    <Text className="w-4 h-4 flex-shrink-0" />
-                    <span className="flex-1 text-left truncate">Manual Text Input</span>
-                </AccordionTrigger>
-                <AccordionContent>
-                  <div className="pt-2 space-y-4">
-                      <Label htmlFor="manual-caption">Enter text to generate a caption or command</Label>
-                      <Textarea
-                          id="manual-caption"
-                          placeholder="e.g., Let's talk about quarterly earnings..."
-                          value={manualText}
-                          onChange={(e) => setManualText(e.target.value)}
-                          onKeyDown={(e) => {
-                              if (e.key === 'Enter' && !e.shiftKey) {
-                                  e.preventDefault();
-                                  handleTextSubmit();
-                              }
-                          }}
-                      />
-                      <Button onClick={handleTextSubmit} className="w-full">
-                          Generate
-                      </Button>
-                  </div>
-                </AccordionContent>
-            </AccordionItem>
 
             <AccordionItem value="debug">
-              <AccordionTrigger className="text-base font-semibold flex items-center gap-2">
+               <AccordionTrigger className="text-base font-semibold flex items-center gap-2">
                 <Bug className="w-4 h-4 flex-shrink-0" />
                 <span className="flex-1 text-left truncate">Debug</span>
               </AccordionTrigger>
@@ -238,17 +194,9 @@ export const LeftSidebar = ({
                 </div>
               </AccordionContent>
             </AccordionItem>
+
           </Accordion>
         </ScrollArea>
-      </div>
-
-      <div className={cn("absolute top-0 left-0 h-full w-full flex flex-col items-center py-4 gap-4 transition-opacity duration-200", !isCollapsed && "opacity-0 pointer-events-none")}>
-        <div className="flex flex-col gap-2">
-           <Button variant="ghost" size="icon" className="w-10 h-10"><LayoutTemplate className="w-5 h-5" /></Button>
-           <Button variant="ghost" size="icon" className="w-10 h-10"><Palette className="w-5 h-5" /></Button>
-           <Button variant="ghost" size="icon" className="w-10 h-10"><Sparkles className="w-5 h-5" /></Button>
-           <Button variant="ghost" size="icon" className="w-10 h-10"><Bug className="w-5 h-5" /></Button>
-        </div>
       </div>
 
       <div
@@ -260,3 +208,4 @@ export const LeftSidebar = ({
     </aside>
   );
 };
+

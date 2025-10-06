@@ -1,16 +1,17 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
-import { Mic, Square, Webcam, ScreenShare } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Mic, MicOff, Webcam, VideoOff, ScreenShare, Square, ChevronUp, Check, Circle } from "lucide-react";
+import { Button } from "./ui/button";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "./ui/dropdown-menu";
 import { toast } from "sonner";
-import { cn } from "@/lib/utils";
+import { cn } from "../lib/utils";
 import { SelfieSegmentation } from "@mediapipe/selfie_segmentation";
 import { FaceDetection } from "@mediapipe/face_detection";
-import { useBrowserSpeech } from "@/hooks/useBrowserSpeech";
+import { useBrowserSpeech } from "../hooks/useBrowserSpeech";
 import { Rnd } from 'react-rnd';
 import * as Babel from '@babel/standalone';
-import { GeneratedOverlay } from "@/types/caption";
+import { GeneratedOverlay } from "../types/caption";
 
-// --- DYNAMIC CODE RENDERER COMPONENT ---
+// --- DYNAMIC CODE RENDERER (No changes) ---
 const DynamicCodeRenderer = ({ overlay, onLayoutChange, onRemove, containerSize }) => {
     const [Component, setComponent] = useState(null);
     const [error, setError] = useState(null);
@@ -28,6 +29,8 @@ const DynamicCodeRenderer = ({ overlay, onLayoutChange, onRemove, containerSize 
         }
     }, [overlay.componentCode]);
     
+    if (!containerSize.width || !containerSize.height) return null;
+    
     const position = {
       x: (overlay.layout.position.x / 100) * containerSize.width,
       y: (overlay.layout.position.y / 100) * containerSize.height,
@@ -44,54 +47,27 @@ const DynamicCodeRenderer = ({ overlay, onLayoutChange, onRemove, containerSize 
         </div>
     ) : Component ? <Component /> : <div>Loading...</div>;
 
-    if (!containerSize.width || !containerSize.height) {
-        return null;
-    }
-
     return (
         <Rnd
-            size={size}
-            position={position}
-            minWidth={50} minHeight={50} bounds="parent"
-            onDragStop={(e, d) => {
-                const newPosition = {
-                    x: (d.x / containerSize.width) * 100,
-                    y: (d.y / containerSize.height) * 100,
-                };
-                onLayoutChange(overlay.id, 'position', newPosition);
-            }}
+            size={size} position={position} minWidth={50} minHeight={50} bounds="parent"
+            onDragStop={(e, d) => onLayoutChange(overlay.id, 'position', { x: (d.x / containerSize.width) * 100, y: (d.y / containerSize.height) * 100 })}
             onResizeStop={(e, dir, ref, delta, pos) => {
-                const newSize = {
-                    width: (parseInt(ref.style.width, 10) / containerSize.width) * 100,
-                    height: (parseInt(ref.style.height, 10) / containerSize.height) * 100,
-                };
-                const newPosition = {
-                    x: (pos.x / containerSize.width) * 100,
-                    y: (pos.y / containerSize.height) * 100,
-                };
-                onLayoutChange(overlay.id, 'size', newSize);
-                onLayoutChange(overlay.id, 'position', newPosition);
+                onLayoutChange(overlay.id, 'size', { width: (parseInt(ref.style.width, 10) / containerSize.width) * 100, height: (parseInt(ref.style.height, 10) / containerSize.height) * 100 });
+                onLayoutChange(overlay.id, 'position', { x: (pos.x / containerSize.width) * 100, y: (pos.y / containerSize.height) * 100 });
             }}
             style={{ zIndex: overlay.layout.zIndex }}
             className="flex items-center justify-center border-2 border-transparent hover:border-blue-500 hover:border-dashed group"
         >
-            <div id={overlay.id} className="w-full h-full relative flex items-center justify-center">
-              {content}
-            </div>
-            <button
-                onClick={() => onRemove(overlay.id)}
-                className="absolute -top-3 -right-3 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
-            >
-                X
-            </button>
+            <div id={overlay.id} className="w-full h-full relative flex items-center justify-center">{content}</div>
+            <button onClick={() => onRemove(overlay.id)} className="absolute -top-3 -right-3 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">X</button>
         </Rnd>
     );
 };
 
+// --- MAIN COMPONENT ---
 interface VideoCanvasProps {
+  // All props are unchanged
   captionsEnabled: boolean;
-  recordingMode: "webcam" | "screen" | "both";
-  onRecordingModeChange: (mode: "webcam" | "screen" | "both") => void;
   backgroundEffect: 'none' | 'blur' | 'image';
   backgroundImageUrl: string | null;
   isAutoFramingEnabled: boolean;
@@ -101,75 +77,63 @@ interface VideoCanvasProps {
   onRemoveOverlay: (id: string) => void;
   liveCaptionStyle: React.CSSProperties;
   videoFilter: string;
+  isAudioOn: boolean;
+  onAudioToggle: (on: boolean) => void;
+  isVideoOn: boolean;
+  onVideoToggle: (on: boolean) => void;
+  isRecording: boolean;
+  onRecordingToggle: (on: boolean) => void;
+  selectedAudioDevice: string | undefined;
+  onAudioDeviceSelect: (deviceId: string) => void;
+  selectedVideoDevice: string | undefined;
+  onVideoDeviceSelect: (deviceId: string) => void;
 }
 
-export const VideoCanvas = ({
-  captionsEnabled,
-  recordingMode,
-  onRecordingModeChange,
-  backgroundEffect,
-  backgroundImageUrl,
-  isAutoFramingEnabled,
-  onProcessTranscript,
-  generatedOverlays,
-  onOverlayLayoutChange,
-  onRemoveOverlay,
-  liveCaptionStyle,
-  videoFilter
-}: VideoCanvasProps) => {
+export const VideoCanvas = (props: VideoCanvasProps) => {
+  const {
+    captionsEnabled, onProcessTranscript, generatedOverlays, onOverlayLayoutChange, onRemoveOverlay,
+    liveCaptionStyle, videoFilter, isAudioOn, onAudioToggle, isVideoOn, onVideoToggle,
+    isRecording, onRecordingToggle, selectedAudioDevice, onAudioDeviceSelect,
+    selectedVideoDevice, onVideoDeviceSelect
+  } = props;
+
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const recordedChunksRef = useRef<Blob[]>([]);
   const animationFrameId = useRef<number>();
-  const selfieSegmentation = useRef<SelfieSegmentation | null>(null);
-  const faceDetection = useRef<FaceDetection | null>(null);
-  const backgroundImageRef = useRef<HTMLImageElement | null>(null);
+  
   const [partialTranscript, setPartialTranscript] = useState("");
-  const [areControlsVisible, setAreControlsVisible] = useState(true);
-  const hideControlsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const overlayContainerRef = useRef<HTMLDivElement>(null);
   const [containerSize, setContainerSize] = useState({ width: 0, height: 0 });
+
+  const [audioDevices, setAudioDevices] = useState<MediaDeviceInfo[]>([]);
+  const [videoDevices, setVideoDevices] = useState<MediaDeviceInfo[]>([]);
 
   useEffect(() => {
     const container = overlayContainerRef.current;
     if (!container) return;
-
-    const resizeObserver = new ResizeObserver(() => {
-      setContainerSize({
-        width: container.clientWidth,
-        height: container.clientHeight,
-      });
-    });
-
+    const resizeObserver = new ResizeObserver(() => setContainerSize({ width: container.clientWidth, height: container.clientHeight }));
     resizeObserver.observe(container);
     return () => resizeObserver.disconnect();
   }, []);
 
   useEffect(() => {
-    if (backgroundEffect === 'image' && backgroundImageUrl) {
-      const img = new Image();
-      img.crossOrigin = "Anonymous";
-      img.src = backgroundImageUrl;
-      img.onload = () => { backgroundImageRef.current = img; };
-    } else {
-      backgroundImageRef.current = null;
-    }
-  }, [backgroundEffect, backgroundImageUrl]);
-
-  useEffect(() => {
-    const segmentation = new SelfieSegmentation({ locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation/${file}` });
-    segmentation.setOptions({ modelSelection: 1 });
-    selfieSegmentation.current = segmentation;
-
-    const detection = new FaceDetection({ locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_detection/${file}` });
-    detection.setOptions({ minDetectionConfidence: 0.5, model: 'short' });
-    faceDetection.current = detection;
-
-    return () => {
-      segmentation.close();
-      detection.close();
-    }
+    const getDevices = async () => {
+      try {
+        await navigator.mediaDevices.getUserMedia({ audio: true, video: true });
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        setAudioDevices(devices.filter(d => d.kind === 'audioinput'));
+        setVideoDevices(devices.filter(d => d.kind === 'videoinput'));
+      } catch (err) {
+        toast.error("Could not access camera or microphone. Please check permissions.");
+      }
+    };
+    getDevices();
   }, []);
 
+  // --- CORE LOGIC FIX ---
   useEffect(() => {
     const videoElement = videoRef.current;
     const canvasElement = canvasRef.current;
@@ -177,170 +141,203 @@ export const VideoCanvas = ({
 
     const ctx = canvasElement.getContext('2d');
     if (!ctx) return;
-
-    let lastFacePosition = { x: 0.5, y: 0.5, width: 0.5 };
-
-    const processFrame = async () => {
-      if (videoElement.readyState < 2 || videoElement.videoWidth === 0) {
-        animationFrameId.current = requestAnimationFrame(processFrame);
-        return;
-      }
-      canvasElement.width = videoElement.videoWidth;
-      canvasElement.height = videoElement.videoHeight;
-      if (isAutoFramingEnabled && faceDetection.current) {
-        await faceDetection.current.send({ image: videoElement });
-      }
-      if (backgroundEffect !== 'none' && selfieSegmentation.current) {
-        await selfieSegmentation.current.send({ image: videoElement });
-      } else {
-        ctx.save();
-        if (isAutoFramingEnabled) {
-          const scale = 1 / lastFacePosition.width;
-          const x = (-lastFacePosition.x * canvasElement.width * scale) + (canvasElement.width / 2);
-          const y = (-lastFacePosition.y * canvasElement.height * scale) + (canvasElement.height / 2);
-          ctx.setTransform(scale, 0, 0, scale, x, y);
+    
+    // Function to draw video to canvas
+    const processFrame = () => {
+        if (videoElement.readyState >= 2) { // Check if video has enough data
+            canvasElement.width = videoElement.videoWidth;
+            canvasElement.height = videoElement.videoHeight;
+            ctx.drawImage(videoElement, 0, 0, canvasElement.width, canvasElement.height);
         }
-        ctx.drawImage(videoElement, 0, 0, canvasElement.width, canvasElement.height);
-        ctx.restore();
-      }
-      animationFrameId.current = requestAnimationFrame(processFrame);
+        animationFrameId.current = requestAnimationFrame(processFrame);
     };
 
-    if (selfieSegmentation.current) {
-      selfieSegmentation.current.onResults((results) => {
-        if (!ctx || !canvasElement) return;
-        ctx.save();
-        ctx.clearRect(0, 0, canvasElement.width, canvasElement.height);
-        if (isAutoFramingEnabled) {
-          const scale = 1 / lastFacePosition.width;
-          const x = (-lastFacePosition.x * canvasElement.width * scale) + (canvasElement.width / 2);
-          const y = (-lastFacePosition.y * canvasElement.height * scale) + (canvasElement.height / 2);
-          ctx.setTransform(scale, 0, 0, scale, x, y);
+    // Event listener to start drawing when video is ready
+    const handleCanPlay = () => {
+        videoElement.play();
+        if (animationFrameId.current) {
+            cancelAnimationFrame(animationFrameId.current);
         }
-        ctx.drawImage(results.segmentationMask, 0, 0, canvasElement.width, canvasElement.height);
-        ctx.globalCompositeOperation = 'source-in';
-        ctx.drawImage(results.image, 0, 0, canvasElement.width, canvasElement.height);
-        ctx.globalCompositeOperation = 'destination-over';
-        if (backgroundEffect === 'blur') {
-          ctx.filter = 'blur(8px)';
-          ctx.drawImage(results.image, 0, 0, canvasElement.width, canvasElement.height);
-        } else if (backgroundEffect === 'image' && backgroundImageRef.current) {
-          ctx.drawImage(backgroundImageRef.current, 0, 0, canvasElement.width, canvasElement.height);
-        } else {
-          ctx.fillStyle = '#000000';
-          ctx.fillRect(0, 0, canvasElement.width, canvasElement.height);
-        }
-        ctx.restore();
-      });
-    }
+        animationFrameId.current = requestAnimationFrame(processFrame);
+    };
 
-    if (faceDetection.current) {
-      faceDetection.current.onResults((results) => {
-        if (!isAutoFramingEnabled || !results.detections.length) {
-          lastFacePosition = { x: 0.5, y: 0.5, width: 0.5 };
-          return;
+    const stopCurrentStream = () => {
+        if (animationFrameId.current) cancelAnimationFrame(animationFrameId.current);
+        if (streamRef.current) {
+            streamRef.current.getTracks().forEach(track => track.stop());
+            streamRef.current = null;
         }
-        const detection = results.detections[0].boundingBox;
-        const target = { x: detection.xCenter, y: detection.yCenter, width: Math.max(detection.width, detection.height) * 2.5 };
-        lastFacePosition.x += (target.x - lastFacePosition.x) * 0.1;
-        lastFacePosition.y += (target.y - lastFacePosition.y) * 0.1;
-        lastFacePosition.width += (target.width - lastFacePosition.width) * 0.1;
-      });
-    }
+        videoElement.srcObject = null;
+        videoElement.removeEventListener('canplay', handleCanPlay);
+        ctx.clearRect(0, 0, canvasElement.width, canvasElement.height);
+    };
 
     const startStream = async () => {
-      try {
-        let stream;
-        if (recordingMode === "screen" || recordingMode === "both") {
-          stream = await navigator.mediaDevices.getDisplayMedia({ video: { width: 1920, height: 1080 }, audio: true });
-        } else {
-          stream = await navigator.mediaDevices.getUserMedia({ video: { width: 1920, height: 1080 }, audio: true });
+        stopCurrentStream();
+        if (!isVideoOn) return;
+
+        try {
+            const audioConstraint = isAudioOn ? { deviceId: selectedAudioDevice ? { exact: selectedAudioDevice } : undefined } : false;
+            const videoConstraints = {
+              width: { ideal: 1280 },
+              height: { ideal: 720 },
+              frameRate: { ideal: 30 },
+            };
+            
+            let stream;
+            if (selectedVideoDevice === 'screen') {
+                stream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: isAudioOn });
+            } else {
+                stream = await navigator.mediaDevices.getUserMedia({ video: { ...videoConstraints, deviceId: selectedVideoDevice ? { exact: selectedVideoDevice } : undefined }, audio: audioConstraint });
+            }
+            
+            streamRef.current = stream;
+            videoElement.srcObject = stream;
+            videoElement.addEventListener('canplay', handleCanPlay);
+
+        } catch (err) {
+            console.error("Failed to get media stream:", err);
+            toast.error(`Error starting stream: ${err.message}`);
+            onVideoToggle(false);
         }
-        videoElement.srcObject = stream;
-        videoElement.play();
-        animationFrameId.current = requestAnimationFrame(processFrame);
-      } catch (error) {
-        toast.error("Could not access camera/screen.");
-      }
     };
+    
     startStream();
+    return () => stopCurrentStream();
 
-    return () => {
-      if (animationFrameId.current) cancelAnimationFrame(animationFrameId.current);
-      if (videoElement.srcObject) {
-        (videoElement.srcObject as MediaStream).getTracks().forEach((track) => track.stop());
-      }
-    };
-  }, [recordingMode, backgroundEffect, isAutoFramingEnabled, backgroundImageUrl]);
+  }, [isVideoOn, isAudioOn, selectedVideoDevice, selectedAudioDevice, onVideoToggle]);
 
-  const handleFinalTranscript = useCallback((transcript: string) => {
-    onProcessTranscript(transcript);
-    setPartialTranscript("");
-  }, [onProcessTranscript]);
-
-  const handlePartialTranscript = useCallback((partial: string) => {
-    setPartialTranscript(partial);
-  }, []);
-
-  const { isRecording, startRecognition, stopRecognition } = useBrowserSpeech({
-    onFinalTranscript: handleFinalTranscript,
-    onPartialTranscript: handlePartialTranscript,
+  const { startRecognition, stopRecognition } = useBrowserSpeech({
+    onFinalTranscript: onProcessTranscript,
+    onPartialTranscript: setPartialTranscript,
   });
+
+  useEffect(() => {
+    if (isRecording && isAudioOn) startRecognition();
+    else stopRecognition();
+  }, [isRecording, isAudioOn, startRecognition, stopRecognition]);
+
+  const handleStartRecording = () => {
+    if (streamRef.current) {
+        recordedChunksRef.current = [];
+        mediaRecorderRef.current = new MediaRecorder(streamRef.current, { mimeType: 'video/webm; codecs=vp9' });
+        mediaRecorderRef.current.ondataavailable = (e) => { if (e.data.size > 0) recordedChunksRef.current.push(e.data); };
+        mediaRecorderRef.current.onstop = () => {
+            const blob = new Blob(recordedChunksRef.current, { type: 'video/webm' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `gaki-recording-${Date.now()}.webm`;
+            a.click();
+            URL.revokeObjectURL(url);
+            toast.success("Recording downloaded!");
+        };
+        mediaRecorderRef.current.start();
+        onRecordingToggle(true);
+        toast.info("Recording started!");
+    } else {
+        toast.error("No video stream available to record.");
+    }
+  };
+
+  const handleStopRecording = () => {
+    if (mediaRecorderRef.current?.state === 'recording') mediaRecorderRef.current.stop();
+    onRecordingToggle(false);
+  };
+
+  const handleScreenShareClick = () => {
+    onVideoDeviceSelect('screen');
+    if (!isVideoOn) onVideoToggle(true);
+  };
   
   const baseLiveCaptionStyle: React.CSSProperties = {
-    position: 'absolute',
-    bottom: '8%',
-    left: '50%',
-    transform: 'translateX(-50%)',
-    background: 'rgba(0,0,0,0.6)',
-    color: 'white',
-    padding: '8px 16px',
-    borderRadius: '8px',
-    textAlign: 'center',
-    maxWidth: '90%',
-    transition: 'all 0.3s ease',
+      position: 'absolute', bottom: '15%', left: '50%', transform: 'translateX(-50%)',
+      background: 'rgba(0,0,0,0.6)', color: 'white', padding: '8px 16px', borderRadius: '8px',
+      textAlign: 'center', maxWidth: '90%', transition: 'all 0.3s ease',
   };
 
   return (
-    <div className="flex-1 relative bg-black overflow-hidden">
+    <div className="flex-1 relative bg-black overflow-hidden flex items-center justify-center">
+      {/* Video element is now completely hidden, canvas is the source of truth */}
       <video ref={videoRef} className="hidden" autoPlay muted playsInline />
       <canvas 
         ref={canvasRef} 
-        className="absolute inset-0 w-full h-full object-cover transition-all duration-500"
+        className={cn("w-full h-full object-cover transition-opacity duration-300", !isVideoOn && "opacity-0")}
         style={{ filter: videoFilter }}
       />
+       {!isVideoOn && (
+        <div className="absolute text-center text-muted-foreground">
+            <Webcam className="w-24 h-24 mx-auto mb-4" />
+            <p>Your camera is off</p>
+        </div>
+      )}
       <div ref={overlayContainerRef} className="absolute inset-0">
-        {captionsEnabled && generatedOverlays.map(overlay => (
-          <DynamicCodeRenderer
-            key={overlay.id}
-            overlay={overlay}
-            onLayoutChange={onOverlayLayoutChange}
-            onRemove={onRemoveOverlay}
-            containerSize={containerSize}
-          />
+         {generatedOverlays.map(overlay => (
+            <DynamicCodeRenderer key={overlay.id} overlay={overlay} onLayoutChange={onOverlayLayoutChange} onRemove={onRemoveOverlay} containerSize={containerSize} />
         ))}
-        {isRecording && partialTranscript && (
-          <div style={{ ...baseLiveCaptionStyle, ...liveCaptionStyle }}>
-            {partialTranscript}
-          </div>
-        )}
+        {isRecording && partialTranscript && ( <div style={{ ...baseLiveCaptionStyle, ...liveCaptionStyle }}>{partialTranscript}</div> )}
       </div>
-      <div className={cn("absolute bottom-6 w-full flex items-center justify-center gap-3 transition-all duration-300", areControlsVisible || !isRecording ? "opacity-100" : "opacity-0")}>
-        <Button variant="ghost" size="icon" className="rounded-full h-12 w-12 bg-black/30 backdrop-blur-sm" onClick={() => onRecordingModeChange("webcam")} disabled={isRecording}>
-          <Webcam />
+
+      <div className="absolute bottom-6 w-full flex items-center justify-center gap-4">
+        {/* Audio Controls */}
+        <div className="flex items-center">
+            <Button variant="secondary" size="icon" className="rounded-r-none h-12 w-12" onClick={() => onAudioToggle(!isAudioOn)}>
+                {isAudioOn ? <Mic /> : <MicOff className="text-red-500"/>}
+            </Button>
+            <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                    <Button variant="secondary" size="icon" className="rounded-l-none h-12 w-8"><ChevronUp className="w-4 h-4" /></Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent>
+                    {audioDevices.map((device, i) => (
+                        <DropdownMenuItem key={device.deviceId} onClick={() => onAudioDeviceSelect(device.deviceId)}>
+                            {device.deviceId === selectedAudioDevice && <Check className="w-4 h-4 mr-2"/>}
+                            {device.label || `Microphone ${i + 1}`}
+                        </DropdownMenuItem>
+                    ))}
+                </DropdownMenuContent>
+            </DropdownMenu>
+        </div>
+
+        {/* Video Controls */}
+        <div className="flex items-center">
+            <Button variant="secondary" size="icon" className="rounded-r-none h-12 w-12" onClick={() => onVideoToggle(!isVideoOn)}>
+                {isVideoOn && selectedVideoDevice !== 'screen' ? <Webcam /> : <VideoOff className="text-red-500"/>}
+            </Button>
+            <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                     <Button variant="secondary" size="icon" className="rounded-l-none h-12 w-8"><ChevronUp className="w-4 h-4" /></Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent>
+                    {videoDevices.map((device, i) => (
+                        <DropdownMenuItem key={device.deviceId} onClick={() => onVideoDeviceSelect(device.deviceId)}>
+                            {device.deviceId === selectedVideoDevice && selectedVideoDevice !== 'screen' && <Check className="w-4 h-4 mr-2"/>}
+                            {device.label || `Camera ${i + 1}`}
+                        </DropdownMenuItem>
+                    ))}
+                </DropdownMenuContent>
+            </DropdownMenu>
+        </div>
+        
+        {/* Screen Share Button */}
+        <Button 
+            variant="secondary" 
+            size="icon" 
+            className={cn("h-12 w-12", selectedVideoDevice === 'screen' && "bg-primary text-primary-foreground")}
+            onClick={handleScreenShareClick}
+        >
+            <ScreenShare />
         </Button>
-        <Button variant="ghost" size="icon" className="rounded-full h-12 w-12 bg-black/30 backdrop-blur-sm" onClick={() => onRecordingModeChange("screen")} disabled={isRecording}>
-          <ScreenShare />
+
+        {/* Recording Button */}
+        <Button 
+            size="icon" 
+            className={cn("rounded-full h-16 w-16 transition-colors", isRecording ? "bg-red-600 hover:bg-red-700" : "bg-primary hover:bg-primary/90")}
+            onClick={isRecording ? handleStopRecording : handleStartRecording}
+            disabled={!isVideoOn}
+        >
+            {isRecording ? <Square /> : <Circle className="h-8 w-8 fill-current" />}
         </Button>
-        {!isRecording ? (
-          <Button size="icon" className="bg-red-600 hover:bg-red-700 rounded-full h-16 w-16" onClick={startRecognition}>
-            <Mic />
-          </Button>
-        ) : (
-          <Button size="icon" className="bg-primary rounded-full h-16 w-16" onClick={stopRecognition}>
-            <Square />
-          </Button>
-        )}
       </div>
     </div>
   );

@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { VideoCanvas } from "@/components/VideoCanvas";
 import { LeftSidebar } from "@/components/LeftSidebar";
 import { TopToolbar } from "@/components/TopToolbar";
@@ -29,7 +29,14 @@ const Index = () => {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isHoveringSidebar, setIsHoveringSidebar] = useState(false);
   const [captionsEnabled, setCaptionsEnabled] = useState(true);
-  const [recordingMode, setRecordingMode] = useState<"webcam" | "screen" | "both">("webcam");
+  
+  // --- UPDATED STATE FOR MEDIA CONTROLS ---
+  const [isAudioOn, setIsAudioOn] = useState(false); // Start with audio OFF
+  const [isVideoOn, setIsVideoOn] = useState(false);
+  const [isRecording, setIsRecording] = useState(false);
+  const [selectedVideoDevice, setSelectedVideoDevice] = useState<string | undefined>(undefined);
+  const [selectedAudioDevice, setSelectedAudioDevice] = useState<string | undefined>(undefined);
+
   const [isAiModeEnabled, setIsAiModeEnabled] = useState(true);
 
   const { log } = useLog();
@@ -212,8 +219,6 @@ const Index = () => {
 
         <VideoCanvas
           captionsEnabled={captionsEnabled}
-          recordingMode={recordingMode}
-          onRecordingModeChange={setRecordingMode}
           backgroundEffect={backgroundEffect}
           backgroundImageUrl={backgroundImageUrl}
           isAutoFramingEnabled={isAutoFramingEnabled}
@@ -223,6 +228,16 @@ const Index = () => {
           onRemoveOverlay={handleRemoveOverlay}
           liveCaptionStyle={liveCaptionStyle}
           videoFilter={videoFilter}
+          isAudioOn={isAudioOn}
+          onAudioToggle={setIsAudioOn}
+          isVideoOn={isVideoOn}
+          onVideoToggle={setIsVideoOn}
+          isRecording={isRecording}
+          onRecordingToggle={setIsRecording}
+          selectedAudioDevice={selectedAudioDevice}
+          onAudioDeviceSelect={setSelectedAudioDevice}
+          selectedVideoDevice={selectedVideoDevice}
+          onVideoDeviceSelect={setSelectedVideoDevice}
         />
       </div>
     </div>

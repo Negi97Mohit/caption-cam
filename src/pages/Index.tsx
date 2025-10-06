@@ -30,8 +30,8 @@ const Index = () => {
   const [isHoveringSidebar, setIsHoveringSidebar] = useState(false);
   const [captionsEnabled, setCaptionsEnabled] = useState(true);
   
-  // --- UPDATED STATE FOR MEDIA CONTROLS ---
-  const [isAudioOn, setIsAudioOn] = useState(false); // Start with audio OFF
+  // Media controls
+  const [isAudioOn, setIsAudioOn] = useState(false);
   const [isVideoOn, setIsVideoOn] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [selectedVideoDevice, setSelectedVideoDevice] = useState<string | undefined>(undefined);
@@ -39,12 +39,16 @@ const Index = () => {
 
   const [isAiModeEnabled, setIsAiModeEnabled] = useState(true);
 
+  // New: State for auto-tracking customization
+  const [zoomSensitivity, setZoomSensitivity] = useState(2.5);
+  const [trackingSpeed, setTrackingSpeed] = useState(0.07);
+
   const { log } = useLog();
   const { setDebugInfo } = useDebug();
   
-  const applyTheme = (theme) => {
+  const applyTheme = (theme: any) => {
     const root = document.documentElement;
-    const hexToHsl = (hex) => {
+    const hexToHsl = (hex: string) => {
         let r = 0, g = 0, b = 0;
         if (hex.length === 4) {
             r = parseInt(hex[1] + hex[1], 16);
@@ -215,6 +219,11 @@ const Index = () => {
             setActiveOverlays(prev => prev.filter(o => o.id !== id));
           }}
           onTextSubmit={processTranscript}
+          // New: Pass tracking controls to the sidebar
+          zoomSensitivity={zoomSensitivity}
+          onZoomSensitivityChange={setZoomSensitivity}
+          trackingSpeed={trackingSpeed}
+          onTrackingSpeedChange={setTrackingSpeed}
         />
 
         <VideoCanvas
@@ -238,6 +247,9 @@ const Index = () => {
           onAudioDeviceSelect={setSelectedAudioDevice}
           selectedVideoDevice={selectedVideoDevice}
           onVideoDeviceSelect={setSelectedVideoDevice}
+          // New: Pass tracking values to the canvas
+          zoomSensitivity={zoomSensitivity}
+          trackingSpeed={trackingSpeed}
         />
       </div>
     </div>

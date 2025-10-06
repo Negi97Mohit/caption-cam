@@ -1,5 +1,3 @@
-// src/components/VideoCanvas.tsx
-
 import React, { useState, useRef, useEffect, useCallback } from "react";
 import { Mic, MicOff, Webcam, VideoOff, ScreenShare, Square, ChevronUp, Check, Circle } from "lucide-react";
 import { Button } from "./ui/button";
@@ -13,7 +11,6 @@ import { Rnd } from 'react-rnd';
 import * as Babel from '@babel/standalone';
 import { GeneratedOverlay } from "../types/caption";
 
-// --- DYNAMIC CODE RENDERER ---
 const DynamicCodeRenderer = ({ overlay, onLayoutChange, onRemove, containerSize }) => {
     const [Component, setComponent] = useState(null);
     const [error, setError] = useState(null);
@@ -66,7 +63,6 @@ const DynamicCodeRenderer = ({ overlay, onLayoutChange, onRemove, containerSize 
     );
 };
 
-// --- MAIN COMPONENT ---
 interface VideoCanvasProps {
   captionsEnabled: boolean;
   backgroundEffect: 'none' | 'blur' | 'image';
@@ -88,24 +84,23 @@ interface VideoCanvasProps {
   onAudioDeviceSelect: (deviceId: string) => void;
   selectedVideoDevice: string | undefined;
   onVideoDeviceSelect: (deviceId: string) => void;
-  // --- NEW: Props for tracking values ---
   zoomSensitivity: number;
   trackingSpeed: number;
+  isBeautifyEnabled: boolean;
+  isLowLightEnabled: boolean;
 }
 
-// Helper function for linear interpolation (smoothing)
 const lerp = (start: number, end: number, amount: number) => (1 - amount) * start + amount * end;
 
 export const VideoCanvas = (props: VideoCanvasProps) => {
   const {
-    captionsEnabled, onProcessTranscript, generatedOverlays, onOverlayLayoutChange, onRemoveOverlay,
-    liveCaptionStyle, videoFilter, isAudioOn, onAudioToggle, isVideoOn, onVideoToggle,
-    isRecording, onRecordingToggle, selectedAudioDevice, onAudioDeviceSelect,
-    selectedVideoDevice, onVideoDeviceSelect,
     backgroundEffect, backgroundImageUrl, isAutoFramingEnabled,
-    // --- NEW: Destructure new props ---
-    zoomSensitivity,
-    trackingSpeed,
+    zoomSensitivity, trackingSpeed, isVideoOn, isAudioOn,
+    onVideoToggle, selectedAudioDevice, selectedVideoDevice,
+    onProcessTranscript,
+    generatedOverlays, onOverlayLayoutChange, onRemoveOverlay,
+    liveCaptionStyle, videoFilter, isRecording, onRecordingToggle,
+    isBeautifyEnabled, isLowLightEnabled
   } = props;
 
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -128,8 +123,21 @@ export const VideoCanvas = (props: VideoCanvasProps) => {
   const segmentationResultsRef = useRef<SegmentationResults | null>(null);
   const faceDetectionResultsRef = useRef<FaceDetectionResults | null>(null);
   const backgroundImageRef = useRef<HTMLImageElement | null>(null);
-  
   const smoothedFrameRef = useRef({ x: 0, y: 0, width: 1, height: 1 });
+
+  const renderPropsRef = useRef({ 
+    backgroundEffect, backgroundImageUrl, isAutoFramingEnabled, 
+    zoomSensitivity, trackingSpeed, isBeautifyEnabled, isLowLightEnabled 
+  });
+  useEffect(() => {
+    renderPropsRef.current = { 
+      backgroundEffect, backgroundImageUrl, isAutoFramingEnabled, 
+      zoomSensitivity, trackingSpeed, isBeautifyEnabled, isLowLightEnabled 
+    };
+  }, [
+    backgroundEffect, backgroundImageUrl, isAutoFramingEnabled, 
+    zoomSensitivity, trackingSpeed, isBeautifyEnabled, isLowLightEnabled
+  ]);
 
   useEffect(() => {
     const selfieSegmentation = new SelfieSegmentation({
@@ -159,17 +167,17 @@ export const VideoCanvas = (props: VideoCanvasProps) => {
   }, []);
 
   useEffect(() => {
-    if (backgroundEffect === 'image' && backgroundImageUrl) {
+    if (renderPropsRef.current.backgroundEffect === 'image' && renderPropsRef.current.backgroundImageUrl) {
       const img = new Image();
       img.crossOrigin = "anonymous";
-      img.src = backgroundImageUrl;
+      img.src = renderPropsRef.current.backgroundImageUrl;
       img.onload = () => {
         backgroundImageRef.current = img;
       };
     } else {
       backgroundImageRef.current = null;
     }
-  }, [backgroundEffect, backgroundImageUrl]);
+  }, [backgroundImageUrl]);
 
   useEffect(() => {
     const getDevices = async () => {
@@ -192,7 +200,7 @@ export const VideoCanvas = (props: VideoCanvasProps) => {
     resizeObserver.observe(container);
     return () => resizeObserver.disconnect();
   }, []);
-
+  
   useEffect(() => {
     const videoElement = videoRef.current;
     const canvasElement = canvasRef.current;
@@ -202,41 +210,42 @@ export const VideoCanvas = (props: VideoCanvasProps) => {
     const ctx = canvasElement.getContext('2d');
     const offscreenCtx = offscreenCanvas.getContext('2d');
     if (!ctx || !offscreenCtx) return;
-    
-    if (smoothedFrameRef.current.width === 1) {
-        smoothedFrameRef.current = { x: 0, y: 0, width: videoElement.videoWidth, height: videoElement.videoHeight };
-    }
 
-    let isProcessing = true;
+    ctx.imageSmoothingQuality = 'high';
+    offscreenCtx.imageSmoothingQuality = 'high';
+
+    let isProcessing = false;
 
     const processFrame = async () => {
-      if (!isProcessing || !videoElement || videoElement.readyState < 2) {
-        if (isProcessing) animationFrameId.current = requestAnimationFrame(processFrame);
+      if (!isProcessing || videoElement.readyState < 2) {
+        if(isProcessing) animationFrameId.current = requestAnimationFrame(processFrame);
         return;
       }
-
-      if (backgroundEffect !== 'none' || isAutoFramingEnabled) {
+      
+      const currentRenderProps = renderPropsRef.current;
+      
+      if (currentRenderProps.backgroundEffect !== 'none' || currentRenderProps.isAutoFramingEnabled) {
           await Promise.all([
-            backgroundEffect !== 'none' ? segmentationModel.send({ image: videoElement }) : Promise.resolve(),
-            isAutoFramingEnabled ? faceDetectionModel.send({ image: videoElement }) : Promise.resolve()
+            currentRenderProps.backgroundEffect !== 'none' ? segmentationModel.send({ image: videoElement }) : Promise.resolve(),
+            currentRenderProps.isAutoFramingEnabled ? faceDetectionModel.send({ image: videoElement }) : Promise.resolve()
           ]);
       }
-
+      
       offscreenCanvas.width = videoElement.videoWidth;
       offscreenCanvas.height = videoElement.videoHeight;
       canvasElement.width = videoElement.videoWidth;
       canvasElement.height = videoElement.videoHeight;
 
-      if (backgroundEffect !== 'none' && segmentationResultsRef.current) {
+      if (currentRenderProps.backgroundEffect !== 'none' && segmentationResultsRef.current) {
         offscreenCtx.save();
         offscreenCtx.drawImage(videoElement, 0, 0, offscreenCanvas.width, offscreenCanvas.height);
         offscreenCtx.globalCompositeOperation = 'destination-in';
         offscreenCtx.drawImage(segmentationResultsRef.current.segmentationMask, 0, 0, offscreenCanvas.width, offscreenCanvas.height);
         offscreenCtx.globalCompositeOperation = 'destination-over';
-        if (backgroundEffect === 'blur') {
+        if (currentRenderProps.backgroundEffect === 'blur') {
             offscreenCtx.filter = 'blur(10px)';
             offscreenCtx.drawImage(videoElement, 0, 0, offscreenCanvas.width, offscreenCanvas.height);
-        } else if (backgroundEffect === 'image' && backgroundImageRef.current) {
+        } else if (currentRenderProps.backgroundEffect === 'image' && backgroundImageRef.current) {
             offscreenCtx.drawImage(backgroundImageRef.current, 0, 0, offscreenCanvas.width, offscreenCanvas.height);
         }
         offscreenCtx.restore();
@@ -244,39 +253,72 @@ export const VideoCanvas = (props: VideoCanvasProps) => {
         offscreenCtx.drawImage(videoElement, 0, 0, offscreenCanvas.width, offscreenCanvas.height);
       }
       
-      // --- COMPLETELY REWRITTEN: Auto-framing logic ---
-      let targetX = 0, targetY = 0, targetWidth = offscreenCanvas.width, targetHeight = offscreenCanvas.height;
+      if (currentRenderProps.isBeautifyEnabled || currentRenderProps.isLowLightEnabled) {
+        const imageData = offscreenCtx.getImageData(0, 0, offscreenCanvas.width, offscreenCanvas.height);
+        const data = imageData.data;
 
+        if (currentRenderProps.isLowLightEnabled) {
+          const brightnessFactor = 1.3;
+          for (let i = 0; i < data.length; i += 4) {
+            data[i] = data[i] * brightnessFactor;
+            data[i + 1] = data[i + 1] * brightnessFactor;
+            data[i + 2] = data[i + 2] * brightnessFactor;
+          }
+        }
+
+        if (currentRenderProps.isBeautifyEnabled) {
+            const tempImageData = new Uint8ClampedArray(data);
+            const kernelSize = 3;
+            const halfKernel = Math.floor(kernelSize / 2);
+            for (let y = 0; y < offscreenCanvas.height; y++) {
+                for (let x = 0; x < offscreenCanvas.width; x++) {
+                    let r = 0, g = 0, b = 0, count = 0;
+                    for (let ky = -halfKernel; ky <= halfKernel; ky++) {
+                        for (let kx = -halfKernel; kx <= halfKernel; kx++) {
+                            const pixelY = y + ky;
+                            const pixelX = x + kx;
+                            if (pixelY >= 0 && pixelY < offscreenCanvas.height && pixelX >= 0 && pixelX < offscreenCanvas.width) {
+                                const offset = (pixelY * offscreenCanvas.width + pixelX) * 4;
+                                r += tempImageData[offset];
+                                g += tempImageData[offset + 1];
+                                b += tempImageData[offset + 2];
+                                count++;
+                            }
+                        }
+                    }
+                    const destOffset = (y * offscreenCanvas.width + x) * 4;
+                    data[destOffset] = r / count;
+                    data[destOffset + 1] = g / count;
+                    data[destOffset + 2] = b / count;
+                }
+            }
+        }
+
+        offscreenCtx.putImageData(imageData, 0, 0);
+      }
+
+      let targetX = 0, targetY = 0, targetWidth = offscreenCanvas.width, targetHeight = offscreenCanvas.height;
       const detections = faceDetectionResultsRef.current?.detections;
       
-      // Check if framing is on AND if there are any people detected
-      if (isAutoFramingEnabled && detections && detections.length > 0) {
-        
-        // Step 1: Find the single bounding box that contains ALL detections.
+      if (currentRenderProps.isAutoFramingEnabled && detections && detections.length > 0) {
         let minX = offscreenCanvas.width, minY = offscreenCanvas.height, maxX = 0, maxY = 0;
-        
         detections.forEach(detection => {
           const box = detection.boundingBox;
           const realX = box.xCenter * offscreenCanvas.width - (box.width * offscreenCanvas.width / 2);
           const realY = box.yCenter * offscreenCanvas.height - (box.height * offscreenCanvas.height / 2);
           const realWidth = box.width * offscreenCanvas.width;
           const realHeight = box.height * offscreenCanvas.height;
-          
           if (realX < minX) minX = realX;
           if (realY < minY) minY = realY;
           if (realX + realWidth > maxX) maxX = realX + realWidth;
           if (realY + realHeight > maxY) maxY = realY + realHeight;
         });
-
         const combinedWidth = maxX - minX;
         const combinedHeight = maxY - minY;
         const combinedCenterX = minX + combinedWidth / 2;
         const combinedCenterY = minY + combinedHeight / 2;
-
-        // Step 2: Calculate the target frame size based on the combined box and zoom sensitivity.
-        const targetBoxWidth = combinedWidth * zoomSensitivity;
-        const targetBoxHeight = combinedHeight * zoomSensitivity;
-        
+        const targetBoxWidth = combinedWidth * currentRenderProps.zoomSensitivity;
+        const targetBoxHeight = combinedHeight * currentRenderProps.zoomSensitivity;
         const aspectRatio = offscreenCanvas.width / offscreenCanvas.height;
         if (targetBoxWidth / targetBoxHeight > aspectRatio) {
             targetWidth = Math.min(offscreenCanvas.width, targetBoxWidth);
@@ -285,23 +327,18 @@ export const VideoCanvas = (props: VideoCanvasProps) => {
             targetHeight = Math.min(offscreenCanvas.height, targetBoxHeight);
             targetWidth = targetHeight * aspectRatio;
         }
-        
         targetX = combinedCenterX - targetWidth / 2;
         targetY = combinedCenterY - targetHeight / 2;
-        
-        // Clamp values to stay within video bounds
         if (targetX < 0) targetX = 0;
         if (targetY < 0) targetY = 0;
         if (targetX + targetWidth > offscreenCanvas.width) targetX = offscreenCanvas.width - targetWidth;
         if (targetY + targetHeight > offscreenCanvas.height) targetY = offscreenCanvas.height - targetHeight;
       }
       
-      // Step 3: Apply smoothing using the customizable tracking speed.
-      // If auto-framing is turned off, the target remains the full canvas, so it will smoothly zoom out.
-      smoothedFrameRef.current.x = lerp(smoothedFrameRef.current.x, targetX, trackingSpeed);
-      smoothedFrameRef.current.y = lerp(smoothedFrameRef.current.y, targetY, trackingSpeed);
-      smoothedFrameRef.current.width = lerp(smoothedFrameRef.current.width, targetWidth, trackingSpeed);
-      smoothedFrameRef.current.height = lerp(smoothedFrameRef.current.height, targetHeight, trackingSpeed);
+      smoothedFrameRef.current.x = lerp(smoothedFrameRef.current.x, targetX, currentRenderProps.trackingSpeed);
+      smoothedFrameRef.current.y = lerp(smoothedFrameRef.current.y, targetY, currentRenderProps.trackingSpeed);
+      smoothedFrameRef.current.width = lerp(smoothedFrameRef.current.width, targetWidth, currentRenderProps.trackingSpeed);
+      smoothedFrameRef.current.height = lerp(smoothedFrameRef.current.height, targetHeight, currentRenderProps.trackingSpeed);
       
       const { x, y, width, height } = smoothedFrameRef.current;
       
@@ -310,22 +347,79 @@ export const VideoCanvas = (props: VideoCanvasProps) => {
 
       if (isProcessing) animationFrameId.current = requestAnimationFrame(processFrame);
     };
+    
+    const onPlay = () => {
+      isProcessing = true;
+      animationFrameId.current = requestAnimationFrame(processFrame);
+    };
+
+    const onPause = () => {
+      isProcessing = false;
+      if (animationFrameId.current) {
+        cancelAnimationFrame(animationFrameId.current);
+      }
+    };
+    
+    videoElement.addEventListener("play", onPlay);
+    videoElement.addEventListener("pause", onPause);
+
+    return () => {
+      videoElement.removeEventListener("play", onPlay);
+      videoElement.removeEventListener("pause", onPause);
+      isProcessing = false;
+      if (animationFrameId.current) {
+        cancelAnimationFrame(animationFrameId.current);
+      }
+    }
+  }, [segmentationModel, faceDetectionModel]);
+
+  useEffect(() => {
+    const videoElement = videoRef.current;
+    if (!videoElement) return;
+
+    const RESOLUTION_PRESETS = [
+      { width: { ideal: 1920 }, height: { ideal: 1080 } },
+      { width: { ideal: 1280 }, height: { ideal: 720 } },
+      { width: { ideal: 640 }, height: { ideal: 480 } },
+    ];
+
+    const getStreamWithFallbacks = async (audioConstraint: MediaTrackConstraints | boolean) => {
+      for (const preset of RESOLUTION_PRESETS) {
+        try {
+          const videoConstraints = {
+            ...preset,
+            frameRate: { ideal: 30 },
+            deviceId: selectedVideoDevice ? { exact: selectedVideoDevice } : undefined,
+          };
+          const stream = await navigator.mediaDevices.getUserMedia({
+            video: videoConstraints,
+            audio: audioConstraint
+          });
+          console.log(`Successfully acquired stream at ${preset.height.ideal}p`);
+          return stream;
+        } catch (err) {
+          console.warn(`Failed to get stream at ${preset.height.ideal}p, trying next resolution...`, err);
+        }
+      }
+      throw new Error("Could not acquire any camera stream. Please check camera permissions and hardware.");
+    };
 
     const startStream = async () => {
         if (streamRef.current) {
             streamRef.current.getTracks().forEach(track => track.stop());
         }
         if (!isVideoOn) {
-          ctx.clearRect(0, 0, canvasElement.width, canvasElement.height);
+          if (!videoElement.paused) videoElement.pause();
+          videoElement.srcObject = null;
           return;
         }
 
         try {
             const audioConstraint = isAudioOn ? { deviceId: selectedAudioDevice ? { exact: selectedAudioDevice } : undefined } : false;
-            const videoConstraints = { width: { ideal: 1280 }, height: { ideal: 720 }, frameRate: { ideal: 30 } };
+            
             const stream = selectedVideoDevice === 'screen'
                 ? await navigator.mediaDevices.getDisplayMedia({ video: true, audio: isAudioOn })
-                : await navigator.mediaDevices.getUserMedia({ video: { ...videoConstraints, deviceId: selectedVideoDevice ? { exact: selectedVideoDevice } : undefined }, audio: audioConstraint });
+                : await getStreamWithFallbacks(audioConstraint);
             
             streamRef.current = stream;
             videoElement.srcObject = stream;
@@ -333,26 +427,23 @@ export const VideoCanvas = (props: VideoCanvasProps) => {
                 smoothedFrameRef.current = { x: 0, y: 0, width: videoElement.videoWidth, height: videoElement.videoHeight };
             };
             await videoElement.play();
-            isProcessing = true;
-            processFrame();
         } catch (err) {
-            console.error("Failed to get media stream:", err);
-            toast.error(`Error starting stream: ${err.message}`);
-            onVideoToggle(false);
+            if (err.name !== 'AbortError') {
+              console.error("Failed to get media stream:", err);
+              toast.error(`Error starting stream: ${err.message}`);
+              onVideoToggle(false);
+            }
         }
     };
     
     startStream();
+
     return () => {
-      isProcessing = false;
-      if (animationFrameId.current) cancelAnimationFrame(animationFrameId.current);
-      if (streamRef.current) streamRef.current.getTracks().forEach(track => track.stop());
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach(track => track.stop());
+      }
     };
-  }, [
-    isVideoOn, isAudioOn, selectedVideoDevice, selectedAudioDevice, onVideoToggle, 
-    segmentationModel, faceDetectionModel, backgroundEffect, isAutoFramingEnabled, 
-    backgroundImageUrl, zoomSensitivity, trackingSpeed // Add new props to dependency array
-  ]);
+  }, [isVideoOn, isAudioOn, selectedVideoDevice, selectedAudioDevice, onVideoToggle]);
 
   const { startRecognition, stopRecognition } = useBrowserSpeech({
     onFinalTranscript: onProcessTranscript,
@@ -402,18 +493,11 @@ export const VideoCanvas = (props: VideoCanvasProps) => {
     if (!isVideoOn) onVideoToggle(true);
   };
   
-  const baseLiveCaptionStyle: React.CSSProperties = {
-      position: 'absolute', bottom: '15%', left: '50%', transform: 'translateX(-50%)',
-      background: 'rgba(0,0,0,0.6)', color: 'white', padding: '8px 16px', borderRadius: '8px',
-      textAlign: 'center', maxWidth: '90%', transition: 'all 0.3s ease',
-  };
-
   return (
     <div className="flex-1 relative bg-black overflow-hidden flex items-center justify-center">
       <video ref={videoRef} className="hidden" autoPlay muted playsInline />
       <canvas 
         ref={canvasRef} 
-        // FIX #2: Change from object-contain to object-cover to eliminate borders
         className={cn("w-full h-full object-cover transition-opacity duration-300", !isVideoOn && "opacity-0")}
         style={{ filter: videoFilter }}
       />
@@ -427,11 +511,10 @@ export const VideoCanvas = (props: VideoCanvasProps) => {
          {generatedOverlays.map(overlay => (
             <DynamicCodeRenderer key={overlay.id} overlay={overlay} onLayoutChange={onOverlayLayoutChange} onRemove={onRemoveOverlay} containerSize={containerSize} />
         ))}
-        {isRecording && partialTranscript && ( <div style={{ ...baseLiveCaptionStyle, ...liveCaptionStyle }}>{partialTranscript}</div> )}
+        {isRecording && partialTranscript && ( <div style={{...liveCaptionStyle, position: 'absolute', bottom: '15%', left: '50%', transform: 'translateX(-50%)', background: 'rgba(0,0,0,0.6)', color: 'white', padding: '8px 16px', borderRadius: '8px', textAlign: 'center', maxWidth: '90%', transition: 'all 0.3s ease' }}>{partialTranscript}</div> )}
       </div>
 
       <div className="absolute bottom-6 w-full flex items-center justify-center gap-4">
-        {/* Audio Controls */}
         <div className="flex items-center">
             <Button variant="secondary" size="icon" className="rounded-r-none h-12 w-12" onClick={() => onAudioToggle(!isAudioOn)}>
                 {isAudioOn ? <Mic /> : <MicOff className="text-red-500"/>}
@@ -451,7 +534,6 @@ export const VideoCanvas = (props: VideoCanvasProps) => {
             </DropdownMenu>
         </div>
 
-        {/* Video Controls */}
         <div className="flex items-center">
             <Button variant="secondary" size="icon" className="rounded-r-none h-12 w-12" onClick={() => onVideoToggle(!isVideoOn)}>
                 {isVideoOn && selectedVideoDevice !== 'screen' ? <Webcam /> : <VideoOff className="text-red-500"/>}
@@ -471,7 +553,6 @@ export const VideoCanvas = (props: VideoCanvasProps) => {
             </DropdownMenu>
         </div>
         
-        {/* Screen Share Button */}
         <Button 
             variant="secondary" 
             size="icon" 
@@ -481,7 +562,6 @@ export const VideoCanvas = (props: VideoCanvasProps) => {
             <ScreenShare />
         </Button>
 
-        {/* Recording Button */}
         <Button 
             size="icon" 
             className={cn("rounded-full h-16 w-16 transition-colors", isRecording ? "bg-red-600 hover:bg-red-700" : "bg-primary hover:bg-primary/90")}

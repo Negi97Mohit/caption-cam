@@ -30,7 +30,6 @@ const Index = () => {
   const [isHoveringSidebar, setIsHoveringSidebar] = useState(false);
   const [captionsEnabled, setCaptionsEnabled] = useState(true);
   
-  // Media controls
   const [isAudioOn, setIsAudioOn] = useState(false);
   const [isVideoOn, setIsVideoOn] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
@@ -38,17 +37,18 @@ const Index = () => {
   const [selectedAudioDevice, setSelectedAudioDevice] = useState<string | undefined>(undefined);
 
   const [isAiModeEnabled, setIsAiModeEnabled] = useState(true);
-
-  // New: State for auto-tracking customization
-  const [zoomSensitivity, setZoomSensitivity] = useState(2.5);
+  const [zoomSensitivity, setZoomSensitivity] = useState(4.0);
   const [trackingSpeed, setTrackingSpeed] = useState(0.07);
+
+  const [isBeautifyEnabled, setIsBeautifyEnabled] = useState(false);
+  const [isLowLightEnabled, setIsLowLightEnabled] = useState(false);
 
   const { log } = useLog();
   const { setDebugInfo } = useDebug();
   
-  const applyTheme = (theme: any) => {
+  const applyTheme = (theme) => {
     const root = document.documentElement;
-    const hexToHsl = (hex: string) => {
+    const hexToHsl = (hex) => {
         let r = 0, g = 0, b = 0;
         if (hex.length === 4) {
             r = parseInt(hex[1] + hex[1], 16);
@@ -219,11 +219,14 @@ const Index = () => {
             setActiveOverlays(prev => prev.filter(o => o.id !== id));
           }}
           onTextSubmit={processTranscript}
-          // New: Pass tracking controls to the sidebar
           zoomSensitivity={zoomSensitivity}
           onZoomSensitivityChange={setZoomSensitivity}
           trackingSpeed={trackingSpeed}
           onTrackingSpeedChange={setTrackingSpeed}
+          isBeautifyEnabled={isBeautifyEnabled}
+          onBeautifyToggle={setIsBeautifyEnabled}
+          isLowLightEnabled={isLowLightEnabled}
+          onLowLightToggle={setIsLowLightEnabled}
         />
 
         <VideoCanvas
@@ -247,9 +250,10 @@ const Index = () => {
           onAudioDeviceSelect={setSelectedAudioDevice}
           selectedVideoDevice={selectedVideoDevice}
           onVideoDeviceSelect={setSelectedVideoDevice}
-          // New: Pass tracking values to the canvas
           zoomSensitivity={zoomSensitivity}
           trackingSpeed={trackingSpeed}
+          isBeautifyEnabled={isBeautifyEnabled}
+          isLowLightEnabled={isLowLightEnabled}
         />
       </div>
     </div>

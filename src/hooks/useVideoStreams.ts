@@ -1,5 +1,5 @@
 // src/hooks/useVideoStreams.ts
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { toast } from 'sonner';
 
 interface UseVideoStreamsProps {
@@ -21,36 +21,12 @@ export const useVideoStreams = ({
 }: UseVideoStreamsProps) => {
   const [cameraStream, setCameraStream] = useState<MediaStream | null>(null);
   const [screenStream, setScreenStream] = useState<MediaStream | null>(null);
-  const [mergedStream, setMergedStream] = useState<MediaStream | null>(null); // New: For recording
+  const isRequestingScreen = useRef(false);
 
-  // Cleanup helper
   const stopTracks = useCallback((stream: MediaStream | null) => {
     stream?.getTracks().forEach(track => track.stop());
   }, []);
 
-  // Merge streams (screen video + camera audio if needed)
-  useEffect(() => {
-    if (!screenStream || !cameraStream) {
-      setMergedStream(null);
-      return;
-    }
-    const screenVideoTrack = screenStream.getVideoTracks()[0];
-    const cameraAudioTrack = isAudioOn ? cameraStream.getAudioTracks()[0] : null;
-
-    // Mute camera video/audio if screen-sharing (avoid echo/overlay)
-    cameraStream.getVideoTracks().forEach(track => (track.enabled = false));
-    if (cameraAudioTrack) cameraAudioTrack.enabled = false; // Or clone if needed
-
-    // Create new stream with screen video + optional audio
-    const newStream = new MediaStream([screenVideoTrack]);
-    if (cameraAudioTrack) newStream.addTrack(cameraAudioTrack);
-
-    setMergedStream(newStream);
-
-    return () => stopTracks(newStream);
-  }, [screenStream, cameraStream, isAudioOn, stopTracks]);
-
-  // Camera effect (unchanged, but add log)
   useEffect(() => {
     if (!isCameraOn) {
       stopTracks(cameraStream);
@@ -77,57 +53,53 @@ export const useVideoStreams = ({
         }
       } catch (err) {
         console.error("Camera error:", err);
-        toast.error(`Camera error: ${(err as Error).message}`);
+        if ((err as Error).name === 'NotAllowedError') {
+            toast.error("Camera permission denied. Please enable it in your browser settings.");
+        } else {
+            toast.error(`Camera error: ${(err as Error).message}`);
+        }
       }
     };
     getCameraStream();
     return () => { isCancelled = true; stopTracks(cameraStream); };
   }, [isCameraOn, isAudioOn, selectedCameraDevice, selectedAudioDevice, stopTracks]);
 
-  // Screen effect (add retry on fail)
   useEffect(() => {
-    if (!isScreenSharing) {
-      stopTracks(screenStream);
-      setScreenStream(null);
-      return;
+    if (isScreenSharing && !screenStream && !isRequestingScreen.current) {
+        isRequestingScreen.current = true;
+        const getScreenStream = async () => {
+            try {
+                const stream = await navigator.mediaDevices.getDisplayMedia({
+                    video: { width: { ideal: 1920 }, height: { ideal: 1080 } },
+                    audio: isAudioOn,
+                });
+                console.log('✅ Screen stream attached');
+                const videoTrack = stream.getVideoTracks()[0];
+                videoTrack.onended = () => {
+                    console.log('🛑 Screen share ended');
+                    onScreenShareEnd();
+                    toast.info("Screen sharing stopped—switching to camera view");
+                };
+                setScreenStream(stream);
+            } catch (err) {
+                console.error("Screen share error:", err);
+                if ((err as Error).name === 'NotAllowedError') {
+                    toast.error("Screen share permission denied. Please try again and grant permission.");
+                } else {
+                    toast.error(`Screen share error: ${(err as Error).message}. Try again?`);
+                }
+                onScreenShareEnd();
+            } finally {
+                isRequestingScreen.current = false;
+            }
+        };
+        getScreenStream();
+    } else if (!isScreenSharing && screenStream) {
+        stopTracks(screenStream);
+        setScreenStream(null);
     }
-    let isCancelled = false;
-    let retryCount = 0;
-    const maxRetries = 2;
-    const getScreenStream = async () => {
-      try {
-        const stream = await navigator.mediaDevices.getDisplayMedia({
-          video: { width: { ideal: 1920 }, height: { ideal: 1080 } },
-          audio: false, // Screen share audio separate if needed
-        });
-        if (!isCancelled) {
-          console.log('✅ Screen stream attached');
-          const videoTrack = stream.getVideoTracks()[0];
-          videoTrack.onended = () => {
-            console.log('🛑 Screen share ended');
-            onScreenShareEnd();
-            toast.info("Screen sharing stopped—switching to camera view");
-          };
-          setScreenStream(stream);
-          retryCount = 0; // Reset on success
-        } else {
-          stopTracks(stream);
-        }
-      } catch (err) {
-        retryCount++;
-        console.error("Screen share error:", err);
-        if (retryCount <= maxRetries && (err as Error).name !== 'NotAllowedError') {
-          toast.warning(`Screen share failed (retry ${retryCount}/${maxRetries})...`);
-          setTimeout(getScreenStream, 1000 * retryCount); // Exponential backoff
-        } else {
-          toast.error(`Screen share error: ${(err as Error).message}. Try again?`);
-          onScreenShareEnd(); // Fallback
-        }
-      }
-    };
-    getScreenStream();
-    return () => { isCancelled = true; stopTracks(screenStream); };
-  }, [isScreenSharing, onScreenShareEnd, stopTracks]);
+}, [isScreenSharing, onScreenShareEnd, stopTracks, isAudioOn, screenStream]);
 
-  return { cameraStream, screenStream, mergedStream }; // Expose merged for recording
+
+  return { cameraStream, screenStream };
 };

@@ -7,7 +7,6 @@ import { toast } from "sonner";
 import { cn } from "../lib/utils";
 import { useBrowserSpeech } from "../hooks/useBrowserSpeech";
 import { useVideoStreams } from "../hooks/useVideoStreams";
-import { useCanvasRenderer } from "../hooks/useCanvasRenderer";
 import { Rnd } from 'react-rnd';
 import * as Babel from '@babel/standalone';
 import { GeneratedOverlay, LayoutMode, CameraShape } from "../types/caption";
@@ -132,34 +131,28 @@ export const VideoCanvas = (props: VideoCanvasProps) => {
     onScreenShareEnd: () => setIsScreenSharing(false),
   });
 
-  // Effect to attach camera stream and solve autoplay issues
   useEffect(() => {
-    if (videoRef.current && cameraStream) {
-      videoRef.current.srcObject = cameraStream;
-      videoRef.current.play().catch(e => console.error("Camera autoplay failed:", e));
+    const video = videoRef.current;
+    if (video) {
+        if (cameraStream && video.srcObject !== cameraStream) {
+            video.srcObject = cameraStream;
+        } else if (!cameraStream && video.srcObject) {
+            video.srcObject = null;
+        }
     }
-  }, [cameraStream]);
+}, [cameraStream, rest.layoutMode]);
 
-  // Effect to attach screen share stream and solve autoplay issues
-  useEffect(() => {
-    if (screenVideoRef.current && screenStream) {
-      screenVideoRef.current.srcObject = screenStream;
-      screenVideoRef.current.play().catch(e => console.error("Screen share autoplay failed:", e));
+useEffect(() => {
+    const screenVideo = screenVideoRef.current;
+    if (screenVideo) {
+        if (screenStream && screenVideo.srcObject !== screenStream) {
+            screenVideo.srcObject = screenStream;
+        } else if (!screenStream && screenVideo.srcObject) {
+            screenVideo.srcObject = null;
+        }
     }
-  }, [screenStream]);
+}, [screenStream, rest.layoutMode]);
 
-  const { canvasRef, screenCanvasRef } = useCanvasRenderer({
-    videoRef,
-    screenVideoRef,
-    selectedVideoDevice,
-    backgroundEffect: rest.backgroundEffect,
-    backgroundImageUrl: rest.backgroundImageUrl,
-    isAutoFramingEnabled: rest.isAutoFramingEnabled,
-    zoomSensitivity: rest.zoomSensitivity,
-    trackingSpeed: rest.trackingSpeed,
-    isBeautifyEnabled: rest.isBeautifyEnabled,
-    isLowLightEnabled: rest.isLowLightEnabled,
-  });
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const recordedChunksRef = useRef<Blob[]>([]);
@@ -203,36 +196,63 @@ export const VideoCanvas = (props: VideoCanvasProps) => {
     else stopRecognition();
   }, [rest.isRecording, isAudioOn, startRecognition, stopRecognition]);
 
-  const handleStartRecording = () => {
-    const streamSource = isScreenSharing && screenCanvasRef.current ? screenCanvasRef.current : canvasRef.current;
-    const audioStreamSource = cameraStream;
+    const handleStartRecording = () => {
+        const outputStream = new MediaStream();
 
-    if (streamSource) {
-      const stream = streamSource.captureStream(30);
-      if (audioStreamSource && audioStreamSource.getAudioTracks().length > 0) {
-        stream.addTrack(audioStreamSource.getAudioTracks()[0]);
-      }
-      
-      recordedChunksRef.current = [];
-      mediaRecorderRef.current = new MediaRecorder(stream, { mimeType: 'video/webm; codecs=vp9' });
-      mediaRecorderRef.current.ondataavailable = (e) => { if (e.data.size > 0) recordedChunksRef.current.push(e.data); };
-      mediaRecorderRef.current.onstop = () => {
-        const blob = new Blob(recordedChunksRef.current, { type: 'video/webm' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `gaki-recording-${Date.now()}.webm`;
-        a.click();
-        URL.revokeObjectURL(url);
-        toast.success("Recording downloaded!");
-      };
-      mediaRecorderRef.current.start();
-      rest.onRecordingToggle(true);
-      toast.info("Recording started!");
-    } else {
-      toast.error("No video stream available to record.");
-    }
-  };
+        if (isScreenSharing && screenStream) {
+            const screenVideoTrack = screenStream.getVideoTracks()[0];
+            if (screenVideoTrack) {
+                outputStream.addTrack(screenVideoTrack.clone());
+            }
+
+            const screenAudioTrack = screenStream.getAudioTracks()[0];
+            if (screenAudioTrack) {
+                outputStream.addTrack(screenAudioTrack.clone());
+            } else if (cameraStream) {
+                const cameraAudioTrack = cameraStream.getAudioTracks()[0];
+                if (cameraAudioTrack) {
+                    outputStream.addTrack(cameraAudioTrack.clone());
+                }
+            }
+        } else if (cameraStream) {
+            const cameraVideoTrack = cameraStream.getVideoTracks()[0];
+            if (cameraVideoTrack) {
+                outputStream.addTrack(cameraVideoTrack.clone());
+            }
+
+            const cameraAudioTrack = cameraStream.getAudioTracks()[0];
+            if (cameraAudioTrack) {
+                outputStream.addTrack(cameraAudioTrack.clone());
+            }
+        }
+
+        if (outputStream.getTracks().length === 0) {
+            toast.error("No stream available to record.");
+            return;
+        }
+
+        recordedChunksRef.current = [];
+        mediaRecorderRef.current = new MediaRecorder(outputStream, { mimeType: 'video/webm; codecs=vp9' });
+        mediaRecorderRef.current.ondataavailable = (e) => {
+            if (e.data.size > 0) {
+                recordedChunksRef.current.push(e.data);
+            }
+        };
+        mediaRecorderRef.current.onstop = () => {
+            const blob = new Blob(recordedChunksRef.current, { type: 'video/webm' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `gaki-recording-${Date.now()}.webm`;
+            a.click();
+            URL.revokeObjectURL(url);
+            toast.success("Recording downloaded!");
+        };
+        mediaRecorderRef.current.start();
+        rest.onRecordingToggle(true);
+        toast.info("Recording started!");
+    };
+
 
   const handleStopRecording = () => {
     if (mediaRecorderRef.current?.state === 'recording') mediaRecorderRef.current.stop();
@@ -309,16 +329,16 @@ export const VideoCanvas = (props: VideoCanvasProps) => {
     }
   };
 
-  const renderCameraCanvas = (className?: string, style?: React.CSSProperties) => (
-    <canvas ref={canvasRef} className={cn("w-full h-full object-cover transition-all duration-300", className)} style={{ filter: rest.videoFilter, ...getCameraShapeStyle(), ...style }} />
+  const renderCamera = (className?: string, style?: React.CSSProperties) => (
+    <video ref={videoRef} autoPlay muted playsInline className={cn("w-full h-full object-cover", className)} style={{ ...getCameraShapeStyle(), ...style }} />
   );
 
-  const renderScreenCanvas = (className?: string) => (
-    <canvas ref={screenCanvasRef} className={cn("w-full h-full object-cover", className)} />
+  const renderScreen = (className?: string) => (
+      <video ref={screenVideoRef} autoPlay muted playsInline className={cn("w-full h-full object-cover", className)} />
   );
 
   const renderContent = () => {
-    const mainContent = isScreenSharing && screenStream ? renderScreenCanvas() : (isVideoOn && cameraStream ? renderCameraCanvas() : (
+    const mainContent = isScreenSharing && screenStream ? renderScreen() : (isVideoOn && cameraStream ? renderCamera() : (
       <div className="text-center text-muted-foreground">
         <Webcam className="w-24 h-24 mx-auto mb-4" />
         <p>Camera is off</p>
@@ -336,7 +356,7 @@ export const VideoCanvas = (props: VideoCanvasProps) => {
         className="pip-camera shadow-2xl border-2 border-white/20"
         style={{ zIndex: 100, ...getCameraShapeStyle() }}
       >
-        {renderCameraCanvas("cursor-move")}
+        {renderCamera("cursor-move")}
       </Rnd>
     );
 
@@ -349,7 +369,7 @@ export const VideoCanvas = (props: VideoCanvasProps) => {
         return (
           <div className={cn("w-full h-full flex", isVertical ? "flex-col" : "flex-row")}>
             <div className="relative bg-black flex items-center justify-center overflow-hidden" style={{ [isVertical ? 'height' : 'width']: `${rest.splitRatio * 100}%` }}>
-              {isScreenSharing && screenStream ? renderScreenCanvas() : (
+              {isScreenSharing && screenStream ? renderScreen() : (
                 <div className="text-center text-muted-foreground">
                   <ScreenShare className="w-16 h-16 mx-auto mb-2" />
                   <p className="text-sm">Click Share Screen to start</p>
@@ -360,7 +380,7 @@ export const VideoCanvas = (props: VideoCanvasProps) => {
               <div className={cn("bg-primary/50 group-hover:bg-primary rounded-full transition-colors", isVertical ? "w-12 h-1" : "w-1 h-12")} />
             </div>
             <div className="relative bg-black flex items-center justify-center overflow-hidden" style={{ [isVertical ? 'height' : 'width']: `${(1 - rest.splitRatio) * 100}%` }}>
-              {isVideoOn && cameraStream ? renderCameraCanvas() : (
+              {isVideoOn && cameraStream ? renderCamera() : (
                 <div className="text-center text-muted-foreground">
                   <Webcam className="w-16 h-16 mx-auto mb-2" />
                   <p className="text-sm">Camera Off</p>
@@ -376,10 +396,7 @@ export const VideoCanvas = (props: VideoCanvasProps) => {
 
   return (
     <div className="flex-1 relative bg-black overflow-hidden flex items-center justify-center">
-      {/* Hidden video elements are crucial for the canvas renderer to have a source */}
-      <video ref={videoRef} className="hidden" autoPlay muted playsInline />
-      <video ref={screenVideoRef} className="hidden" autoPlay muted playsInline />
-
+      
       {renderContent()}
 
       <div className="absolute top-4 right-4 z-50">

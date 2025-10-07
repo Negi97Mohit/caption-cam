@@ -1,15 +1,17 @@
-import React, { useState, useRef, useEffect, useCallback } from "react";
+// src/components/VideoCanvas.tsx
+import React, { useState, useRef, useEffect } from "react";
 import { Mic, MicOff, Webcam, VideoOff, ScreenShare, Square, ChevronUp, Check, Circle } from "lucide-react";
 import { Button } from "./ui/button";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "./ui/dropdown-menu";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "./ui/dropdown-menu";
 import { toast } from "sonner";
 import { cn } from "../lib/utils";
-import { SelfieSegmentation, Results as SegmentationResults } from "@mediapipe/selfie_segmentation";
-import { FaceDetection, Results as FaceDetectionResults } from "@mediapipe/face_detection";
 import { useBrowserSpeech } from "../hooks/useBrowserSpeech";
+import { useVideoStreams } from "../hooks/useVideoStreams";
+import { useCanvasRenderer } from "../hooks/useCanvasRenderer";
 import { Rnd } from 'react-rnd';
 import * as Babel from '@babel/standalone';
-import { GeneratedOverlay } from "../types/caption";
+import { GeneratedOverlay, LayoutMode, CameraShape } from "../types/caption";
+import { LayoutControls } from "./LayoutControls";
 
 const DynamicCodeRenderer = ({ overlay, onLayoutChange, onRemove, containerSize }) => {
     const [Component, setComponent] = useState(null);
@@ -23,7 +25,7 @@ const DynamicCodeRenderer = ({ overlay, onLayoutChange, onRemove, containerSize 
             setComponent(() => componentFunction(React));
         } catch (e) {
             console.error("Component generation error:", e);
-            setError(e.message);
+            setError((e as Error).message);
             setComponent(null);
         }
     }, [overlay.componentCode]);
@@ -88,96 +90,86 @@ interface VideoCanvasProps {
   trackingSpeed: number;
   isBeautifyEnabled: boolean;
   isLowLightEnabled: boolean;
+  layoutMode: LayoutMode;
+  cameraShape: CameraShape;
+  splitRatio: number;
+  pipPosition: { x: number; y: number };
+  pipSize: { width: number; height: number };
+  onLayoutModeChange: (mode: LayoutMode) => void;
+  onCameraShapeChange: (shape: CameraShape) => void;
+  onSplitRatioChange: (ratio: number) => void;
+  onPipPositionChange: (position: { x: number; y: number }) => void;
+  onPipSizeChange: (size: { width: number; height: number }) => void;
+  customMaskUrl?: string;
+  onCustomMaskUpload?: (file: File) => void;
 }
 
-const lerp = (start: number, end: number, amount: number) => (1 - amount) * start + amount * end;
+const SNAP_THRESHOLD = 5;
 
 export const VideoCanvas = (props: VideoCanvasProps) => {
   const {
-    backgroundEffect, backgroundImageUrl, isAutoFramingEnabled,
-    zoomSensitivity, trackingSpeed, isVideoOn, isAudioOn,
-    onVideoToggle, selectedAudioDevice, selectedVideoDevice,
-    onProcessTranscript,
-    generatedOverlays, onOverlayLayoutChange, onRemoveOverlay,
-    liveCaptionStyle, videoFilter, isRecording, onRecordingToggle,
-    isBeautifyEnabled, isLowLightEnabled
+    isVideoOn,
+    isAudioOn,
+    selectedVideoDevice,
+    selectedAudioDevice,
+    onVideoDeviceSelect,
+    onAudioDeviceSelect,
+    onVideoToggle,
+    onAudioToggle,
+    ...rest
   } = props;
-
+  
+  const [isScreenSharing, setIsScreenSharing] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const offscreenCanvasRef = useRef<HTMLCanvasElement | null>(null);
-  const streamRef = useRef<MediaStream | null>(null);
+  const screenVideoRef = useRef<HTMLVideoElement>(null);
+
+  const { cameraStream, screenStream } = useVideoStreams({
+    isCameraOn: isVideoOn,
+    isAudioOn: isAudioOn,
+    isScreenSharing: isScreenSharing,
+    selectedCameraDevice: selectedVideoDevice,
+    selectedAudioDevice: selectedAudioDevice,
+    onScreenShareEnd: () => setIsScreenSharing(false),
+  });
+
+  // Effect to attach camera stream and solve autoplay issues
+  useEffect(() => {
+    if (videoRef.current && cameraStream) {
+      videoRef.current.srcObject = cameraStream;
+      videoRef.current.play().catch(e => console.error("Camera autoplay failed:", e));
+    }
+  }, [cameraStream]);
+
+  // Effect to attach screen share stream and solve autoplay issues
+  useEffect(() => {
+    if (screenVideoRef.current && screenStream) {
+      screenVideoRef.current.srcObject = screenStream;
+      screenVideoRef.current.play().catch(e => console.error("Screen share autoplay failed:", e));
+    }
+  }, [screenStream]);
+
+  const { canvasRef, screenCanvasRef } = useCanvasRenderer({
+    videoRef,
+    screenVideoRef,
+    selectedVideoDevice,
+    backgroundEffect: rest.backgroundEffect,
+    backgroundImageUrl: rest.backgroundImageUrl,
+    isAutoFramingEnabled: rest.isAutoFramingEnabled,
+    zoomSensitivity: rest.zoomSensitivity,
+    trackingSpeed: rest.trackingSpeed,
+    isBeautifyEnabled: rest.isBeautifyEnabled,
+    isLowLightEnabled: rest.isLowLightEnabled,
+  });
+
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const recordedChunksRef = useRef<Blob[]>([]);
-  const animationFrameId = useRef<number>();
-  
+  const splitDividerRef = useRef<HTMLDivElement>(null);
+  const [isDraggingSplitter, setIsDraggingSplitter] = useState(false);
   const [partialTranscript, setPartialTranscript] = useState("");
   const overlayContainerRef = useRef<HTMLDivElement>(null);
   const [containerSize, setContainerSize] = useState({ width: 0, height: 0 });
-
   const [audioDevices, setAudioDevices] = useState<MediaDeviceInfo[]>([]);
   const [videoDevices, setVideoDevices] = useState<MediaDeviceInfo[]>([]);
-
-  const [segmentationModel, setSegmentationModel] = useState<SelfieSegmentation | null>(null);
-  const [faceDetectionModel, setFaceDetectionModel] = useState<FaceDetection | null>(null);
-  const segmentationResultsRef = useRef<SegmentationResults | null>(null);
-  const faceDetectionResultsRef = useRef<FaceDetectionResults | null>(null);
-  const backgroundImageRef = useRef<HTMLImageElement | null>(null);
-  const smoothedFrameRef = useRef({ x: 0, y: 0, width: 1, height: 1 });
-
-  const renderPropsRef = useRef({ 
-    backgroundEffect, backgroundImageUrl, isAutoFramingEnabled, 
-    zoomSensitivity, trackingSpeed, isBeautifyEnabled, isLowLightEnabled 
-  });
-  useEffect(() => {
-    renderPropsRef.current = { 
-      backgroundEffect, backgroundImageUrl, isAutoFramingEnabled, 
-      zoomSensitivity, trackingSpeed, isBeautifyEnabled, isLowLightEnabled 
-    };
-  }, [
-    backgroundEffect, backgroundImageUrl, isAutoFramingEnabled, 
-    zoomSensitivity, trackingSpeed, isBeautifyEnabled, isLowLightEnabled
-  ]);
-
-  useEffect(() => {
-    const selfieSegmentation = new SelfieSegmentation({
-      locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation/${file}`,
-    });
-    selfieSegmentation.setOptions({ modelSelection: 1 });
-    selfieSegmentation.onResults((results) => {
-      segmentationResultsRef.current = results;
-    });
-    setSegmentationModel(selfieSegmentation);
-
-    const faceDetection = new FaceDetection({
-      locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_detection/${file}`,
-    });
-    faceDetection.setOptions({ minDetectionConfidence: 0.5, model: 'short' });
-    faceDetection.onResults((results) => {
-      faceDetectionResultsRef.current = results;
-    });
-    setFaceDetectionModel(faceDetection);
-
-    offscreenCanvasRef.current = document.createElement('canvas');
-
-    return () => {
-      selfieSegmentation.close();
-      faceDetection.close();
-    };
-  }, []);
-
-  useEffect(() => {
-    if (renderPropsRef.current.backgroundEffect === 'image' && renderPropsRef.current.backgroundImageUrl) {
-      const img = new Image();
-      img.crossOrigin = "anonymous";
-      img.src = renderPropsRef.current.backgroundImageUrl;
-      img.onload = () => {
-        backgroundImageRef.current = img;
-      };
-    } else {
-      backgroundImageRef.current = null;
-    }
-  }, [backgroundImageUrl]);
 
   useEffect(() => {
     const getDevices = async () => {
@@ -200,375 +192,260 @@ export const VideoCanvas = (props: VideoCanvasProps) => {
     resizeObserver.observe(container);
     return () => resizeObserver.disconnect();
   }, []);
-  
-  useEffect(() => {
-    const videoElement = videoRef.current;
-    const canvasElement = canvasRef.current;
-    const offscreenCanvas = offscreenCanvasRef.current;
-    if (!videoElement || !canvasElement || !offscreenCanvas || !segmentationModel || !faceDetectionModel) return;
-
-    const ctx = canvasElement.getContext('2d');
-    const offscreenCtx = offscreenCanvas.getContext('2d');
-    if (!ctx || !offscreenCtx) return;
-
-    ctx.imageSmoothingQuality = 'high';
-    offscreenCtx.imageSmoothingQuality = 'high';
-
-    let isProcessing = false;
-
-    const processFrame = async () => {
-      if (!isProcessing || videoElement.readyState < 2) {
-        if(isProcessing) animationFrameId.current = requestAnimationFrame(processFrame);
-        return;
-      }
-      
-      const currentRenderProps = renderPropsRef.current;
-      
-      if (currentRenderProps.backgroundEffect !== 'none' || currentRenderProps.isAutoFramingEnabled) {
-          await Promise.all([
-            currentRenderProps.backgroundEffect !== 'none' ? segmentationModel.send({ image: videoElement }) : Promise.resolve(),
-            currentRenderProps.isAutoFramingEnabled ? faceDetectionModel.send({ image: videoElement }) : Promise.resolve()
-          ]);
-      }
-      
-      offscreenCanvas.width = videoElement.videoWidth;
-      offscreenCanvas.height = videoElement.videoHeight;
-      canvasElement.width = videoElement.videoWidth;
-      canvasElement.height = videoElement.videoHeight;
-
-      if (currentRenderProps.backgroundEffect !== 'none' && segmentationResultsRef.current) {
-        offscreenCtx.save();
-        offscreenCtx.drawImage(videoElement, 0, 0, offscreenCanvas.width, offscreenCanvas.height);
-        offscreenCtx.globalCompositeOperation = 'destination-in';
-        offscreenCtx.drawImage(segmentationResultsRef.current.segmentationMask, 0, 0, offscreenCanvas.width, offscreenCanvas.height);
-        offscreenCtx.globalCompositeOperation = 'destination-over';
-        if (currentRenderProps.backgroundEffect === 'blur') {
-            offscreenCtx.filter = 'blur(10px)';
-            offscreenCtx.drawImage(videoElement, 0, 0, offscreenCanvas.width, offscreenCanvas.height);
-        } else if (currentRenderProps.backgroundEffect === 'image' && backgroundImageRef.current) {
-            offscreenCtx.drawImage(backgroundImageRef.current, 0, 0, offscreenCanvas.width, offscreenCanvas.height);
-        }
-        offscreenCtx.restore();
-      } else {
-        offscreenCtx.drawImage(videoElement, 0, 0, offscreenCanvas.width, offscreenCanvas.height);
-      }
-      
-      if (currentRenderProps.isBeautifyEnabled || currentRenderProps.isLowLightEnabled) {
-        const imageData = offscreenCtx.getImageData(0, 0, offscreenCanvas.width, offscreenCanvas.height);
-        const data = imageData.data;
-
-        if (currentRenderProps.isLowLightEnabled) {
-          const brightnessFactor = 1.3;
-          for (let i = 0; i < data.length; i += 4) {
-            data[i] = data[i] * brightnessFactor;
-            data[i + 1] = data[i + 1] * brightnessFactor;
-            data[i + 2] = data[i + 2] * brightnessFactor;
-          }
-        }
-
-        if (currentRenderProps.isBeautifyEnabled) {
-            const tempImageData = new Uint8ClampedArray(data);
-            const kernelSize = 3;
-            const halfKernel = Math.floor(kernelSize / 2);
-            for (let y = 0; y < offscreenCanvas.height; y++) {
-                for (let x = 0; x < offscreenCanvas.width; x++) {
-                    let r = 0, g = 0, b = 0, count = 0;
-                    for (let ky = -halfKernel; ky <= halfKernel; ky++) {
-                        for (let kx = -halfKernel; kx <= halfKernel; kx++) {
-                            const pixelY = y + ky;
-                            const pixelX = x + kx;
-                            if (pixelY >= 0 && pixelY < offscreenCanvas.height && pixelX >= 0 && pixelX < offscreenCanvas.width) {
-                                const offset = (pixelY * offscreenCanvas.width + pixelX) * 4;
-                                r += tempImageData[offset];
-                                g += tempImageData[offset + 1];
-                                b += tempImageData[offset + 2];
-                                count++;
-                            }
-                        }
-                    }
-                    const destOffset = (y * offscreenCanvas.width + x) * 4;
-                    data[destOffset] = r / count;
-                    data[destOffset + 1] = g / count;
-                    data[destOffset + 2] = b / count;
-                }
-            }
-        }
-
-        offscreenCtx.putImageData(imageData, 0, 0);
-      }
-
-      let targetX = 0, targetY = 0, targetWidth = offscreenCanvas.width, targetHeight = offscreenCanvas.height;
-      const detections = faceDetectionResultsRef.current?.detections;
-      
-      if (currentRenderProps.isAutoFramingEnabled && detections && detections.length > 0) {
-        let minX = offscreenCanvas.width, minY = offscreenCanvas.height, maxX = 0, maxY = 0;
-        detections.forEach(detection => {
-          const box = detection.boundingBox;
-          const realX = box.xCenter * offscreenCanvas.width - (box.width * offscreenCanvas.width / 2);
-          const realY = box.yCenter * offscreenCanvas.height - (box.height * offscreenCanvas.height / 2);
-          const realWidth = box.width * offscreenCanvas.width;
-          const realHeight = box.height * offscreenCanvas.height;
-          if (realX < minX) minX = realX;
-          if (realY < minY) minY = realY;
-          if (realX + realWidth > maxX) maxX = realX + realWidth;
-          if (realY + realHeight > maxY) maxY = realY + realHeight;
-        });
-        const combinedWidth = maxX - minX;
-        const combinedHeight = maxY - minY;
-        const combinedCenterX = minX + combinedWidth / 2;
-        const combinedCenterY = minY + combinedHeight / 2;
-        const targetBoxWidth = combinedWidth * currentRenderProps.zoomSensitivity;
-        const targetBoxHeight = combinedHeight * currentRenderProps.zoomSensitivity;
-        const aspectRatio = offscreenCanvas.width / offscreenCanvas.height;
-        if (targetBoxWidth / targetBoxHeight > aspectRatio) {
-            targetWidth = Math.min(offscreenCanvas.width, targetBoxWidth);
-            targetHeight = targetWidth / aspectRatio;
-        } else {
-            targetHeight = Math.min(offscreenCanvas.height, targetBoxHeight);
-            targetWidth = targetHeight * aspectRatio;
-        }
-        targetX = combinedCenterX - targetWidth / 2;
-        targetY = combinedCenterY - targetHeight / 2;
-        if (targetX < 0) targetX = 0;
-        if (targetY < 0) targetY = 0;
-        if (targetX + targetWidth > offscreenCanvas.width) targetX = offscreenCanvas.width - targetWidth;
-        if (targetY + targetHeight > offscreenCanvas.height) targetY = offscreenCanvas.height - targetHeight;
-      }
-      
-      smoothedFrameRef.current.x = lerp(smoothedFrameRef.current.x, targetX, currentRenderProps.trackingSpeed);
-      smoothedFrameRef.current.y = lerp(smoothedFrameRef.current.y, targetY, currentRenderProps.trackingSpeed);
-      smoothedFrameRef.current.width = lerp(smoothedFrameRef.current.width, targetWidth, currentRenderProps.trackingSpeed);
-      smoothedFrameRef.current.height = lerp(smoothedFrameRef.current.height, targetHeight, currentRenderProps.trackingSpeed);
-      
-      const { x, y, width, height } = smoothedFrameRef.current;
-      
-      ctx.clearRect(0, 0, canvasElement.width, canvasElement.height);
-      ctx.drawImage(offscreenCanvas, x, y, width, height, 0, 0, canvasElement.width, canvasElement.height);
-
-      if (isProcessing) animationFrameId.current = requestAnimationFrame(processFrame);
-    };
-    
-    const onPlay = () => {
-      isProcessing = true;
-      animationFrameId.current = requestAnimationFrame(processFrame);
-    };
-
-    const onPause = () => {
-      isProcessing = false;
-      if (animationFrameId.current) {
-        cancelAnimationFrame(animationFrameId.current);
-      }
-    };
-    
-    videoElement.addEventListener("play", onPlay);
-    videoElement.addEventListener("pause", onPause);
-
-    return () => {
-      videoElement.removeEventListener("play", onPlay);
-      videoElement.removeEventListener("pause", onPause);
-      isProcessing = false;
-      if (animationFrameId.current) {
-        cancelAnimationFrame(animationFrameId.current);
-      }
-    }
-  }, [segmentationModel, faceDetectionModel]);
-
-  useEffect(() => {
-    const videoElement = videoRef.current;
-    if (!videoElement) return;
-
-    const RESOLUTION_PRESETS = [
-      { width: { ideal: 1920 }, height: { ideal: 1080 } },
-      { width: { ideal: 1280 }, height: { ideal: 720 } },
-      { width: { ideal: 640 }, height: { ideal: 480 } },
-    ];
-
-    const getStreamWithFallbacks = async (audioConstraint: MediaTrackConstraints | boolean) => {
-      for (const preset of RESOLUTION_PRESETS) {
-        try {
-          const videoConstraints = {
-            ...preset,
-            frameRate: { ideal: 30 },
-            deviceId: selectedVideoDevice ? { exact: selectedVideoDevice } : undefined,
-          };
-          const stream = await navigator.mediaDevices.getUserMedia({
-            video: videoConstraints,
-            audio: audioConstraint
-          });
-          console.log(`Successfully acquired stream at ${preset.height.ideal}p`);
-          return stream;
-        } catch (err) {
-          console.warn(`Failed to get stream at ${preset.height.ideal}p, trying next resolution...`, err);
-        }
-      }
-      throw new Error("Could not acquire any camera stream. Please check camera permissions and hardware.");
-    };
-
-    const startStream = async () => {
-        if (streamRef.current) {
-            streamRef.current.getTracks().forEach(track => track.stop());
-        }
-        if (!isVideoOn) {
-          if (!videoElement.paused) videoElement.pause();
-          videoElement.srcObject = null;
-          return;
-        }
-
-        try {
-            const audioConstraint = isAudioOn ? { deviceId: selectedAudioDevice ? { exact: selectedAudioDevice } : undefined } : false;
-            
-            const stream = selectedVideoDevice === 'screen'
-                ? await navigator.mediaDevices.getDisplayMedia({ video: true, audio: isAudioOn })
-                : await getStreamWithFallbacks(audioConstraint);
-            
-            streamRef.current = stream;
-            videoElement.srcObject = stream;
-            videoElement.onloadedmetadata = () => {
-                smoothedFrameRef.current = { x: 0, y: 0, width: videoElement.videoWidth, height: videoElement.videoHeight };
-            };
-            await videoElement.play();
-        } catch (err) {
-            if (err.name !== 'AbortError') {
-              console.error("Failed to get media stream:", err);
-              toast.error(`Error starting stream: ${err.message}`);
-              onVideoToggle(false);
-            }
-        }
-    };
-    
-    startStream();
-
-    return () => {
-      if (streamRef.current) {
-        streamRef.current.getTracks().forEach(track => track.stop());
-      }
-    };
-  }, [isVideoOn, isAudioOn, selectedVideoDevice, selectedAudioDevice, onVideoToggle]);
 
   const { startRecognition, stopRecognition } = useBrowserSpeech({
-    onFinalTranscript: onProcessTranscript,
+    onFinalTranscript: rest.onProcessTranscript,
     onPartialTranscript: setPartialTranscript,
   });
 
   useEffect(() => {
-    if (isRecording && isAudioOn) startRecognition();
+    if (rest.isRecording && isAudioOn) startRecognition();
     else stopRecognition();
-  }, [isRecording, isAudioOn, startRecognition, stopRecognition]);
+  }, [rest.isRecording, isAudioOn, startRecognition, stopRecognition]);
 
   const handleStartRecording = () => {
-    if (canvasRef.current) {
-        const stream = canvasRef.current.captureStream(30);
-        if (streamRef.current?.getAudioTracks().length > 0) {
-            stream.addTrack(streamRef.current.getAudioTracks()[0]);
-        }
-        
-        recordedChunksRef.current = [];
-        mediaRecorderRef.current = new MediaRecorder(stream, { mimeType: 'video/webm; codecs=vp9' });
-        mediaRecorderRef.current.ondataavailable = (e) => { if (e.data.size > 0) recordedChunksRef.current.push(e.data); };
-        mediaRecorderRef.current.onstop = () => {
-            const blob = new Blob(recordedChunksRef.current, { type: 'video/webm' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `gaki-recording-${Date.now()}.webm`;
-            a.click();
-            URL.revokeObjectURL(url);
-            toast.success("Recording downloaded!");
-        };
-        mediaRecorderRef.current.start();
-        onRecordingToggle(true);
-        toast.info("Recording started!");
+    const streamSource = isScreenSharing && screenCanvasRef.current ? screenCanvasRef.current : canvasRef.current;
+    const audioStreamSource = cameraStream;
+
+    if (streamSource) {
+      const stream = streamSource.captureStream(30);
+      if (audioStreamSource && audioStreamSource.getAudioTracks().length > 0) {
+        stream.addTrack(audioStreamSource.getAudioTracks()[0]);
+      }
+      
+      recordedChunksRef.current = [];
+      mediaRecorderRef.current = new MediaRecorder(stream, { mimeType: 'video/webm; codecs=vp9' });
+      mediaRecorderRef.current.ondataavailable = (e) => { if (e.data.size > 0) recordedChunksRef.current.push(e.data); };
+      mediaRecorderRef.current.onstop = () => {
+        const blob = new Blob(recordedChunksRef.current, { type: 'video/webm' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `gaki-recording-${Date.now()}.webm`;
+        a.click();
+        URL.revokeObjectURL(url);
+        toast.success("Recording downloaded!");
+      };
+      mediaRecorderRef.current.start();
+      rest.onRecordingToggle(true);
+      toast.info("Recording started!");
     } else {
-        toast.error("No video stream available to record.");
+      toast.error("No video stream available to record.");
     }
   };
 
   const handleStopRecording = () => {
     if (mediaRecorderRef.current?.state === 'recording') mediaRecorderRef.current.stop();
-    onRecordingToggle(false);
+    rest.onRecordingToggle(false);
   };
 
   const handleScreenShareClick = () => {
-    onVideoDeviceSelect('screen');
-    if (!isVideoOn) onVideoToggle(true);
+    setIsScreenSharing(prev => !prev);
   };
-  
+
+  const handleSplitterMouseDown = (e: React.MouseEvent) => {
+    e.preventDefault();
+    setIsDraggingSplitter(true);
+  };
+
+  useEffect(() => {
+    if (!isDraggingSplitter) return;
+    const handleMouseMove = (e: MouseEvent) => {
+      const container = overlayContainerRef.current;
+      if (!container) return;
+      const rect = container.getBoundingClientRect();
+      let ratio: number;
+      if (rest.layoutMode === 'split-vertical') {
+        ratio = (e.clientY - rect.top) / rect.height;
+      } else {
+        ratio = (e.clientX - rect.left) / rect.width;
+      }
+      ratio = Math.max(0.2, Math.min(0.8, ratio));
+      rest.onSplitRatioChange(ratio);
+    };
+    const handleMouseUp = () => setIsDraggingSplitter(false);
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [isDraggingSplitter, rest.layoutMode, rest.onSplitRatioChange]);
+
+  const handlePipDragStop = (e: any, d: { x: number; y: number }) => {
+    const container = overlayContainerRef.current;
+    if (!container) return;
+    const rect = container.getBoundingClientRect();
+    let newX = (d.x / rect.width) * 100;
+    let newY = (d.y / rect.height) * 100;
+    if (newX < SNAP_THRESHOLD) newX = 2;
+    if (newX > 100 - rest.pipSize.width - SNAP_THRESHOLD) newX = 98 - rest.pipSize.width;
+    if (newY < SNAP_THRESHOLD) newY = 2;
+    if (newY > 100 - rest.pipSize.height - SNAP_THRESHOLD) newY = 98 - rest.pipSize.height;
+    rest.onPipPositionChange({ x: newX, y: newY });
+  };
+
+  const handlePipResizeStop = (e: any, direction: any, ref: HTMLElement, delta: any, position: any) => {
+    const container = overlayContainerRef.current;
+    if (!container) return;
+    const rect = container.getBoundingClientRect();
+    const newWidth = (parseInt(ref.style.width, 10) / rect.width) * 100;
+    const newHeight = (parseInt(ref.style.height, 10) / rect.height) * 100;
+    const newX = (position.x / rect.width) * 100;
+    const newY = (position.y / rect.height) * 100;
+    rest.onPipSizeChange({ width: Math.max(10, Math.min(50, newWidth)), height: Math.max(10, Math.min(50, newHeight)) });
+    rest.onPipPositionChange({ x: newX, y: newY });
+  };
+
+  const getCameraShapeStyle = () => {
+    const baseStyle: React.CSSProperties = { overflow: 'hidden' };
+    if (rest.customMaskUrl) {
+      return { ...baseStyle, maskImage: `url(${rest.customMaskUrl})`, WebkitMaskImage: `url(${rest.customMaskUrl})`, maskSize: 'contain', WebkitMaskSize: 'contain', maskRepeat: 'no-repeat', WebkitMaskRepeat: 'no-repeat', maskPosition: 'center', WebkitMaskPosition: 'center' };
+    }
+    switch (rest.cameraShape) {
+      case 'circle': return { ...baseStyle, borderRadius: '50%' };
+      case 'rounded': return { ...baseStyle, borderRadius: '16px' };
+      case 'rectangle': default: return { ...baseStyle, borderRadius: '0' };
+    }
+  };
+
+  const renderCameraCanvas = (className?: string, style?: React.CSSProperties) => (
+    <canvas ref={canvasRef} className={cn("w-full h-full object-cover transition-all duration-300", className)} style={{ filter: rest.videoFilter, ...getCameraShapeStyle(), ...style }} />
+  );
+
+  const renderScreenCanvas = (className?: string) => (
+    <canvas ref={screenCanvasRef} className={cn("w-full h-full object-cover", className)} />
+  );
+
+  const renderContent = () => {
+    const mainContent = isScreenSharing && screenStream ? renderScreenCanvas() : (isVideoOn && cameraStream ? renderCameraCanvas() : (
+      <div className="text-center text-muted-foreground">
+        <Webcam className="w-24 h-24 mx-auto mb-4" />
+        <p>Camera is off</p>
+      </div>
+    ));
+
+    const pipContent = isScreenSharing && screenStream && isVideoOn && cameraStream && (
+      <Rnd
+        size={{ width: `${rest.pipSize.width}%`, height: `${rest.pipSize.height}%` }}
+        position={{ x: `${rest.pipPosition.x}%`, y: `${rest.pipPosition.y}%` }}
+        minWidth="10%" minHeight="10%" maxWidth="50%" maxHeight="50%"
+        bounds="parent"
+        onDragStop={handlePipDragStop}
+        onResizeStop={handlePipResizeStop}
+        className="pip-camera shadow-2xl border-2 border-white/20"
+        style={{ zIndex: 100, ...getCameraShapeStyle() }}
+      >
+        {renderCameraCanvas("cursor-move")}
+      </Rnd>
+    );
+
+    switch (rest.layoutMode) {
+      case 'pip':
+        return <>{mainContent}{pipContent}</>;
+      case 'split-vertical':
+      case 'split-horizontal':
+        const isVertical = rest.layoutMode === 'split-vertical';
+        return (
+          <div className={cn("w-full h-full flex", isVertical ? "flex-col" : "flex-row")}>
+            <div className="relative bg-black flex items-center justify-center overflow-hidden" style={{ [isVertical ? 'height' : 'width']: `${rest.splitRatio * 100}%` }}>
+              {isScreenSharing && screenStream ? renderScreenCanvas() : (
+                <div className="text-center text-muted-foreground">
+                  <ScreenShare className="w-16 h-16 mx-auto mb-2" />
+                  <p className="text-sm">Click Share Screen to start</p>
+                </div>
+              )}
+            </div>
+            <div ref={splitDividerRef} className={cn("bg-border hover:bg-primary transition-colors flex items-center justify-center group", isVertical ? "h-2 w-full cursor-row-resize" : "w-2 h-full cursor-col-resize")} onMouseDown={handleSplitterMouseDown}>
+              <div className={cn("bg-primary/50 group-hover:bg-primary rounded-full transition-colors", isVertical ? "w-12 h-1" : "w-1 h-12")} />
+            </div>
+            <div className="relative bg-black flex items-center justify-center overflow-hidden" style={{ [isVertical ? 'height' : 'width']: `${(1 - rest.splitRatio) * 100}%` }}>
+              {isVideoOn && cameraStream ? renderCameraCanvas() : (
+                <div className="text-center text-muted-foreground">
+                  <Webcam className="w-16 h-16 mx-auto mb-2" />
+                  <p className="text-sm">Camera Off</p>
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      default:
+        return mainContent;
+    }
+  };
+
   return (
     <div className="flex-1 relative bg-black overflow-hidden flex items-center justify-center">
+      {/* Hidden video elements are crucial for the canvas renderer to have a source */}
       <video ref={videoRef} className="hidden" autoPlay muted playsInline />
-      <canvas 
-        ref={canvasRef} 
-        className={cn("w-full h-full object-cover transition-opacity duration-300", !isVideoOn && "opacity-0")}
-        style={{ filter: videoFilter }}
-      />
-       {!isVideoOn && (
-        <div className="absolute text-center text-muted-foreground">
-            <Webcam className="w-24 h-24 mx-auto mb-4" />
-            <p>Your camera is off</p>
-        </div>
-      )}
-      <div ref={overlayContainerRef} className="absolute inset-0">
-         {generatedOverlays.map(overlay => (
-            <DynamicCodeRenderer key={overlay.id} overlay={overlay} onLayoutChange={onOverlayLayoutChange} onRemove={onRemoveOverlay} containerSize={containerSize} />
-        ))}
-        {isRecording && partialTranscript && ( <div style={{...liveCaptionStyle, position: 'absolute', bottom: '15%', left: '50%', transform: 'translateX(-50%)', background: 'rgba(0,0,0,0.6)', color: 'white', padding: '8px 16px', borderRadius: '8px', textAlign: 'center', maxWidth: '90%', transition: 'all 0.3s ease' }}>{partialTranscript}</div> )}
+      <video ref={screenVideoRef} className="hidden" autoPlay muted playsInline />
+
+      {renderContent()}
+
+      <div className="absolute top-4 right-4 z-50">
+        <LayoutControls {...rest} />
       </div>
 
-      <div className="absolute bottom-6 w-full flex items-center justify-center gap-4">
+      <div ref={overlayContainerRef} className="absolute inset-0 pointer-events-none" style={{ zIndex: 200 }}>
+        <div className="w-full h-full relative pointer-events-none">
+          {rest.generatedOverlays.map(overlay => (
+            <div key={overlay.id} className="pointer-events-auto">
+              <DynamicCodeRenderer overlay={overlay} onLayoutChange={rest.onOverlayLayoutChange} onRemove={rest.onRemoveOverlay} containerSize={containerSize} />
+            </div>
+          ))}
+        </div>
+        {rest.isRecording && partialTranscript && (
+          <div style={{ ...rest.liveCaptionStyle, position: 'absolute', bottom: '15%', left: '50%', transform: 'translateX(-50%)', background: 'rgba(0,0,0,0.6)', color: 'white', padding: '8px 16px', borderRadius: '8px', textAlign: 'center', maxWidth: '90%', transition: 'all 0.3s ease', pointerEvents: 'none' }}>
+            {partialTranscript}
+          </div>
+        )}
+      </div>
+
+      <div className="absolute bottom-6 w-full flex items-center justify-center gap-4 z-50">
         <div className="flex items-center">
-            <Button variant="secondary" size="icon" className="rounded-r-none h-12 w-12" onClick={() => onAudioToggle(!isAudioOn)}>
-                {isAudioOn ? <Mic /> : <MicOff className="text-red-500"/>}
-            </Button>
-            <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                    <Button variant="secondary" size="icon" className="rounded-l-none h-12 w-8"><ChevronUp className="w-4 h-4" /></Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent>
-                    {audioDevices.map((device, i) => (
-                        <DropdownMenuItem key={device.deviceId} onClick={() => onAudioDeviceSelect(device.deviceId)}>
-                            {device.deviceId === selectedAudioDevice && <Check className="w-4 h-4 mr-2"/>}
-                            {device.label || `Microphone ${i + 1}`}
-                        </DropdownMenuItem>
-                    ))}
-                </DropdownMenuContent>
-            </DropdownMenu>
+          <Button variant="secondary" size="icon" className="rounded-r-none h-12 w-12" onClick={() => onAudioToggle(!isAudioOn)}>
+            {isAudioOn ? <Mic /> : <MicOff className="text-red-500"/>}
+          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="secondary" size="icon" className="rounded-l-none h-12 w-8"><ChevronUp className="w-4 h-4" /></Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent>
+              {audioDevices.map((device, i) => (
+                <DropdownMenuItem key={device.deviceId} onClick={() => onAudioDeviceSelect(device.deviceId)}>
+                  {device.deviceId === selectedAudioDevice && <Check className="w-4 h-4 mr-2"/>}
+                  {device.label || `Microphone ${i + 1}`}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
 
         <div className="flex items-center">
-            <Button variant="secondary" size="icon" className="rounded-r-none h-12 w-12" onClick={() => onVideoToggle(!isVideoOn)}>
-                {isVideoOn && selectedVideoDevice !== 'screen' ? <Webcam /> : <VideoOff className="text-red-500"/>}
-            </Button>
-            <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                     <Button variant="secondary" size="icon" className="rounded-l-none h-12 w-8"><ChevronUp className="w-4 h-4" /></Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent>
-                    {videoDevices.map((device, i) => (
-                        <DropdownMenuItem key={device.deviceId} onClick={() => onVideoDeviceSelect(device.deviceId)}>
-                            {device.deviceId === selectedVideoDevice && selectedVideoDevice !== 'screen' && <Check className="w-4 h-4 mr-2"/>}
-                            {device.label || `Camera ${i + 1}`}
-                        </DropdownMenuItem>
-                    ))}
-                </DropdownMenuContent>
-            </DropdownMenu>
+          <Button variant="secondary" size="icon" className="rounded-r-none h-12 w-12" onClick={() => onVideoToggle(!isVideoOn)}>
+            {isVideoOn ? <Webcam /> : <VideoOff className="text-red-500"/>}
+          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="secondary" size="icon" className="rounded-l-none h-12 w-8"><ChevronUp className="w-4 h-4" /></Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent>
+              {videoDevices.map((device, i) => (
+                <DropdownMenuItem key={device.deviceId} onClick={() => onVideoDeviceSelect(device.deviceId)}>
+                  {device.deviceId === selectedVideoDevice && <Check className="w-4 h-4 mr-2"/>}
+                  {device.label || `Camera ${i + 1}`}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
         
-        <Button 
-            variant="secondary" 
-            size="icon" 
-            className={cn("h-12 w-12", selectedVideoDevice === 'screen' && "bg-primary text-primary-foreground")}
-            onClick={handleScreenShareClick}
-        >
-            <ScreenShare />
+        <Button variant={isScreenSharing ? "default" : "secondary"} size="icon" className="h-12 w-12 transition-colors" onClick={handleScreenShareClick} title={isScreenSharing ? "Stop screen share" : "Share screen"}>
+          <ScreenShare />
         </Button>
-
-        <Button 
-            size="icon" 
-            className={cn("rounded-full h-16 w-16 transition-colors", isRecording ? "bg-red-600 hover:bg-red-700" : "bg-primary hover:bg-primary/90")}
-            onClick={isRecording ? handleStopRecording : handleStartRecording}
-            disabled={!isVideoOn}
-        >
-            {isRecording ? <Square /> : <Circle className="h-8 w-8 fill-current" />}
+        
+        <Button size="icon" className={cn("rounded-full h-16 w-16 transition-colors", rest.isRecording ? "bg-red-600 hover:bg-red-700" : "bg-primary hover:bg-primary/90")} onClick={rest.isRecording ? handleStopRecording : handleStartRecording} disabled={!cameraStream && !screenStream}>
+          {rest.isRecording ? <Square /> : <Circle className="h-8 w-8 fill-current" />}
         </Button>
       </div>
     </div>

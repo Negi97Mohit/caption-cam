@@ -1,8 +1,9 @@
+// src/pages/Index.tsx
 import { useState, useCallback, useEffect } from "react";
 import { VideoCanvas } from "@/components/VideoCanvas";
 import { LeftSidebar } from "@/components/LeftSidebar";
 import { TopToolbar } from "@/components/TopToolbar";
-import { CaptionStyle, GeneratedOverlay, AICommand } from "@/types/caption";
+import { CaptionStyle, GeneratedOverlay, AICommand, DEFAULT_LAYOUT_STATE, LayoutMode, CameraShape } from "@/types/caption";
 import { processCommandWithAgent } from "@/lib/ai";
 import { toast } from "sonner";
 import { useLog } from "@/context/LogContext";
@@ -42,6 +43,14 @@ const Index = () => {
 
   const [isBeautifyEnabled, setIsBeautifyEnabled] = useState(false);
   const [isLowLightEnabled, setIsLowLightEnabled] = useState(false);
+
+  // Layout state
+  const [layoutMode, setLayoutMode] = useState<LayoutMode>(DEFAULT_LAYOUT_STATE.mode);
+  const [cameraShape, setCameraShape] = useState<CameraShape>(DEFAULT_LAYOUT_STATE.cameraShape);
+  const [splitRatio, setSplitRatio] = useState(DEFAULT_LAYOUT_STATE.splitRatio);
+  const [pipPosition, setPipPosition] = useState(DEFAULT_LAYOUT_STATE.pipPosition);
+  const [pipSize, setPipSize] = useState(DEFAULT_LAYOUT_STATE.pipSize);
+  const [customMaskUrl, setCustomMaskUrl] = useState<string | undefined>(undefined);
 
   const { log } = useLog();
   const { setDebugInfo } = useDebug();
@@ -184,6 +193,18 @@ const Index = () => {
     setActiveOverlays(prev => [...prev, overlay]);
   };
 
+  const handleCustomMaskUpload = (file: File) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const result = e.target?.result;
+      if (typeof result === 'string') {
+        setCustomMaskUrl(result);
+        toast.success("Custom camera mask uploaded!");
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
   const isMinimized = isSidebarCollapsed && !isHoveringSidebar;
 
   return (
@@ -254,6 +275,18 @@ const Index = () => {
           trackingSpeed={trackingSpeed}
           isBeautifyEnabled={isBeautifyEnabled}
           isLowLightEnabled={isLowLightEnabled}
+          layoutMode={layoutMode}
+          cameraShape={cameraShape}
+          splitRatio={splitRatio}
+          pipPosition={pipPosition}
+          pipSize={pipSize}
+          onLayoutModeChange={setLayoutMode}
+          onCameraShapeChange={setCameraShape}
+          onSplitRatioChange={setSplitRatio}
+          onPipPositionChange={setPipPosition}
+          onPipSizeChange={setPipSize}
+          customMaskUrl={customMaskUrl}
+          onCustomMaskUpload={handleCustomMaskUpload}
         />
       </div>
     </div>

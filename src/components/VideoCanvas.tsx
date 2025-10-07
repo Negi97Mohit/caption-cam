@@ -1,6 +1,6 @@
 // src/components/VideoCanvas.tsx
 import React, { useState, useRef, useEffect } from "react";
-import { Mic, MicOff, Webcam, VideoOff, ScreenShare, Square, ChevronUp, Check, Circle } from "lucide-react";
+import { Mic, MicOff, Webcam, VideoOff, ScreenShare, Square, ChevronUp, Check, Circle, RotateCcw } from "lucide-react";
 import { Button } from "./ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "./ui/dropdown-menu";
 import { toast } from "sonner";
@@ -11,6 +11,19 @@ import { Rnd } from 'react-rnd';
 import * as Babel from '@babel/standalone';
 import { GeneratedOverlay, LayoutMode, CameraShape } from "../types/caption";
 import { LayoutControls } from "./LayoutControls";
+
+const VideoPlayer = ({ stream, className, style }) => {
+    const videoRef = useRef<HTMLVideoElement>(null);
+
+    useEffect(() => {
+        if (videoRef.current) {
+            videoRef.current.srcObject = stream;
+        }
+    }, [stream]);
+
+    return <video ref={videoRef} autoPlay muted playsInline className={className} style={style} />;
+};
+
 
 const DynamicCodeRenderer = ({ overlay, onLayoutChange, onRemove, containerSize }) => {
     const [Component, setComponent] = useState(null);
@@ -119,8 +132,8 @@ export const VideoCanvas = (props: VideoCanvasProps) => {
   } = props;
   
   const [isScreenSharing, setIsScreenSharing] = useState(false);
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const screenVideoRef = useRef<HTMLVideoElement>(null);
+  const [pipContent, setPipContent] = useState<'camera' | 'screen'>('camera');
+
 
   const { cameraStream, screenStream } = useVideoStreams({
     isCameraOn: isVideoOn,
@@ -130,29 +143,6 @@ export const VideoCanvas = (props: VideoCanvasProps) => {
     selectedAudioDevice: selectedAudioDevice,
     onScreenShareEnd: () => setIsScreenSharing(false),
   });
-
-  useEffect(() => {
-    const video = videoRef.current;
-    if (video) {
-        if (cameraStream && video.srcObject !== cameraStream) {
-            video.srcObject = cameraStream;
-        } else if (!cameraStream && video.srcObject) {
-            video.srcObject = null;
-        }
-    }
-}, [cameraStream, rest.layoutMode]);
-
-useEffect(() => {
-    const screenVideo = screenVideoRef.current;
-    if (screenVideo) {
-        if (screenStream && screenVideo.srcObject !== screenStream) {
-            screenVideo.srcObject = screenStream;
-        } else if (!screenStream && screenVideo.srcObject) {
-            screenVideo.srcObject = null;
-        }
-    }
-}, [screenStream, rest.layoutMode]);
-
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const recordedChunksRef = useRef<Blob[]>([]);
@@ -323,29 +313,29 @@ useEffect(() => {
       return { ...baseStyle, maskImage: `url(${rest.customMaskUrl})`, WebkitMaskImage: `url(${rest.customMaskUrl})`, maskSize: 'contain', WebkitMaskSize: 'contain', maskRepeat: 'no-repeat', WebkitMaskRepeat: 'no-repeat', maskPosition: 'center', WebkitMaskPosition: 'center' };
     }
     switch (rest.cameraShape) {
-      case 'circle': return { ...baseStyle, borderRadius: '50%' };
+      case 'circle': return { ...baseStyle, borderRadius: '50%', aspectRatio: '1 / 1' };
       case 'rounded': return { ...baseStyle, borderRadius: '16px' };
       case 'rectangle': default: return { ...baseStyle, borderRadius: '0' };
     }
   };
 
   const renderCamera = (className?: string, style?: React.CSSProperties) => (
-    <video ref={videoRef} autoPlay muted playsInline className={cn("w-full h-full object-cover", className)} style={{ ...getCameraShapeStyle(), ...style }} />
+    <div className={cn("w-full h-full", className)} style={getCameraShapeStyle()}>
+        <VideoPlayer stream={cameraStream} className="w-full h-full object-cover" style={style} />
+    </div>
   );
 
   const renderScreen = (className?: string) => (
-      <video ref={screenVideoRef} autoPlay muted playsInline className={cn("w-full h-full object-cover", className)} />
+      <VideoPlayer stream={screenStream} className={cn("w-full h-full object-cover", className)} />
   );
 
   const renderContent = () => {
-    const mainContent = isScreenSharing && screenStream ? renderScreen() : (isVideoOn && cameraStream ? renderCamera() : (
-      <div className="text-center text-muted-foreground">
-        <Webcam className="w-24 h-24 mx-auto mb-4" />
-        <p>Camera is off</p>
-      </div>
-    ));
+    const mainIsCamera = (pipContent === 'screen' && isScreenSharing && screenStream) || (!isScreenSharing);
+    const mainContent = mainIsCamera ? renderCamera() : renderScreen();
+    const pipVideo = pipContent === 'camera' ? renderCamera("cursor-move") : renderScreen("cursor-move");
 
-    const pipContent = isScreenSharing && screenStream && isVideoOn && cameraStream && (
+
+    const pipContentEl = isScreenSharing && screenStream && isVideoOn && cameraStream && (
       <Rnd
         size={{ width: `${rest.pipSize.width}%`, height: `${rest.pipSize.height}%` }}
         position={{ x: `${rest.pipPosition.x}%`, y: `${rest.pipPosition.y}%` }}
@@ -354,15 +344,33 @@ useEffect(() => {
         onDragStop={handlePipDragStop}
         onResizeStop={handlePipResizeStop}
         className="pip-camera shadow-2xl border-2 border-white/20"
-        style={{ zIndex: 100, ...getCameraShapeStyle() }}
+        style={{ zIndex: 100 }}
+        enableResizing={{
+            bottom: true,
+            bottomLeft: true,
+            bottomRight: true,
+            left: true,
+            right: true,
+            top: true,
+            topLeft: true,
+            topRight: true,
+        }}
       >
-        {renderCamera("cursor-move")}
+        {pipVideo}
+         <Button
+            size="icon"
+            variant="secondary"
+            className="absolute top-1 right-1 h-6 w-6 rounded-full"
+            onClick={() => setPipContent(pipContent === 'camera' ? 'screen' : 'camera')}
+        >
+            <RotateCcw className="h-4 w-4" />
+        </Button>
       </Rnd>
     );
 
     switch (rest.layoutMode) {
       case 'pip':
-        return <>{mainContent}{pipContent}</>;
+        return <>{mainContent}{pipContentEl}</>;
       case 'split-vertical':
       case 'split-horizontal':
         const isVertical = rest.layoutMode === 'split-vertical';

@@ -133,6 +133,7 @@ export const VideoCanvas = (props: VideoCanvasProps) => {
   
   const [isScreenSharing, setIsScreenSharing] = useState(false);
   const [pipContent, setPipContent] = useState<'camera' | 'screen'>('camera');
+  const canvasContainerRef = useRef<HTMLDivElement>(null);
 
 
   const { cameraStream, screenStream } = useVideoStreams({
@@ -169,12 +170,17 @@ export const VideoCanvas = (props: VideoCanvasProps) => {
   }, []);
 
   useEffect(() => {
-    const container = overlayContainerRef.current;
+    const container = canvasContainerRef.current;
     if (!container) return;
-    const resizeObserver = new ResizeObserver(() => setContainerSize({ width: container.clientWidth, height: container.clientHeight }));
+    const resizeObserver = new ResizeObserver(() => {
+        if (container) {
+            setContainerSize({ width: container.clientWidth, height: container.clientHeight });
+        }
+    });
     resizeObserver.observe(container);
     return () => resizeObserver.disconnect();
   }, []);
+
 
   const { startRecognition, stopRecognition } = useBrowserSpeech({
     onFinalTranscript: rest.onProcessTranscript,
@@ -261,7 +267,7 @@ export const VideoCanvas = (props: VideoCanvasProps) => {
   useEffect(() => {
     if (!isDraggingSplitter) return;
     const handleMouseMove = (e: MouseEvent) => {
-      const container = overlayContainerRef.current;
+      const container = canvasContainerRef.current;
       if (!container) return;
       const rect = container.getBoundingClientRect();
       let ratio: number;
@@ -283,29 +289,37 @@ export const VideoCanvas = (props: VideoCanvasProps) => {
   }, [isDraggingSplitter, rest.layoutMode, rest.onSplitRatioChange]);
 
   const handlePipDragStop = (e: any, d: { x: number; y: number }) => {
-    const container = overlayContainerRef.current;
+    const container = canvasContainerRef.current;
     if (!container) return;
+
     const rect = container.getBoundingClientRect();
     let newX = (d.x / rect.width) * 100;
     let newY = (d.y / rect.height) * 100;
-    if (newX < SNAP_THRESHOLD) newX = 2;
-    if (newX > 100 - rest.pipSize.width - SNAP_THRESHOLD) newX = 98 - rest.pipSize.width;
-    if (newY < SNAP_THRESHOLD) newY = 2;
-    if (newY > 100 - rest.pipSize.height - SNAP_THRESHOLD) newY = 98 - rest.pipSize.height;
-    rest.onPipPositionChange({ x: newX, y: newY });
-  };
 
-  const handlePipResizeStop = (e: any, direction: any, ref: HTMLElement, delta: any, position: any) => {
-    const container = overlayContainerRef.current;
+    // Snapping logic
+    const pipWidthPercent = rest.pipSize.width;
+    const pipHeightPercent = rest.pipSize.height;
+    if (newX < SNAP_THRESHOLD) newX = 2;
+    if (newX > 100 - pipWidthPercent - SNAP_THRESHOLD) newX = 98 - pipWidthPercent;
+    if (newY < SNAP_THRESHOLD) newY = 2;
+    if (newY > 100 - pipHeightPercent - SNAP_THRESHOLD) newY = 98 - pipHeightPercent;
+
+    rest.onPipPositionChange({ x: newX, y: newY });
+};
+
+const handlePipResizeStop = (e: any, direction: any, ref: HTMLElement, delta: any, position: any) => {
+    const container = canvasContainerRef.current;
     if (!container) return;
+
     const rect = container.getBoundingClientRect();
     const newWidth = (parseInt(ref.style.width, 10) / rect.width) * 100;
     const newHeight = (parseInt(ref.style.height, 10) / rect.height) * 100;
     const newX = (position.x / rect.width) * 100;
     const newY = (position.y / rect.height) * 100;
+    
     rest.onPipSizeChange({ width: Math.max(10, Math.min(50, newWidth)), height: Math.max(10, Math.min(50, newHeight)) });
     rest.onPipPositionChange({ x: newX, y: newY });
-  };
+};
 
   const getCameraShapeStyle = () => {
     const baseStyle: React.CSSProperties = { overflow: 'hidden' };
@@ -313,14 +327,14 @@ export const VideoCanvas = (props: VideoCanvasProps) => {
       return { ...baseStyle, maskImage: `url(${rest.customMaskUrl})`, WebkitMaskImage: `url(${rest.customMaskUrl})`, maskSize: 'contain', WebkitMaskSize: 'contain', maskRepeat: 'no-repeat', WebkitMaskRepeat: 'no-repeat', maskPosition: 'center', WebkitMaskPosition: 'center' };
     }
     switch (rest.cameraShape) {
-      case 'circle': return { ...baseStyle, borderRadius: '50%', aspectRatio: '1 / 1' };
+      case 'circle': return { ...baseStyle, borderRadius: '50%'};
       case 'rounded': return { ...baseStyle, borderRadius: '16px' };
       case 'rectangle': default: return { ...baseStyle, borderRadius: '0' };
     }
   };
 
-  const renderCamera = (className?: string, style?: React.CSSProperties) => (
-    <div className={cn("w-full h-full", className)} style={getCameraShapeStyle()}>
+  const renderCamera = (className?: string, style?: React.CSSProperties, isPip: boolean = false) => (
+    <div className={cn("w-full h-full", className, isPip && rest.cameraShape === 'circle' && 'aspect-square')} style={getCameraShapeStyle()}>
         <VideoPlayer stream={cameraStream} className="w-full h-full object-cover" style={style} />
     </div>
   );
@@ -332,40 +346,45 @@ export const VideoCanvas = (props: VideoCanvasProps) => {
   const renderContent = () => {
     const mainIsCamera = (pipContent === 'screen' && isScreenSharing && screenStream) || (!isScreenSharing);
     const mainContent = mainIsCamera ? renderCamera() : renderScreen();
-    const pipVideo = pipContent === 'camera' ? renderCamera("cursor-move") : renderScreen("cursor-move");
+    const pipVideo = pipContent === 'camera' ? renderCamera("cursor-move", {}, true) : renderScreen("cursor-move");
+
+    const pipSizePx = {
+        width: (containerSize.width * rest.pipSize.width) / 100,
+        height: (containerSize.height * rest.pipSize.height) / 100,
+    };
+
+    const pipPositionPx = {
+        x: (containerSize.width * rest.pipPosition.x) / 100,
+        y: (containerSize.height * rest.pipPosition.y) / 100,
+    };
 
 
-    const pipContentEl = isScreenSharing && screenStream && isVideoOn && cameraStream && (
-      <Rnd
-        size={{ width: `${rest.pipSize.width}%`, height: `${rest.pipSize.height}%` }}
-        position={{ x: `${rest.pipPosition.x}%`, y: `${rest.pipPosition.y}%` }}
-        minWidth="10%" minHeight="10%" maxWidth="50%" maxHeight="50%"
-        bounds="parent"
-        onDragStop={handlePipDragStop}
-        onResizeStop={handlePipResizeStop}
-        className="pip-camera shadow-2xl border-2 border-white/20"
-        style={{ zIndex: 100 }}
-        enableResizing={{
-            bottom: true,
-            bottomLeft: true,
-            bottomRight: true,
-            left: true,
-            right: true,
-            top: true,
-            topLeft: true,
-            topRight: true,
-        }}
-      >
-        {pipVideo}
-         <Button
-            size="icon"
-            variant="secondary"
-            className="absolute top-1 right-1 h-6 w-6 rounded-full"
-            onClick={() => setPipContent(pipContent === 'camera' ? 'screen' : 'camera')}
+    const pipContentEl = isScreenSharing && screenStream && isVideoOn && cameraStream && containerSize.width > 0 && (
+        <Rnd
+            size={pipSizePx}
+            position={pipPositionPx}
+            minWidth={containerSize.width * 0.1}
+            minHeight={containerSize.height * 0.1}
+            maxWidth={containerSize.width * 0.5}
+            maxHeight={containerSize.height * 0.5}
+            bounds="parent"
+            onDragStop={handlePipDragStop}
+            onResizeStop={handlePipResizeStop}
+            className="pointer-events-auto"
+            style={{ zIndex: 210 }} 
         >
-            <RotateCcw className="h-4 w-4" />
-        </Button>
-      </Rnd>
+            <div className="w-full h-full relative group">
+                {pipVideo}
+                <Button
+                    size="icon"
+                    variant="secondary"
+                    className="absolute top-1 right-1 h-6 w-6 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                    onClick={() => setPipContent(pipContent === 'camera' ? 'screen' : 'camera')}
+                >
+                    <RotateCcw className="h-4 w-4" />
+                </Button>
+            </div>
+        </Rnd>
     );
 
     switch (rest.layoutMode) {
@@ -403,7 +422,7 @@ export const VideoCanvas = (props: VideoCanvasProps) => {
   };
 
   return (
-    <div className="flex-1 relative bg-black overflow-hidden flex items-center justify-center">
+    <div ref={canvasContainerRef} className="flex-1 relative bg-black overflow-hidden flex items-center justify-center">
       
       {renderContent()}
 

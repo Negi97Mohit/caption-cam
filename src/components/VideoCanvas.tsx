@@ -339,14 +339,43 @@ const handlePipResizeStop = (e: any, direction: any, ref: HTMLElement, delta: an
     }
   };
 
+  // Build CSS filter string from video effect props
+  const getVideoFilterStyle = (): string => {
+    const filters: string[] = [];
+    
+    if (rest.videoFilter && rest.videoFilter !== 'none') {
+      filters.push(rest.videoFilter);
+    }
+    
+    if (rest.isBeautifyEnabled) {
+      filters.push('blur(0.5px) saturate(1.1) brightness(1.05)');
+    }
+    
+    if (rest.isLowLightEnabled) {
+      filters.push('brightness(1.3) contrast(1.15)');
+    }
+    
+    return filters.length > 0 ? filters.join(' ') : 'none';
+  };
+
+  const videoFilterString = getVideoFilterStyle();
+
   const renderCamera = (className?: string, style?: React.CSSProperties, isPip: boolean = false) => (
     <div className={cn("w-full h-full", className, isPip && rest.cameraShape === 'circle' && 'aspect-square')} style={getCameraShapeStyle()}>
-        <VideoPlayer stream={cameraStream} className="w-full h-full object-cover" style={style} />
+        <VideoPlayer 
+          stream={cameraStream} 
+          className="w-full h-full object-cover" 
+          style={{ ...style, filter: videoFilterString }} 
+        />
     </div>
   );
 
   const renderScreen = (className?: string) => (
-      <VideoPlayer stream={screenStream} className={cn("w-full h-full object-cover", className)} />
+      <VideoPlayer 
+        stream={screenStream} 
+        className={cn("w-full h-full object-cover", className)} 
+        style={{ filter: videoFilterString }}
+      />
   );
 
   const renderContent = () => {
@@ -393,9 +422,46 @@ const handlePipResizeStop = (e: any, direction: any, ref: HTMLElement, delta: an
         </Rnd>
     );
 
+    // Apply background effects wrapper
+    const getBackgroundStyle = (): React.CSSProperties => {
+      const style: React.CSSProperties = {};
+      
+      if (rest.backgroundEffect === 'blur') {
+        style.backdropFilter = 'blur(10px)';
+        style.WebkitBackdropFilter = 'blur(10px)';
+      }
+      
+      if (rest.backgroundEffect === 'image' && rest.backgroundImageUrl) {
+        style.backgroundImage = `url(${rest.backgroundImageUrl})`;
+        style.backgroundSize = 'cover';
+        style.backgroundPosition = 'center';
+      }
+      
+      return style;
+    };
+
+    const contentWithBackground = (
+      <div className="w-full h-full relative" style={getBackgroundStyle()}>
+        {rest.backgroundEffect === 'image' && rest.backgroundImageUrl && (
+          <div className="absolute inset-0 opacity-30" style={{
+            backgroundImage: `url(${rest.backgroundImageUrl})`,
+            backgroundSize: 'cover',
+            backgroundPosition: 'center',
+          }} />
+        )}
+        <div className="relative w-full h-full" style={rest.backgroundEffect === 'blur' ? { 
+          backdropFilter: 'blur(20px)', 
+          WebkitBackdropFilter: 'blur(20px)' 
+        } : {}}>
+          {mainContent}
+        </div>
+        {pipContentEl}
+      </div>
+    );
+
     switch (rest.layoutMode) {
       case 'pip':
-        return <>{mainContent}{pipContentEl}</>;
+        return contentWithBackground;
       case 'split-vertical':
       case 'split-horizontal':
         const isVertical = rest.layoutMode === 'split-vertical';
@@ -413,7 +479,20 @@ const handlePipResizeStop = (e: any, direction: any, ref: HTMLElement, delta: an
               <div className={cn("bg-primary/50 group-hover:bg-primary rounded-full transition-colors", isVertical ? "w-12 h-1" : "w-1 h-12")} />
             </div>
             <div className="relative bg-black flex items-center justify-center overflow-hidden" style={{ [isVertical ? 'height' : 'width']: `${(1 - rest.splitRatio) * 100}%` }}>
-              {isVideoOn && cameraStream ? renderCamera() : (
+              {isVideoOn && cameraStream ? (
+                <div className="w-full h-full relative" style={getBackgroundStyle()}>
+                  {rest.backgroundEffect === 'image' && rest.backgroundImageUrl && (
+                    <div className="absolute inset-0 opacity-30" style={{
+                      backgroundImage: `url(${rest.backgroundImageUrl})`,
+                      backgroundSize: 'cover',
+                      backgroundPosition: 'center',
+                    }} />
+                  )}
+                  <div className="relative w-full h-full">
+                    {renderCamera()}
+                  </div>
+                </div>
+              ) : (
                 <div className="text-center text-muted-foreground">
                   <Webcam className="w-16 h-16 mx-auto mb-2" />
                   <p className="text-sm">Camera Off</p>
@@ -423,7 +502,7 @@ const handlePipResizeStop = (e: any, direction: any, ref: HTMLElement, delta: an
           </div>
         );
       default:
-        return mainContent;
+        return contentWithBackground;
     }
   };
 

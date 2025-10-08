@@ -60,7 +60,7 @@ You have the following tools available:
     }
 `;
 
-function robustJsonParse(text: string): object | null {
+function robustJsonParse(text: string): any | null {
     const firstBrace = text.indexOf('{');
     const lastBrace = text.lastIndexOf('}');
     if (firstBrace === -1 || lastBrace === -1 || lastBrace < firstBrace) return null;
@@ -113,9 +113,10 @@ export async function processCommandWithAgent(command: string): Promise<AIComman
         if (!parsedCommand) throw new Error("Failed to parse valid JSON from AI response.");
 
         // FIX: Wrap theme generation in a try/catch to prevent crashes
-        if (parsedCommand.tool === 'change_app_theme' && parsedCommand.theme) {
+        const cmd: any = parsedCommand;
+        if (cmd.tool === 'change_app_theme' && cmd.theme) {
             try {
-                const theme = parsedCommand.theme;
+                const theme = cmd.theme;
                 const primary = isValidHex(theme.primary) ? theme.primary : '#8A2BE2';
                 const background = isValidHex(theme.background) ? theme.background : '#000000';
 
@@ -130,13 +131,28 @@ export async function processCommandWithAgent(command: string): Promise<AIComman
                 // The command can still proceed without the derived colors.
             }
         }
-        return parsedCommand as AICommand;
+        return cmd as AICommand;
     } catch (err) {
         console.error("processCommandWithAgent error:", err);
          return {
             tool: 'generate_ui_component',
-            componentCode: `() => <div style={{color: 'white', backgroundColor: 'red', padding: '10px'}}>Error: ${err.message}</div>`,
+            componentCode: `() => <div style={{color: 'white', backgroundColor: 'red', padding: '10px'}}>Error: ${ (err as any).message }</div>`,
             layout: { position: { x: 25, y: 40 }, size: { width: 50, height: 10 }, zIndex: 100 }
         };
     }
+}
+
+// Simple fallback formatter for captions when advanced AI is unavailable
+import type { AIDecision } from "@/types/caption";
+export async function formatCaptionWithAI(text: string): Promise<AIDecision> {
+  const trimmed = text.trim();
+  if (!trimmed) {
+    return { decision: 'HIDE', type: 'live', duration: 0, formattedText: '' };
+  }
+  return {
+    decision: 'SHOW',
+    type: 'live',
+    duration: 4,
+    formattedText: trimmed,
+  };
 }

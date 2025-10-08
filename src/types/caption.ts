@@ -16,6 +16,7 @@ export interface CaptionStyle {
   bold: boolean;
   italic: boolean;
   underline: boolean;
+  textShadow?: string;
 }
 
 export type GeneratedLayout = {
@@ -82,3 +83,37 @@ export const DEFAULT_LAYOUT_STATE: LayoutState = {
   pipPosition: { x: 75, y: 75 },
   pipSize: { width: 20, height: 20 },
 };
+
+// Additional types for AI overlays, templates, and graphs
+export type AIDecisionType = 'live' | 'static';
+export type AIDecisionChoice = 'SHOW' | 'HIDE';
+
+export interface AIDecision {
+  id?: string;
+  decision: AIDecisionChoice;
+  type: AIDecisionType;
+  duration: number | 'permanent';
+  formattedText: string;
+  captionIntent?: 'title' | 'question' | 'list' | 'stat' | 'quote';
+}
+
+export interface CaptionTemplate {
+  id: string;
+  name: string;
+  description: string;
+  preview: string; // URL or emoji
+  style: CaptionStyle;
+}
+
+export type GraphType = 'bar' | 'line' | 'pie';
+export interface GraphDataPoint { label: string; value: number; }
+export interface GraphConfig { title: string; xAxisLabel?: string; yAxisLabel?: string; }
+export interface GraphObject {
+  id: string;
+  type: 'graph';
+  graphType: GraphType;
+  data: GraphDataPoint[];
+  position: { x: number; y: number };
+  size: { width: number; height: number };
+  config: GraphConfig;
+}

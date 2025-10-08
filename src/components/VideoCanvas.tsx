@@ -12,11 +12,17 @@ import * as Babel from '@babel/standalone';
 import { GeneratedOverlay, LayoutMode, CameraShape } from "../types/caption";
 import { LayoutControls } from "./LayoutControls";
 
-const VideoPlayer = ({ stream, className, style }) => {
+type VideoPlayerProps = {
+    stream: MediaStream | null;
+    className?: string;
+    style?: React.CSSProperties;
+};
+
+const VideoPlayer: React.FC<VideoPlayerProps> = ({ stream, className, style }) => {
     const videoRef = useRef<HTMLVideoElement>(null);
 
     useEffect(() => {
-        if (videoRef.current) {
+        if (videoRef.current && stream) {
             videoRef.current.srcObject = stream;
         }
     }, [stream]);

@@ -1,6 +1,12 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { toast } from 'sonner';
 
+// Minimal TS aliases for browser SpeechRecognition types
+// These are provided by the browser (webkitSpeechRecognition) without official TS types
+type SpeechRecognition = any;
+type SpeechRecognitionEvent = any;
+type SpeechRecognitionErrorEvent = any;
+
 export type RecognitionStatus = 'idle' | 'listening' | 'error' | 'stopped';
 
 interface UseBrowserSpeechProps {

@@ -430,7 +430,7 @@ const handlePipResizeStop = (e: any, direction: any, ref: HTMLElement, delta: an
         <LayoutControls {...rest} />
       </div>
 
-      <div ref={overlayContainerRef} className="absolute inset-0 pointer-events-none" style={{ zIndex: 200 }}>
+      <div ref={overlayContainerRef} className="absolute inset-0 pointer-events-none" style={{ zIndex: 220 }}>
         <div className="w-full h-full relative pointer-events-none">
           {rest.generatedOverlays.map(overlay => (
             <div key={overlay.id} className="pointer-events-auto">

@@ -27,6 +27,7 @@ export type GeneratedLayout = {
 
 export interface GeneratedOverlay {
   id: string;
+  name: string; // ADDED - a simple, one-word name like "timer"
   componentCode: string;
   layout: GeneratedLayout;
   preview?: string;
@@ -34,6 +35,7 @@ export interface GeneratedOverlay {
 
 export interface GenerateUICommand {
   tool: 'generate_ui_component';
+  name: string; // ADDED - the AI will assign this name
   componentCode: string;
   layout: GeneratedLayout;
 }
@@ -61,7 +63,28 @@ export interface ChangeAppThemeCommand {
   };
 }
 
-export type AICommand = GenerateUICommand | ApplyVideoEffectCommand | ApplyLiveCaptionStyleCommand | ChangeAppThemeCommand;
+// --- NEW COMMANDS ---
+export interface UpdateUICommand {
+  tool: 'update_ui_component';
+  targetId: string; // The 'name' of the component to update
+  layout?: Partial<GeneratedLayout>;
+  componentCode?: string;
+}
+
+export interface DeleteUICommand {
+  tool: 'delete_ui_component';
+  targetId: string; // The 'name' of the component to delete
+}
+
+
+// --- UPDATE THE UNION TYPE ---
+export type AICommand =
+  | GenerateUICommand
+  | ApplyVideoEffectCommand
+  | ApplyLiveCaptionStyleCommand
+  | ChangeAppThemeCommand
+  | UpdateUICommand
+  | DeleteUICommand;
 
 // Layout types
 export type LayoutMode = 'split-vertical' | 'split-horizontal' | 'pip';

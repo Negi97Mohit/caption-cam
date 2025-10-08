@@ -55,9 +55,9 @@ const Index = () => {
   const { log } = useLog();
   const { setDebugInfo } = useDebug();
   
-  const applyTheme = (theme) => {
+  const applyTheme = (theme: any) => {
     const root = document.documentElement;
-    const hexToHsl = (hex) => {
+    const hexToHsl = (hex: string) => {
         let r = 0, g = 0, b = 0;
         if (hex.length === 4) {
             r = parseInt(hex[1] + hex[1], 16);
@@ -95,7 +95,11 @@ const Index = () => {
   const generatePreview = useCallback((overlayId: string) => {
     const node = document.getElementById(overlayId);
     if (node) {
-      toPng(node, { cacheBust: true, style: { background: 'transparent' } })
+      toPng(node, { 
+        cacheBust: true, 
+        style: { background: 'transparent' },
+        skipFonts: true
+      })
         .then((dataUrl) => {
           setSavedOverlays(prev => 
             prev.map(o => o.id === overlayId ? { ...o, preview: dataUrl } : o)
@@ -123,7 +127,7 @@ const Index = () => {
     setIsProcessingAi(true);
 
     try {
-      const command = await processCommandWithAgent(transcript) as AICommand;
+      const command = await processCommandWithAgent(transcript, activeOverlays) as AICommand;
       log('AI_RESPONSE', 'Agent command received', command);
       setDebugInfo((prev) => ({ ...prev, aiResponse: command as any }));
 
@@ -131,17 +135,61 @@ const Index = () => {
 
       switch (command.tool) {
         case 'generate_ui_component':
+          if (activeOverlays.some(o => o.name === command.name)) {
+            toast.error(`An overlay named "${command.name}" already exists. Try a different name.`);
+            break;
+          }
           const newOverlay: GeneratedOverlay = {
             id: `overlay-${Date.now()}`,
+            name: command.name,
             componentCode: command.componentCode,
             layout: command.layout || { position: { x: 10, y: 10 }, size: { width: 30, height: 15 }, zIndex: 10 },
           };
           
           setActiveOverlays(prev => [...prev, newOverlay]);
           setSavedOverlays(prev => [...prev, newOverlay]);
-          toast.success("AI generated a new overlay!");
+          toast.success(`AI generated a new overlay: "${command.name}"`);
 
           setTimeout(() => generatePreview(newOverlay.id), 500);
+          break;
+
+        case 'update_ui_component':
+          const { targetId, ...updates } = command;
+          let updated = false;
+          const updater = (prev: GeneratedOverlay[]) => prev.map(o => {
+            if (o.name === targetId) {
+              updated = true;
+              return { 
+                ...o, 
+                componentCode: updates.componentCode ?? o.componentCode,
+                layout: updates.layout ? { ...o.layout, ...updates.layout } : o.layout,
+              };
+            }
+            return o;
+          });
+          
+          setActiveOverlays(updater);
+          setSavedOverlays(updater);
+
+          if (updated) {
+            toast.success(`Overlay "${targetId}" updated!`);
+          } else {
+            toast.warning(`Could not find an overlay named "${targetId}" to update.`);
+          }
+          break;
+
+        case 'delete_ui_component':
+          const targetToDelete = command.targetId;
+          const overlayExists = activeOverlays.some(o => o.name === targetToDelete);
+
+          if (overlayExists) {
+            const remover = (prev: GeneratedOverlay[]) => prev.filter(o => o.name !== targetToDelete);
+            setActiveOverlays(remover);
+            setSavedOverlays(remover);
+            toast.info(`Overlay "${targetToDelete}" removed.`);
+          } else {
+            toast.warning(`Could not find an overlay named "${targetToDelete}" to delete.`);
+          }
           break;
 
         case 'apply_live_caption_style':
@@ -170,7 +218,7 @@ const Index = () => {
         setIsProcessingAi(false);
         toast.dismiss(thinkingToast);
     }
-  }, [isAiModeEnabled, log, setDebugInfo, isProcessingAi, setSavedOverlays, generatePreview]);
+  }, [isAiModeEnabled, log, setDebugInfo, isProcessingAi, setSavedOverlays, generatePreview, activeOverlays]);
 
   const handleLayoutChange = (id: string, key: 'position' | 'size', value: any) => {
       const updater = (prev: GeneratedOverlay[]) => prev.map(o => 
@@ -270,6 +318,7 @@ const Index = () => {
           selectedAudioDevice={selectedAudioDevice}
           onAudioDeviceSelect={setSelectedAudioDevice}
           selectedVideoDevice={selectedVideoDevice}
+  
           onVideoDeviceSelect={setSelectedVideoDevice}
           zoomSensitivity={zoomSensitivity}
           trackingSpeed={trackingSpeed}

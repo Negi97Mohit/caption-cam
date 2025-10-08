@@ -40,7 +40,11 @@ const DynamicCodeRenderer = ({ overlay, onLayoutChange, onRemove, containerSize 
         try {
             setError(null);
             const transformedCode = Babel.transform(overlay.componentCode, { presets: ['react'] }).code;
-            const componentFunction = new Function('React', `return ${transformedCode}`);
+            const executableCode = transformedCode.trim().startsWith('()')
+                ? transformedCode
+                : `() => { return ${transformedCode} }`;
+
+            const componentFunction = new Function('React', `return ${executableCode}`);
             setComponent(() => componentFunction(React));
         } catch (e) {
             console.error("Component generation error:", e);
@@ -76,7 +80,7 @@ const DynamicCodeRenderer = ({ overlay, onLayoutChange, onRemove, containerSize 
                 onLayoutChange(overlay.id, 'position', { x: (pos.x / containerSize.width) * 100, y: (pos.y / containerSize.height) * 100 });
             }}
             style={{ zIndex: overlay.layout.zIndex }}
-            className="flex items-center justify-center border-2 border-transparent hover:border-blue-500 hover:border-dashed group"
+            className="flex items-center justify-center border-2 border-transparent hover:border-blue-500 hover:border-dashed group pointer-events-auto"
         >
             <div id={overlay.id} className="w-full h-full relative flex items-center justify-center">{content}</div>
             <button onClick={() => onRemove(overlay.id)} className="absolute -top-3 -right-3 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">X</button>
@@ -84,6 +88,7 @@ const DynamicCodeRenderer = ({ overlay, onLayoutChange, onRemove, containerSize 
     );
 };
 
+// ... (interface VideoCanvasProps remains unchanged)
 interface VideoCanvasProps {
   captionsEnabled: boolean;
   backgroundEffect: 'none' | 'blur' | 'image';
@@ -123,9 +128,11 @@ interface VideoCanvasProps {
   onCustomMaskUpload?: (file: File) => void;
 }
 
+
 const SNAP_THRESHOLD = 5;
 
 export const VideoCanvas = (props: VideoCanvasProps) => {
+  // ... (all hooks and functions inside VideoCanvas remain unchanged until the return statement)
   const {
     isVideoOn,
     isAudioOn,
@@ -520,6 +527,7 @@ const handlePipResizeStop = (e: any, direction: any, ref: HTMLElement, delta: an
     }
   };
 
+
   return (
     <div ref={canvasContainerRef} className="flex-1 relative bg-black overflow-hidden flex items-center justify-center">
       
@@ -532,9 +540,13 @@ const handlePipResizeStop = (e: any, direction: any, ref: HTMLElement, delta: an
       <div ref={overlayContainerRef} className="absolute inset-0 pointer-events-none" style={{ zIndex: 220 }}>
         <div className="w-full h-full relative pointer-events-none">
           {rest.generatedOverlays.map(overlay => (
-            <div key={overlay.id} className="pointer-events-auto">
-              <DynamicCodeRenderer overlay={overlay} onLayoutChange={rest.onOverlayLayoutChange} onRemove={rest.onRemoveOverlay} containerSize={containerSize} />
-            </div>
+            <DynamicCodeRenderer 
+              key={overlay.id} 
+              overlay={overlay} 
+              onLayoutChange={rest.onOverlayLayoutChange} 
+              onRemove={rest.onRemoveOverlay} 
+              containerSize={containerSize} 
+            />
           ))}
         </div>
         {rest.isRecording && partialTranscript && (

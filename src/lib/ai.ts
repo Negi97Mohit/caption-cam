@@ -2,9 +2,8 @@
 import { AICommand } from "@/types/caption";
 import interpolate from 'color-interpolate';
 
-const API_KEY = import.meta.env.VITE_OPENROUTER_API_KEY;
-const API_URL = "https://openrouter.ai/api/v1/chat/completions";
-const SITE_URL = import.meta.env.VITE_APP_SITE_URL || "http://localhost:5173";
+const API_KEY = import.meta.env.VITE_GROQ_API_KEY;
+const API_URL = "https://api.groq.com/openai/v1/chat/completions";
 const APP_NAME = import.meta.env.VITE_APP_NAME || "Generative Video Editor";
 
 // --- THE NEW AI COMMAND AGENT MASTER PROMPT ---
@@ -86,18 +85,16 @@ export async function processCommandWithAgent(command: string): Promise<AIComman
             layout: { position: { x: 25, y: 40 }, size: { width: 50, height: 10 }, zIndex: 100 }
         };
     }
-    
+
     try {
         const res = await fetch(API_URL, {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
                 "Authorization": `Bearer ${API_KEY}`,
-                "HTTP-Referer": SITE_URL,
-                "X-Title": APP_NAME,
             },
             body: JSON.stringify({
-                model: "openai/gpt-4o",
+                model: "llama-3.1-8b-instant",
                 messages: [
                     { role: "system", content: MASTER_PROMPT_AGENT },
                     { role: "user", content: command }
@@ -111,7 +108,7 @@ export async function processCommandWithAgent(command: string): Promise<AIComman
         const data = await res.json();
         const content = data?.choices?.[0]?.message?.content;
         if (!content) throw new Error("Empty AI response");
-        
+
         const parsedCommand = robustJsonParse(content);
         if (!parsedCommand) throw new Error("Failed to parse valid JSON from AI response.");
 
@@ -121,10 +118,10 @@ export async function processCommandWithAgent(command: string): Promise<AIComman
                 const theme = parsedCommand.theme;
                 const primary = isValidHex(theme.primary) ? theme.primary : '#8A2BE2';
                 const background = isValidHex(theme.background) ? theme.background : '#000000';
-                
+
                 const colormap = interpolate([primary, '#FFFFFF']);
                 theme.primary_foreground = colormap(0.9);
-                
+
                 const bgColormap = interpolate([background, '#FFFFFF']);
                 theme.card = bgColormap(0.1);
                 theme.border = bgColormap(0.15);

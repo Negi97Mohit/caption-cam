@@ -11,6 +11,7 @@ import { Rnd } from 'react-rnd';
 import * as Babel from '@babel/standalone';
 import { GeneratedOverlay, LayoutMode, CameraShape } from "../types/caption";
 import { LayoutControls } from "./LayoutControls";
+import { CameraRenderer } from "./CameraRenderer";
 
 type VideoPlayerProps = {
     stream: MediaStream | null;
@@ -362,11 +363,24 @@ const handlePipResizeStop = (e: any, direction: any, ref: HTMLElement, delta: an
 
   const renderCamera = (className?: string, style?: React.CSSProperties, isPip: boolean = false) => (
     <div className={cn("w-full h-full", className, isPip && rest.cameraShape === 'circle' && 'aspect-square')} style={getCameraShapeStyle()}>
-        <VideoPlayer 
-          stream={cameraStream} 
-          className="w-full h-full object-cover" 
-          style={{ ...style, filter: videoFilterString }} 
-        />
+        {(rest.backgroundEffect !== 'none' || rest.isAutoFramingEnabled) ? (
+          <CameraRenderer
+            stream={cameraStream}
+            backgroundEffect={rest.backgroundEffect}
+            backgroundImageUrl={rest.backgroundImageUrl}
+            isAutoFramingEnabled={rest.isAutoFramingEnabled}
+            zoomSensitivity={rest.zoomSensitivity}
+            trackingSpeed={rest.trackingSpeed}
+            className="w-full h-full"
+            style={{ ...style, filter: videoFilterString }}
+          />
+        ) : (
+          <VideoPlayer 
+            stream={cameraStream} 
+            className="w-full h-full object-cover" 
+            style={{ ...style, filter: videoFilterString }} 
+          />
+        )}
     </div>
   );
 

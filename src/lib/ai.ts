@@ -4,72 +4,71 @@ import interpolate from 'color-interpolate';
 
 const API_KEY = import.meta.env.VITE_GROQ_API_KEY;
 const API_URL = "https://api.groq.com/openai/v1/chat/completions";
-const APP_NAME = import.meta.env.VITE_APP_NAME || "Generative Video Editor";
 
-// --- THE NEW STATEFUL AI COMMAND AGENT MASTER PROMPT ---
+// --- THE NEW MULTI-TOOL AI COMMAND AGENT MASTER PROMPT ---
 const MASTER_PROMPT_AGENT = `
-You are the master AI control agent for a real-time video application. Your purpose is to analyze a user's command and the current state of on-screen elements, then translate it into a single, flat JSON object representing a tool to be used.
+You are the master AI control agent for a real-time video application. Your purpose is to analyze a user's command and the current on-screen context, then formulate a plan.
 
 **CURRENT ON-SCREEN ELEMENTS:**
 {CURRENT_ELEMENTS}
 
+**RESPONSE STRATEGY:**
+1.  **For simple, single-step commands**, respond with a single JSON action object.
+2.  **For complex commands that require multiple steps**, you MUST respond with a single JSON object where \`tool\` is "multi_tool_reasoning". This object will contain an \`actions\` array, with each element being a single JSON action object to be executed in sequence.
+
 **CRITICAL INSTRUCTIONS:**
-- Your response MUST be a single, valid JSON object.
-- **Do NOT nest parameters.** All keys must be at the top level.
+- Your response MUST ALWAYS be a single, valid JSON object.
+- **Do NOT nest parameters.** All keys for single actions must be at the top level of their respective objects.
 - **All \`layout\` values MUST be percentages (0-100).**
-- When creating a component, you MUST assign a simple, one-word, lowercase \`name\` to it. This name will be its unique ID.
-- To modify or delete an existing component, you MUST use its \`name\` in the \`targetId\` field.
+- When creating a component, you MUST assign a simple, one-word, lowercase \`name\`.
 
-You have the following tools available:
+--- TOOLS REFERENCE ---
 
-**1. \`generate_ui_component\`**
-   - **Purpose:** Creates a brand new overlay.
-   - **Keys:**
-     - \`tool\`: "generate_ui_component"
-     - \`name\`: A new, unique, one-word lowercase name for the component (e.g., "timer", "headline").
-     - \`componentCode\`: Self-contained React functional component code.
-     - \`layout\`: Object with \`position\` {x, y} and \`size\` {width, height}.
+**Tool Wrapper for Complex Commands:**
+- \`tool\`: "multi_tool_reasoning"
+  - \`actions\`: An array of single-action objects from the list below.
 
-**2. \`update_ui_component\`**
-   - **Purpose:** Modifies an EXISTING overlay.
-   - **Keys:**
-     - \`tool\`: "update_ui_component"
-     - \`targetId\`: The \`name\` of the component to modify (e.g., "timer").
-     - \`layout\`: (Optional) A new layout object.
-     - \`componentCode\`: (Optional) New component code.
+**Available Single Actions:**
+1.  \`generate_ui_component\`: Creates a new overlay.
+    - Keys: \`tool\`, \`name\`, \`componentCode\`, \`layout\`
+2.  \`update_ui_component\`: Modifies an existing overlay.
+    - Keys: \`tool\`, \`targetId\`, \`layout\`, \`componentCode\`
+3.  \`delete_ui_component\`: Removes an existing overlay.
+    - Keys: \`tool\`, \`targetId\`
+4.  \`apply_video_effect\`: Applies a CSS filter to the video.
+    - Keys: \`tool\`, \`filter\`
+5.  \`apply_live_caption_style\`: Styles temporary captions.
+    - Keys: \`tool\`, \`style\`
+6.  \`change_app_theme\`: Changes the application's UI colors.
+    - Keys: \`tool\`, \`theme\`
+    - **IMPORTANT**: The 'theme' value MUST be an object. Example: { "primary": "#8A2BE2", "background": "#1A1A1A" }
 
-**3. \`delete_ui_component\`**
-   - **Purpose:** Removes an EXISTING overlay.
-   - **Keys:**
-     - \`tool\`: "delete_ui_component"
-     - \`targetId\`: The \`name\` of the component to remove.
+--- EXAMPLE SCENARIOS ---
 
-**4. \`apply_live_caption_style\`**
-   - **Purpose:** Styles temporary, real-time captions.
-   - **Keys:** \`tool\`, \`style\`
+- User: "make the video black and white" (Simple Command)
+- Your Response (Single Action):
+  {
+    "tool": "apply_video_effect",
+    "filter": "grayscale(100%)"
+  }
 
-**5. \`apply_video_effect\`**
-   - **Purpose:** Applies a visual effect to the video feed.
-   - **Keys:** \`tool\`, \`filter\`
-
-**6. \`change_app_theme\`**
-   - **Purpose:** Modifies the application's UI theme.
-   - **Keys:** \`tool\`, \`theme\`
-
-**Example Scenarios:**
-
-- User: "add a 5 minute countdown timer"
-  - Your Response:
-    { "tool": "generate_ui_component", "name": "timer", "componentCode": "...", "layout": { ... } }
-
-- (The timer now exists on screen with name 'timer')
-- User: "move the timer to the bottom right"
-  - Your Response:
-    { "tool": "update_ui_component", "targetId": "timer", "layout": { "position": { "x": 80, "y": 80 }, "size": { "width": 18, "height": 10 } } }
-
-- User: "get rid of the timer"
-  - Your Response:
-    { "tool": "delete_ui_component", "targetId": "timer" }
+- User: "add a headline that says 'Welcome' and blur my background" (Complex Command)
+- Your Response (Multi-Action Plan):
+  {
+    "tool": "multi_tool_reasoning",
+    "actions": [
+      {
+        "tool": "generate_ui_component",
+        "name": "headline",
+        "componentCode": "() => <h1 style={{fontSize: '3rem', color: 'white', textShadow: '2px 2px 4px black'}}>Welcome</h1>",
+        "layout": { "position": { "x": 50, "y": 20 }, "size": { "width": 50, "height": 15 }, "zIndex": 10 }
+      },
+      {
+        "tool": "apply_video_effect",
+        "filter": "blur(8px)"
+      }
+    ]
+  }
 `;
 
 function robustJsonParse(text: string): any | null {
@@ -85,7 +84,6 @@ function robustJsonParse(text: string): any | null {
     }
 }
 
-// Helper to check if a string is a valid hex color
 const isValidHex = (color: string) => /^#([0-9A-F]{3}){1,2}$/i.test(color);
 
 export async function processCommandWithAgent(command: string, activeOverlays: GeneratedOverlay[]): Promise<AICommand | null> {
@@ -99,7 +97,6 @@ export async function processCommandWithAgent(command: string, activeOverlays: G
         };
     }
 
-    // --- NEW: Inject context into the prompt ---
     const elementsContext = activeOverlays.length > 0
         ? "You can modify or delete the following components by using their 'name' as the 'targetId':\n" + activeOverlays.map(o => `- Component named '${o.name}'`).join("\n")
         : "There are currently no elements on the screen. You can only generate new ones.";
@@ -132,7 +129,6 @@ export async function processCommandWithAgent(command: string, activeOverlays: G
         const parsedCommand = robustJsonParse(content);
         if (!parsedCommand) throw new Error("Failed to parse valid JSON from AI response.");
 
-        // FIX: Wrap theme generation in a try/catch to prevent crashes
         const cmd: any = parsedCommand;
         if (cmd.tool === 'change_app_theme' && cmd.theme) {
             try {
@@ -148,7 +144,6 @@ export async function processCommandWithAgent(command: string, activeOverlays: G
                 theme.border = bgColormap(0.15);
             } catch (themeError) {
                 console.error("Could not generate theme from AI colors:", themeError);
-                // The command can still proceed without the derived colors.
             }
         }
         return cmd as AICommand;
@@ -163,7 +158,6 @@ export async function processCommandWithAgent(command: string, activeOverlays: G
     }
 }
 
-// Simple fallback formatter for captions when advanced AI is unavailable
 import type { AIDecision } from "@/types/caption";
 export async function formatCaptionWithAI(text: string): Promise<AIDecision> {
   const trimmed = text.trim();

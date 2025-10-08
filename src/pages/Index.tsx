@@ -3,7 +3,7 @@ import { useState, useCallback, useEffect } from "react";
 import { VideoCanvas } from "@/components/VideoCanvas";
 import { LeftSidebar } from "@/components/LeftSidebar";
 import { TopToolbar } from "@/components/TopToolbar";
-import { CaptionStyle, GeneratedOverlay, AICommand, DEFAULT_LAYOUT_STATE, LayoutMode, CameraShape } from "@/types/caption";
+import { CaptionStyle, GeneratedOverlay, AICommand, DEFAULT_LAYOUT_STATE, LayoutMode, CameraShape, SingleActionCommand } from "@/types/caption";
 import { processCommandWithAgent } from "@/lib/ai";
 import { toast } from "sonner";
 import { useLog } from "@/context/LogContext";
@@ -127,89 +127,83 @@ const Index = () => {
     setIsProcessingAi(true);
 
     try {
-      const command = await processCommandWithAgent(transcript, activeOverlays) as AICommand;
+      const command = await processCommandWithAgent(transcript, activeOverlays);
       log('AI_RESPONSE', 'Agent command received', command);
       setDebugInfo((prev) => ({ ...prev, aiResponse: command as any }));
 
       if (!command) throw new Error("AI did not return a valid command.");
 
-      switch (command.tool) {
-        case 'generate_ui_component':
-          if (activeOverlays.some(o => o.name === command.name)) {
-            toast.error(`An overlay named "${command.name}" already exists. Try a different name.`);
-            break;
-          }
-          const newOverlay: GeneratedOverlay = {
-            id: `overlay-${Date.now()}`,
-            name: command.name,
-            componentCode: command.componentCode,
-            layout: command.layout || { position: { x: 10, y: 10 }, size: { width: 30, height: 15 }, zIndex: 10 },
-          };
-          
-          setActiveOverlays(prev => [...prev, newOverlay]);
-          setSavedOverlays(prev => [...prev, newOverlay]);
-          toast.success(`AI generated a new overlay: "${command.name}"`);
-
-          setTimeout(() => generatePreview(newOverlay.id), 500);
-          break;
-
-        case 'update_ui_component':
-          const { targetId, ...updates } = command;
-          let updated = false;
-          const updater = (prev: GeneratedOverlay[]) => prev.map(o => {
-            if (o.name === targetId) {
-              updated = true;
-              return { 
-                ...o, 
-                componentCode: updates.componentCode ?? o.componentCode,
-                layout: updates.layout ? { ...o.layout, ...updates.layout } : o.layout,
-              };
-            }
-            return o;
-          });
-          
-          setActiveOverlays(updater);
-          setSavedOverlays(updater);
-
-          if (updated) {
-            toast.success(`Overlay "${targetId}" updated!`);
-          } else {
-            toast.warning(`Could not find an overlay named "${targetId}" to update.`);
-          }
-          break;
-
-        case 'delete_ui_component':
-          const targetToDelete = command.targetId;
-          const overlayExists = activeOverlays.some(o => o.name === targetToDelete);
-
-          if (overlayExists) {
-            const remover = (prev: GeneratedOverlay[]) => prev.filter(o => o.name !== targetToDelete);
-            setActiveOverlays(remover);
-            setSavedOverlays(remover);
-            toast.info(`Overlay "${targetToDelete}" removed.`);
-          } else {
-            toast.warning(`Could not find an overlay named "${targetToDelete}" to delete.`);
-          }
-          break;
-
-        case 'apply_live_caption_style':
-          setLiveCaptionStyle(command.style);
-          toast.success("Live caption style updated!");
-          break;
-
-        case 'apply_video_effect':
-          setVideoFilter(command.filter);
-          toast.success("Video effect applied!");
-          break;
-
-        case 'change_app_theme':
-          applyTheme(command.theme);
-          toast.success("Application theme changed!");
-          break;
-
-        default:
-          toast.warning("AI returned an unknown command.");
+      const actions = command.tool === 'multi_tool_reasoning' ? command.actions : [command as SingleActionCommand];
+      if(command.tool === 'multi_tool_reasoning') {
+        toast.info(`AI is performing ${command.actions.length} actions...`);
       }
+
+      let currentOverlays = [...activeOverlays];
+
+      for (const action of actions) {
+        log('AI_ACTION', `Executing: ${action.tool}`, action);
+        switch (action.tool) {
+          case 'generate_ui_component':
+            if (currentOverlays.some(o => o.name === action.name)) {
+              toast.error(`An overlay named "${action.name}" already exists.`);
+              continue; 
+            }
+            const newOverlay: GeneratedOverlay = {
+              id: `overlay-${Date.now()}`,
+              name: action.name,
+              componentCode: action.componentCode,
+              layout: action.layout || { position: { x: 10, y: 10 }, size: { width: 30, height: 15 }, zIndex: 10 },
+            };
+            currentOverlays = [...currentOverlays, newOverlay];
+            toast.success(`AI generated: "${action.name}"`);
+            setTimeout(() => generatePreview(newOverlay.id), 500);
+            break;
+
+          case 'update_ui_component':
+            let updated = false;
+            currentOverlays = currentOverlays.map(o => {
+              if (o.name === action.targetId) {
+                updated = true;
+                return { ...o, layout: { ...o.layout, ...action.layout } };
+              }
+              return o;
+            });
+            if (updated) toast.success(`Overlay "${action.targetId}" updated!`);
+            else toast.warning(`Could not find overlay named "${action.targetId}".`);
+            break;
+
+          case 'delete_ui_component':
+            const overlayExists = currentOverlays.some(o => o.name === action.targetId);
+            if (overlayExists) {
+              currentOverlays = currentOverlays.filter(o => o.name !== action.targetId);
+              toast.info(`Overlay "${action.targetId}" removed.`);
+            } else {
+              toast.warning(`Could not find overlay named "${action.targetId}".`);
+            }
+            break;
+
+          case 'apply_live_caption_style':
+            setLiveCaptionStyle(action.style);
+            toast.success("Live caption style updated!");
+            break;
+
+          case 'apply_video_effect':
+            setVideoFilter(action.filter);
+            toast.success("Video effect applied!");
+            break;
+
+          case 'change_app_theme':
+            applyTheme(action.theme);
+            toast.success("Application theme changed!");
+            break;
+
+          default:
+            toast.warning("AI returned an unknown command.");
+        }
+      }
+      setActiveOverlays(currentOverlays);
+      setSavedOverlays(currentOverlays); 
+
     } catch (error) {
       log('ERROR', 'Error in processTranscript', error);
       setDebugInfo((prev) => ({ ...prev, error: "AI command processing failed." }));
@@ -218,7 +212,7 @@ const Index = () => {
         setIsProcessingAi(false);
         toast.dismiss(thinkingToast);
     }
-  }, [isAiModeEnabled, log, setDebugInfo, isProcessingAi, setSavedOverlays, generatePreview, activeOverlays]);
+  }, [isAiModeEnabled, log, setDebugInfo, isProcessingAi, activeOverlays, setSavedOverlays, generatePreview]);
 
   const handleLayoutChange = (id: string, key: 'position' | 'size', value: any) => {
       const updater = (prev: GeneratedOverlay[]) => prev.map(o => 
@@ -318,7 +312,6 @@ const Index = () => {
           selectedAudioDevice={selectedAudioDevice}
           onAudioDeviceSelect={setSelectedAudioDevice}
           selectedVideoDevice={selectedVideoDevice}
-  
           onVideoDeviceSelect={setSelectedVideoDevice}
           zoomSensitivity={zoomSensitivity}
           trackingSpeed={trackingSpeed}

@@ -27,17 +27,31 @@ export type GeneratedLayout = {
 
 export interface GeneratedOverlay {
   id: string;
-  name: string; // ADDED - a simple, one-word name like "timer"
+  name: string;
   componentCode: string;
   layout: GeneratedLayout;
   preview?: string;
 }
 
+// --- SINGLE ACTION COMMANDS ---
+
 export interface GenerateUICommand {
   tool: 'generate_ui_component';
-  name: string; // ADDED - the AI will assign this name
+  name: string;
   componentCode: string;
   layout: GeneratedLayout;
+}
+
+export interface UpdateUICommand {
+  tool: 'update_ui_component';
+  targetId: string;
+  layout?: Partial<GeneratedLayout>;
+  componentCode?: string;
+}
+
+export interface DeleteUICommand {
+  tool: 'delete_ui_component';
+  targetId: string;
 }
 
 export interface ApplyVideoEffectCommand {
@@ -63,30 +77,29 @@ export interface ChangeAppThemeCommand {
   };
 }
 
-// --- NEW COMMANDS ---
-export interface UpdateUICommand {
-  tool: 'update_ui_component';
-  targetId: string; // The 'name' of the component to update
-  layout?: Partial<GeneratedLayout>;
-  componentCode?: string;
-}
-
-export interface DeleteUICommand {
-  tool: 'delete_ui_component';
-  targetId: string; // The 'name' of the component to delete
-}
-
-
-// --- UPDATE THE UNION TYPE ---
-export type AICommand =
+// Union of all possible single actions
+export type SingleActionCommand =
   | GenerateUICommand
+  | UpdateUICommand
+  | DeleteUICommand
   | ApplyVideoEffectCommand
   | ApplyLiveCaptionStyleCommand
-  | ChangeAppThemeCommand
-  | UpdateUICommand
-  | DeleteUICommand;
+  | ChangeAppThemeCommand;
 
-// Layout types
+
+// --- NEW MULTI-ACTION COMMAND ---
+
+export interface MultiActionCommand {
+  tool: 'multi_tool_reasoning';
+  actions: SingleActionCommand[];
+}
+
+// The final AICommand can be a single action OR a multi-action plan
+export type AICommand = SingleActionCommand | MultiActionCommand;
+
+
+// --- Other types remain the same ---
+
 export type LayoutMode = 'split-vertical' | 'split-horizontal' | 'pip';
 export type CameraShape = 'rectangle' | 'circle' | 'rounded';
 
@@ -107,7 +120,6 @@ export const DEFAULT_LAYOUT_STATE: LayoutState = {
   pipSize: { width: 20, height: 20 },
 };
 
-// Additional types for AI overlays, templates, and graphs
 export type AIDecisionType = 'live' | 'static';
 export type AIDecisionChoice = 'SHOW' | 'HIDE';
 
@@ -124,7 +136,7 @@ export interface CaptionTemplate {
   id: string;
   name: string;
   description: string;
-  preview: string; // URL or emoji
+  preview: string;
   style: CaptionStyle;
 }
 

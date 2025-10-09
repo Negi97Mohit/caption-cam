@@ -96,33 +96,33 @@ export const LeftSidebar = ({
 
   return (
     <aside
-      className="relative bg-card border-r-2 border-border flex flex-col h-full z-10 transition-all duration-300 ease-in-out"
+      className="relative bg-card/80 backdrop-blur-xl border-r flex flex-col h-full z-10 transition-all duration-300 ease-in-out shadow-lg"
       style={{ width: `${width}px` }}
       onMouseEnter={onMouseEnter}
       onMouseLeave={onMouseLeave}
     >
       {isCollapsed ? (
-        <div className="flex flex-col items-center gap-4 py-6 px-2">
-          <div className="p-3 rounded-md bg-card border-2 border-border hover:border-primary hover:bg-primary/5 transition-all cursor-pointer" title="Generate Overlay">
-            <Text className="w-5 h-5 text-foreground" />
+        <div className="flex flex-col items-center gap-6 py-6 px-2">
+          <div className="p-2 rounded-lg bg-primary/10 hover:bg-primary/20 transition-colors cursor-pointer" title="Generate Overlay">
+            <Text className="w-5 h-5 text-primary" />
           </div>
-          <div className="p-3 rounded-md bg-card border-2 border-border hover:border-primary hover:bg-primary/5 transition-all cursor-pointer" title="Saved Overlays">
-            <Sparkles className="w-5 h-5 text-foreground" />
+          <div className="p-2 rounded-lg bg-primary/10 hover:bg-primary/20 transition-colors cursor-pointer" title="Saved Overlays">
+            <Sparkles className="w-5 h-5 text-primary" />
           </div>
-          <div className="p-3 rounded-md bg-card border-2 border-border hover:border-primary hover:bg-primary/5 transition-all cursor-pointer" title="Text Styles">
-            <Palette className="w-5 h-5 text-foreground" />
+          <div className="p-2 rounded-lg bg-primary/10 hover:bg-primary/20 transition-colors cursor-pointer" title="Text Styles">
+            <Palette className="w-5 h-5 text-primary" />
           </div>
-          <div className="p-3 rounded-md bg-card border-2 border-border hover:border-primary hover:bg-primary/5 transition-all cursor-pointer" title="Video Effects">
-            <Droplets className="w-5 h-5 text-foreground" />
+          <div className="p-2 rounded-lg bg-primary/10 hover:bg-primary/20 transition-colors cursor-pointer" title="Video Effects">
+            <Droplets className="w-5 h-5 text-primary" />
           </div>
-          <div className="p-3 rounded-md bg-card border-2 border-border hover:border-primary hover:bg-primary/5 transition-all cursor-pointer" title="Debug">
-            <Bug className="w-5 h-5 text-foreground" />
+          <div className="p-2 rounded-lg bg-primary/10 hover:bg-primary/20 transition-colors cursor-pointer" title="Debug">
+            <Bug className="w-5 h-5 text-primary" />
           </div>
         </div>
       ) : (
         <div className="flex-1 flex flex-col overflow-hidden transition-opacity duration-200">
-          <div className="p-4 border-b-2 border-border bg-card">
-            <h2 className="text-xl font-bold text-foreground">AI Overlay Engine</h2>
+          <div className="p-4 border-b bg-gradient-to-r from-primary/5 to-transparent">
+            <h2 className="text-xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">AI Overlay Engine</h2>
           </div>
 
         <ScrollArea className="flex-1 px-4">
@@ -177,7 +177,7 @@ export const LeftSidebar = ({
                       ) : (
                         <div className="grid grid-cols-2 gap-3">
                           {savedOverlays.map(overlay => (
-                            <div key={overlay.id} className="group relative aspect-video rounded-md bg-secondary/50 flex items-center justify-center overflow-hidden border-2 border-border">
+                            <div key={overlay.id} className="group relative aspect-video rounded-md bg-secondary/50 flex items-center justify-center overflow-hidden border">
                               <button 
                                 className="w-full h-full"
                                 onClick={() => onAddSavedOverlay(overlay)}
@@ -221,13 +221,13 @@ export const LeftSidebar = ({
 
             <AccordionItem value="effects">
               <AccordionTrigger className="text-base font-semibold flex items-center gap-2">
-                <Droplets className="w-4 h-4 flex-shrink-0" />
+                <Sparkles className="w-4 h-4 flex-shrink-0" />
                 <span className="flex-1 text-left truncate">Video Effects</span>
               </AccordionTrigger>
               <AccordionContent>
-                 <div className="pt-2 space-y-4 p-4 bg-muted/30 rounded-md border-2 border-border">
+                 <div className="pt-2 space-y-6">
                   <div className="space-y-3">
-                    <Label className="font-semibold">Background</Label>
+                    <Label>Background</Label>
                     <div className="grid grid-cols-3 gap-2">
                       <Button variant={backgroundEffect === 'none' ? 'default' : 'secondary'} className="h-16 flex-col" onClick={() => handleBackgroundSelect('none')}>
                         <Ban className="w-5 h-5 mb-1" /> None
@@ -241,23 +241,22 @@ export const LeftSidebar = ({
                           onClick={() => handleBackgroundSelect('image', preset.imageUrl)}
                           className={cn(
                             "cursor-pointer rounded-md border-2 transition-all aspect-[16/10] bg-cover bg-center",
-                            backgroundEffect === 'image' && backgroundImageUrl === preset.imageUrl ? "border-primary ring-2 ring-primary" : "border-border hover:border-primary"
+                            backgroundEffect === 'image' && backgroundImageUrl === preset.imageUrl ? "border-primary ring-2 ring-primary/50" : "border-border hover:border-primary/50"
                           )}
                           style={{ backgroundImage: `url(${preset.thumbnailUrl})` }}
                         />
                       ))}
                     </div>
                   </div>
-                  
-                  <div className="flex items-center justify-between pt-2 border-t-2 border-border">
-                    <Label htmlFor="auto-framing-toggle" className="font-semibold">Auto-framing</Label>
+                  <div className="flex items-center justify-between pt-4 border-t">
+                    <Label htmlFor="auto-framing-toggle" className="font-medium">Auto-framing</Label>
                     <Switch id="auto-framing-toggle" checked={isAutoFramingEnabled} onCheckedChange={onAutoFramingChange} />
                   </div>
                   
                   {isAutoFramingEnabled && (
                     <div className="space-y-4 pl-2 pr-1 pb-2 animate-fade-in">
                       <div className="space-y-2">
-                        <Label htmlFor="zoom-sensitivity" className="text-sm font-medium">Zoom Sensitivity</Label>
+                        <Label htmlFor="zoom-sensitivity" className="text-sm">Zoom Sensitivity</Label>
                         <Slider
                           id="zoom-sensitivity"
                           value={[zoomSensitivity]}
@@ -268,7 +267,7 @@ export const LeftSidebar = ({
                         />
                       </div>
                        <div className="space-y-2">
-                        <Label htmlFor="tracking-speed" className="text-sm font-medium">Tracking Speed</Label>
+                        <Label htmlFor="tracking-speed" className="text-sm">Tracking Speed</Label>
                          <Slider
                            id="tracking-speed"
                            value={[trackingSpeed]}
@@ -281,13 +280,12 @@ export const LeftSidebar = ({
                     </div>
                   )}
 
-                  <div className="flex items-center justify-between pt-2 border-t-2 border-border">
-                    <Label htmlFor="beautify-toggle" className="font-semibold">Beautify Filter</Label>
+                  <div className="flex items-center justify-between pt-4 border-t">
+                    <Label htmlFor="beautify-toggle" className="font-medium">Beautify Filter (Soften)</Label>
                     <Switch id="beautify-toggle" checked={isBeautifyEnabled} onCheckedChange={onBeautifyToggle} />
                   </div>
-                  
-                   <div className="flex items-center justify-between pt-2 border-t-2 border-border">
-                    <Label htmlFor="low-light-toggle" className="font-semibold">Low-light Mode</Label>
+                   <div className="flex items-center justify-between">
+                    <Label htmlFor="low-light-toggle" className="font-medium">Low-light Mode</Label>
                     <Switch id="low-light-toggle" checked={isLowLightEnabled} onCheckedChange={onLowLightToggle} />
                   </div>
                 </div>

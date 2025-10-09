@@ -96,33 +96,33 @@ export const LeftSidebar = ({
 
   return (
     <aside
-      className="relative bg-card/80 backdrop-blur-xl border-r flex flex-col h-full z-10 transition-all duration-300 ease-in-out shadow-lg"
+      className="relative bg-card border-r-2 border-border flex flex-col h-full z-10 transition-all duration-200"
       style={{ width: `${width}px` }}
       onMouseEnter={onMouseEnter}
       onMouseLeave={onMouseLeave}
     >
       {isCollapsed ? (
-        <div className="flex flex-col items-center gap-6 py-6 px-2">
-          <div className="p-2 rounded-lg bg-primary/10 hover:bg-primary/20 transition-colors cursor-pointer" title="Generate Overlay">
-            <Text className="w-5 h-5 text-primary" />
+        <div className="flex flex-col items-center gap-4 py-6 px-2">
+          <div className="p-2 rounded-sm border-2 border-border hover:border-primary hover:bg-primary/5 transition-all cursor-pointer" title="Generate Overlay">
+            <Text className="w-5 h-5 text-foreground" />
           </div>
-          <div className="p-2 rounded-lg bg-primary/10 hover:bg-primary/20 transition-colors cursor-pointer" title="Saved Overlays">
-            <Sparkles className="w-5 h-5 text-primary" />
+          <div className="p-2 rounded-sm border-2 border-border hover:border-primary hover:bg-primary/5 transition-all cursor-pointer" title="Saved Overlays">
+            <Sparkles className="w-5 h-5 text-foreground" />
           </div>
-          <div className="p-2 rounded-lg bg-primary/10 hover:bg-primary/20 transition-colors cursor-pointer" title="Text Styles">
-            <Palette className="w-5 h-5 text-primary" />
+          <div className="p-2 rounded-sm border-2 border-border hover:border-primary hover:bg-primary/5 transition-all cursor-pointer" title="Text Styles">
+            <Palette className="w-5 h-5 text-foreground" />
           </div>
-          <div className="p-2 rounded-lg bg-primary/10 hover:bg-primary/20 transition-colors cursor-pointer" title="Video Effects">
-            <Droplets className="w-5 h-5 text-primary" />
+          <div className="p-2 rounded-sm border-2 border-border hover:border-primary hover:bg-primary/5 transition-all cursor-pointer" title="Video Effects">
+            <Droplets className="w-5 h-5 text-foreground" />
           </div>
-          <div className="p-2 rounded-lg bg-primary/10 hover:bg-primary/20 transition-colors cursor-pointer" title="Debug">
-            <Bug className="w-5 h-5 text-primary" />
+          <div className="p-2 rounded-sm border-2 border-border hover:border-primary hover:bg-primary/5 transition-all cursor-pointer" title="Debug">
+            <Bug className="w-5 h-5 text-foreground" />
           </div>
         </div>
       ) : (
         <div className="flex-1 flex flex-col overflow-hidden transition-opacity duration-200">
-          <div className="p-4 border-b bg-gradient-to-r from-primary/5 to-transparent">
-            <h2 className="text-xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">AI Overlay Engine</h2>
+          <div className="p-4 border-b">
+            <h2 className="text-xl font-bold text-foreground">AI Overlay Engine</h2>
           </div>
 
         <ScrollArea className="flex-1 px-4">

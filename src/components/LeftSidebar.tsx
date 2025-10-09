@@ -7,9 +7,9 @@ import { Label } from "./ui/label";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "./ui/accordion";
 import { ScrollArea } from "./ui/scroll-area";
 import { cn } from "@/lib/utils";
-import { Palette, Bug, Sparkles, Ban, Droplets, Text, Trash2 } from "lucide-react";
+// UPDATED: Added the 'Ban' icon to the import list
+import { Palette, Bug, Sparkles, Droplets, Trash2, Ban } from "lucide-react";
 import { Button } from "./ui/button";
-import { Textarea } from "./ui/textarea";
 import { BACKGROUND_PRESETS } from "@/lib/backgrounds";
 import { Slider } from "./ui/slider";
 
@@ -30,7 +30,6 @@ interface LeftSidebarProps {
   savedOverlays: GeneratedOverlay[];
   onAddSavedOverlay: (overlay: GeneratedOverlay) => void;
   onDeleteSavedOverlay: (id: string) => void;
-  onTextSubmit: (text: string) => void;
   zoomSensitivity: number;
   onZoomSensitivityChange: (value: number) => void;
   trackingSpeed: number;
@@ -50,22 +49,14 @@ export const LeftSidebar = ({
   backgroundEffect, onBackgroundEffectChange, backgroundImageUrl, onBackgroundImageUrlChange,
   isAutoFramingEnabled, onAutoFramingChange,
   savedOverlays, onAddSavedOverlay, onDeleteSavedOverlay,
-  onTextSubmit,
   zoomSensitivity, onZoomSensitivityChange,
   trackingSpeed, onTrackingSpeedChange,
   isBeautifyEnabled, onBeautifyToggle,
   isLowLightEnabled, onLowLightToggle,
 }: LeftSidebarProps) => {
   const [showDebug, setShowDebug] = useState(false);
-  const [manualText, setManualText] = useState("");
   const isResizing = React.useRef(false);
 
-  const handleTextSubmit = () => {
-    if (!manualText.trim()) return;
-    onTextSubmit(manualText);
-    setManualText("");
-  };
-  
   const handleBackgroundSelect = (effect: 'none' | 'blur' | 'image', url: string | null = null) => {
     onBackgroundEffectChange(effect);
     onBackgroundImageUrlChange(url);
@@ -103,9 +94,6 @@ export const LeftSidebar = ({
     >
       {isCollapsed ? (
         <div className="flex flex-col items-center gap-6 py-6 px-2">
-          <div className="p-2 rounded-lg bg-primary/10 hover:bg-primary/20 transition-colors cursor-pointer" title="Generate Overlay">
-            <Text className="w-5 h-5 text-primary" />
-          </div>
           <div className="p-2 rounded-lg bg-primary/10 hover:bg-primary/20 transition-colors cursor-pointer" title="Saved Overlays">
             <Sparkles className="w-5 h-5 text-primary" />
           </div>
@@ -121,47 +109,8 @@ export const LeftSidebar = ({
         </div>
       ) : (
         <div className="flex-1 flex flex-col overflow-hidden transition-opacity duration-200">
-          <div className="p-4 border-b bg-gradient-to-r from-primary/5 to-transparent">
-            <h2 className="text-xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">AI Overlay Engine</h2>
-          </div>
-
         <ScrollArea className="flex-1 px-4">
-          <Accordion type="multiple" defaultValue={["text-input", "saved-overlays", "effects"]} className="w-full">
-            
-            <AccordionItem value="text-input">
-                <AccordionTrigger className="text-base font-semibold flex items-center gap-2">
-                    <Text className="w-4 h-4 flex-shrink-0" />
-                    <span className="flex-1 text-left truncate">Generate Overlay</span>
-                </AccordionTrigger>
-                <AccordionContent>
-                  <div className="pt-2 space-y-4">
-                      <Label htmlFor="manual-caption">Describe the overlay to generate:</Label>
-                      <Textarea
-                          id="manual-caption"
-                          placeholder="e.g., a timer that counts down from 5 minutes"
-                          value={manualText}
-                          onChange={(e) => setManualText(e.target.value)}
-                          onKeyDown={(e) => {
-                              if (e.key === 'Enter' && !e.shiftKey) {
-                                  e.preventDefault();
-                                  handleTextSubmit();
-                              }
-                          }}
-                      />
-                      <Button onClick={handleTextSubmit} className="w-full">
-                          Generate with AI
-                      </Button>
-                       <div className="mt-4">
-                        <h3 className="font-semibold mb-2 text-sm">Examples:</h3>
-                        <ul className="text-xs text-muted-foreground list-disc list-inside space-y-1">
-                            <li>a simple button that says "click me"</li>
-                            <li>show a pulsating circle that glows</li>
-                            <li>display the current time, updating every second</li>
-                        </ul>
-                    </div>
-                  </div>
-                </AccordionContent>
-            </AccordionItem>
+          <Accordion type="multiple" defaultValue={["saved-overlays", "effects"]} className="w-full">
 
             <AccordionItem value="saved-overlays">
                 <AccordionTrigger className="text-base font-semibold flex items-center gap-2">

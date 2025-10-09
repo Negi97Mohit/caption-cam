@@ -21,7 +21,7 @@ export interface CaptionStyle {
 
 export type GeneratedLayout = {
   position: { x: number; y: number };
-  size: { width: number | string; height: number | string };
+  size: { width: number; height: number };
   zIndex: number;
 };
 
@@ -31,15 +31,19 @@ export interface GeneratedOverlay {
   componentCode: string;
   layout: GeneratedLayout;
   preview?: string;
+  chainedAction?: SingleActionCommand;
 }
 
 // --- SINGLE ACTION COMMANDS ---
+
+export type ChainedAction = Omit<SingleActionCommand, 'tool'> & { tool: SingleActionCommand['tool'] };
 
 export interface GenerateUICommand {
   tool: 'generate_ui_component';
   name: string;
   componentCode: string;
   layout: GeneratedLayout;
+  chained?: ChainedAction;
 }
 
 export interface UpdateUICommand {
@@ -64,42 +68,22 @@ export interface ApplyLiveCaptionStyleCommand {
   style: React.CSSProperties;
 }
 
-export interface ChangeAppThemeCommand {
-  tool: 'change_app_theme';
-  theme: {
-    primary: string;
-    secondary: string;
-    background: string;
-    foreground: string;
-    primary_foreground?: string;
-    card?: string;
-    border?: string;
-  };
-}
-
 // Union of all possible single actions
 export type SingleActionCommand =
   | GenerateUICommand
   | UpdateUICommand
   | DeleteUICommand
   | ApplyVideoEffectCommand
-  | ApplyLiveCaptionStyleCommand
-  | ChangeAppThemeCommand;
-
-
-// --- NEW MULTI-ACTION COMMAND ---
+  | ApplyLiveCaptionStyleCommand;
 
 export interface MultiActionCommand {
   tool: 'multi_tool_reasoning';
   actions: SingleActionCommand[];
 }
 
-// The final AICommand can be a single action OR a multi-action plan
 export type AICommand = SingleActionCommand | MultiActionCommand;
 
-
 // --- Other types remain the same ---
-
 export type LayoutMode = 'split-vertical' | 'split-horizontal' | 'pip';
 export type CameraShape = 'rectangle' | 'circle' | 'rounded';
 
@@ -151,4 +135,11 @@ export interface GraphObject {
   position: { x: number; y: number };
   size: { width: number; height: number };
   config: GraphConfig;
+}
+
+export interface MemoryRecord {
+  id: string;
+  userCommand: string;
+  aiActions: SingleActionCommand[];
+  timestamp: number;
 }

@@ -1,36 +1,36 @@
 // src/lib/ai.ts
-import { AICommand, GeneratedOverlay } from "@/types/caption";
-import interpolate from 'color-interpolate';
+import { AICommand, GeneratedOverlay, MemoryRecord } from "@/types/caption";
 
 const API_KEY = import.meta.env.VITE_GROQ_API_KEY;
 const API_URL = "https://api.groq.com/openai/v1/chat/completions";
 
-// --- THE NEW MULTI-TOOL AI COMMAND AGENT MASTER PROMPT ---
 const MASTER_PROMPT_AGENT = `
-You are the master AI control agent for a real-time video application. Your purpose is to analyze a user's command and the current on-screen context, then formulate a plan.
+You are the master AI control agent for a real-time video application. Your purpose is to generate React component code from scratch to fulfill the user's request. You have full creative freedom to design UI using standard HTML elements and inline CSS.
 
 **CURRENT ON-SCREEN ELEMENTS:**
 {CURRENT_ELEMENTS}
 
 **RESPONSE STRATEGY:**
 1.  **For simple, single-step commands**, respond with a single JSON action object.
-2.  **For complex commands that require multiple steps**, you MUST respond with a single JSON object where \`tool\` is "multi_tool_reasoning". This object will contain an \`actions\` array, with each element being a single JSON action object to be executed in sequence.
+2.  **For complex commands that require multiple steps**, you MUST respond with a single JSON object where \`tool\` is "multi_tool_reasoning". This object will contain an \`actions\` array.
 
 **CRITICAL INSTRUCTIONS:**
 - Your response MUST ALWAYS be a single, valid JSON object.
-- **Do NOT nest parameters.** All keys for single actions must be at the top level of their respective objects.
-- **All \`layout\` values MUST be percentages (0-100).**
-- When creating a component, you MUST assign a simple, one-word, lowercase \`name\`.
+- **You MUST write all UI code from scratch.** Use standard elements like \`<div>\`, \`<button>\`, \`<h1>\`, \`<input>\`, etc.
+- **You MUST use inline CSS for all styling.** For example: \`style={{ padding: '10px', backgroundColor: 'purple' }}\`.
+- **React State Rule:** When using \`React.useState\`, the state variable is a \`const\`. To update it, you MUST use the setter function (e.g., \`setValue(newValue)\`). NEVER re-assign the variable directly.
+
+--- CAPABILITY: GENERATIVE LOGIC ---
+You can create components with internal logic. To make these components control the app, follow these steps:
+1.  **Handle Logic Inside the Component:** The \`componentCode\` you write should perform all logic (like if/else or ternaries) internally.
+2.  **Use onStateChange with the FINAL VALUE:** Your code has access to a function \`onStateChange(finalValue)\`. Call this from an event handler (\`onClick\`, \`onChange\`). The value you pass should be the final, simple string or number needed by the chained action.
+3.  **Add a "chained" action:** To the \`generate_ui_component\` command, add a \`chained\` property.
+4.  **Use a simple \`\${state}\` placeholder:** In the string values of the \`chained\` action, use the placeholder \`\${state}\`. This will be replaced by the \`finalValue\` from \`onStateChange\`.
+5.  **For timers/intervals, you MUST use useEffect for cleanup** to prevent memory leaks and loops. Store the interval ID in a \`useRef\`.
 
 --- TOOLS REFERENCE ---
-
-**Tool Wrapper for Complex Commands:**
-- \`tool\`: "multi_tool_reasoning"
-  - \`actions\`: An array of single-action objects from the list below.
-
-**Available Single Actions:**
 1.  \`generate_ui_component\`: Creates a new overlay.
-    - Keys: \`tool\`, \`name\`, \`componentCode\`, \`layout\`
+    - Keys: \`tool\`, \`name\`, \`componentCode\`, \`layout\`, \`chained\` (optional)
 2.  \`update_ui_component\`: Modifies an existing overlay.
     - Keys: \`tool\`, \`targetId\`, \`layout\`, \`componentCode\`
 3.  \`delete_ui_component\`: Removes an existing overlay.
@@ -39,35 +39,19 @@ You are the master AI control agent for a real-time video application. Your purp
     - Keys: \`tool\`, \`filter\`
 5.  \`apply_live_caption_style\`: Styles temporary captions.
     - Keys: \`tool\`, \`style\`
-6.  \`change_app_theme\`: Changes the application's UI colors.
-    - Keys: \`tool\`, \`theme\`
-    - **IMPORTANT**: The 'theme' value MUST be an object. Example: { "primary": "#8A2BE2", "background": "#1A1A1A" }
 
---- EXAMPLE SCENARIOS ---
-
-- User: "make the video black and white" (Simple Command)
-- Your Response (Single Action):
+--- EXAMPLE SCENARIO ---
+- User: "add a button that toggles a blur filter"
+- Your Response:
   {
-    "tool": "apply_video_effect",
-    "filter": "grayscale(100%)"
-  }
-
-- User: "add a headline that says 'Welcome' and blur my background" (Complex Command)
-- Your Response (Multi-Action Plan):
-  {
-    "tool": "multi_tool_reasoning",
-    "actions": [
-      {
-        "tool": "generate_ui_component",
-        "name": "headline",
-        "componentCode": "() => <h1 style={{fontSize: '3rem', color: 'white', textShadow: '2px 2px 4px black'}}>Welcome</h1>",
-        "layout": { "position": { "x": 50, "y": 20 }, "size": { "width": 50, "height": 15 }, "zIndex": 10 }
-      },
-      {
-        "tool": "apply_video_effect",
-        "filter": "blur(8px)"
-      }
-    ]
+    "tool": "generate_ui_component",
+    "name": "blurbutton",
+    "componentCode": "() => { const [isBlurred, setIsBlurred] = React.useState(false); const handleClick = () => { const nextState = !isBlurred; setIsBlurred(nextState); const finalFilterValue = nextState ? 'blur(8px)' : 'none'; onStateChange(finalFilterValue); }; return <button onClick={handleClick} style={{ padding: '12px', fontSize: '16px', background: isBlurred ? '#8A2BE2' : '#555', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer' }}>{isBlurred ? 'Remove Blur' : 'Add Blur'}</button>; }",
+    "layout": { "position": { "x": 15, "y": 90 }, "size": { "width": 20, "height": 10 }, "zIndex": 50 },
+    "chained": {
+      "tool": "apply_video_effect",
+      "filter": "\${state}"
+    }
   }
 `;
 
@@ -84,8 +68,6 @@ function robustJsonParse(text: string): any | null {
     }
 }
 
-const isValidHex = (color: string) => /^#([0-9A-F]{3}){1,2}$/i.test(color);
-
 export async function processCommandWithAgent(command: string, activeOverlays: GeneratedOverlay[]): Promise<AICommand | null> {
     if (!API_KEY) {
         console.error("API Key Missing");
@@ -93,7 +75,7 @@ export async function processCommandWithAgent(command: string, activeOverlays: G
             tool: 'generate_ui_component',
             name: 'error',
             componentCode: "() => <div style={{color: 'white', backgroundColor: 'red', padding: '10px'}}>API Key Missing in .env file.</div>",
-            layout: { position: { x: 25, y: 40 }, size: { width: 50, height: 10 }, zIndex: 100 }
+            layout: { position: { x: 25, y: 40 }, size: { width: 50, height: 10 } as any, zIndex: 100 }
         };
     }
 
@@ -128,32 +110,15 @@ export async function processCommandWithAgent(command: string, activeOverlays: G
 
         const parsedCommand = robustJsonParse(content);
         if (!parsedCommand) throw new Error("Failed to parse valid JSON from AI response.");
-
-        const cmd: any = parsedCommand;
-        if (cmd.tool === 'change_app_theme' && cmd.theme) {
-            try {
-                const theme = cmd.theme;
-                const primary = isValidHex(theme.primary) ? theme.primary : '#8A2BE2';
-                const background = isValidHex(theme.background) ? theme.background : '#000000';
-
-                const colormap = interpolate([primary, '#FFFFFF']);
-                theme.primary_foreground = colormap(0.9);
-
-                const bgColormap = interpolate([background, '#FFFFFF']);
-                theme.card = bgColormap(0.1);
-                theme.border = bgColormap(0.15);
-            } catch (themeError) {
-                console.error("Could not generate theme from AI colors:", themeError);
-            }
-        }
-        return cmd as AICommand;
+        
+        return parsedCommand as AICommand;
     } catch (err) {
         console.error("processCommandWithAgent error:", err);
          return {
             tool: 'generate_ui_component',
             name: 'error',
             componentCode: `() => <div style={{color: 'white', backgroundColor: 'red', padding: '10px'}}>Error: ${ (err as any).message }</div>`,
-            layout: { position: { x: 25, y: 40 }, size: { width: 50, height: 10 }, zIndex: 100 }
+            layout: { position: { x: 25, y: 40 }, size: { width: 50, height: 10 } as any, zIndex: 100 }
         };
     }
 }

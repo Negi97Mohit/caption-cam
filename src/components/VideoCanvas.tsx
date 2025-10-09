@@ -1,6 +1,5 @@
-// src/components/VideoCanvas.tsx
 import React, { useState, useRef, useEffect } from "react";
-import { Mic, MicOff, Webcam, VideoOff, ScreenShare, Square, ChevronUp, Check, Circle, RotateCcw } from "lucide-react";
+import { Mic, MicOff, Webcam, VideoOff, ScreenShare, Square, ChevronUp, Check, Circle, RotateCcw, Sparkles} from "lucide-react";
 import { Button } from "./ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "./ui/dropdown-menu";
 import { toast } from "sonner";
@@ -12,6 +11,7 @@ import * as Babel from '@babel/standalone';
 import { GeneratedOverlay, LayoutMode, CameraShape } from "../types/caption";
 import { LayoutControls } from "./LayoutControls";
 import { CameraRenderer } from "./CameraRenderer";
+import { AICommandPopover } from "./AICommandPopover";
 
 type VideoPlayerProps = {
     stream: MediaStream | null;
@@ -88,7 +88,6 @@ const DynamicCodeRenderer = ({ overlay, onLayoutChange, onRemove, containerSize 
     );
 };
 
-// ... (interface VideoCanvasProps remains unchanged)
 interface VideoCanvasProps {
   captionsEnabled: boolean;
   backgroundEffect: 'none' | 'blur' | 'image';
@@ -126,13 +125,14 @@ interface VideoCanvasProps {
   onPipSizeChange: (size: { width: number; height: number }) => void;
   customMaskUrl?: string;
   onCustomMaskUpload?: (file: File) => void;
+  aiButtonPosition: { x: number; y: number };
+  onAiButtonPositionChange: (position: { x: number; y: number }) => void;
 }
 
 
 const SNAP_THRESHOLD = 5;
 
 export const VideoCanvas = (props: VideoCanvasProps) => {
-  // ... (all hooks and functions inside VideoCanvas remain unchanged until the return statement)
   const {
     isVideoOn,
     isAudioOn,
@@ -142,6 +142,8 @@ export const VideoCanvas = (props: VideoCanvasProps) => {
     onAudioDeviceSelect,
     onVideoToggle,
     onAudioToggle,
+    aiButtonPosition,
+    onAiButtonPositionChange,
     ...rest
   } = props;
   
@@ -310,7 +312,6 @@ export const VideoCanvas = (props: VideoCanvasProps) => {
     let newX = (d.x / rect.width) * 100;
     let newY = (d.y / rect.height) * 100;
 
-    // Snapping logic
     const pipWidthPercent = rest.pipSize.width;
     const pipHeightPercent = rest.pipSize.height;
     if (newX < SNAP_THRESHOLD) newX = 2;
@@ -347,7 +348,6 @@ const handlePipResizeStop = (e: any, direction: any, ref: HTMLElement, delta: an
     }
   };
 
-  // Build CSS filter string from video effect props
   const getVideoFilterStyle = (): string => {
     const filters: string[] = [];
     
@@ -443,7 +443,6 @@ const handlePipResizeStop = (e: any, direction: any, ref: HTMLElement, delta: an
         </Rnd>
     );
 
-    // Apply background effects wrapper
     const getBackgroundStyle = (): React.CSSProperties => {
       const style: React.CSSProperties = {};
       
@@ -555,53 +554,85 @@ const handlePipResizeStop = (e: any, direction: any, ref: HTMLElement, delta: an
           </div>
         )}
       </div>
+      
+      {containerSize.width > 0 && (
+        <Rnd
+          style={{ zIndex: 250 }}
+          size={{ width: 64, height: 64 }}
+          position={{
+            x: (aiButtonPosition.x / 100) * containerSize.width,
+            y: (aiButtonPosition.y / 100) * containerSize.height,
+          }}
+          onDragStop={(e, d) => onAiButtonPositionChange({
+            x: (d.x / containerSize.width) * 100,
+            y: (d.y / containerSize.height) * 100
+          })}
+          bounds="parent"
+          enableResizing={false}
+          className="pointer-events-auto"
+        >
+          <AICommandPopover onSubmit={rest.onProcessTranscript}>
+            <Button size="icon" className="rounded-full h-16 w-16 shadow-lg bg-purple-600 hover:bg-purple-700">
+              <Sparkles className="h-8 w-8" />
+            </Button>
+          </AICommandPopover>
+        </Rnd>
+      )}
 
-      <div className="absolute bottom-6 w-full flex items-center justify-center gap-4 z-50">
-        <div className="flex items-center">
-          <Button variant="secondary" size="icon" className="rounded-r-none h-12 w-12" onClick={() => onAudioToggle(!isAudioOn)}>
-            {isAudioOn ? <Mic /> : <MicOff className="text-red-500"/>}
-          </Button>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="secondary" size="icon" className="rounded-l-none h-12 w-8"><ChevronUp className="w-4 h-4" /></Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent>
-              {audioDevices.map((device, i) => (
-                <DropdownMenuItem key={device.deviceId} onClick={() => onAudioDeviceSelect(device.deviceId)}>
-                  {device.deviceId === selectedAudioDevice && <Check className="w-4 h-4 mr-2"/>}
-                  {device.label || `Microphone ${i + 1}`}
-                </DropdownMenuItem>
-              ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
+      <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-50">
+        <div className="flex items-center gap-2 bg-background/80 backdrop-blur-md border rounded-full px-4 py-2 shadow-lg">
+          <div className="flex items-center">
+            <Button variant="ghost" size="icon" className="rounded-full h-10 w-10" onClick={() => onAudioToggle(!isAudioOn)}>
+              {isAudioOn ? <Mic className="h-5 w-5" /> : <MicOff className="h-5 w-5 text-red-500"/>}
+            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon" className="rounded-full h-8 w-8"><ChevronUp className="w-4 h-4" /></Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent>
+                {audioDevices.map((device, i) => (
+                  <DropdownMenuItem key={device.deviceId} onClick={() => onAudioDeviceSelect(device.deviceId)}>
+                    {device.deviceId === selectedAudioDevice && <Check className="w-4 h-4 mr-2"/>}
+                    {device.label || `Microphone ${i + 1}`}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
 
-        <div className="flex items-center">
-          <Button variant="secondary" size="icon" className="rounded-r-none h-12 w-12" onClick={() => onVideoToggle(!isVideoOn)}>
-            {isVideoOn ? <Webcam /> : <VideoOff className="text-red-500"/>}
+          <div className="w-px h-8 bg-border" />
+
+          <div className="flex items-center">
+            <Button variant="ghost" size="icon" className="rounded-full h-10 w-10" onClick={() => onVideoToggle(!isVideoOn)}>
+              {isVideoOn ? <Webcam className="h-5 w-5" /> : <VideoOff className="h-5 w-5 text-red-500"/>}
+            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon" className="rounded-full h-8 w-8"><ChevronUp className="w-4 h-4" /></Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent>
+                {videoDevices.map((device, i) => (
+                  <DropdownMenuItem key={device.deviceId} onClick={() => onVideoDeviceSelect(device.deviceId)}>
+                    {device.deviceId === selectedVideoDevice && <Check className="w-4 h-4 mr-2"/>}
+                    {device.label || `Camera ${i + 1}`}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+          
+          <div className="w-px h-8 bg-border" />
+          
+          <Button variant="ghost" size="icon" className={cn("rounded-full h-10 w-10 transition-colors", isScreenSharing && "bg-primary/20")} onClick={handleScreenShareClick} title={isScreenSharing ? "Stop screen share" : "Share screen"}>
+            <ScreenShare className="h-5 w-5" />
           </Button>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="secondary" size="icon" className="rounded-l-none h-12 w-8"><ChevronUp className="w-4 h-4" /></Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent>
-              {videoDevices.map((device, i) => (
-                <DropdownMenuItem key={device.deviceId} onClick={() => onVideoDeviceSelect(device.deviceId)}>
-                  {device.deviceId === selectedVideoDevice && <Check className="w-4 h-4 mr-2"/>}
-                  {device.label || `Camera ${i + 1}`}
-                </DropdownMenuItem>
-              ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
+          
+          <div className="w-px h-8 bg-border" />
+          
+          <Button size="icon" className={cn("rounded-full h-12 w-12 transition-colors", rest.isRecording ? "bg-red-600 hover:bg-red-700" : "bg-primary hover:bg-primary/90")} onClick={rest.isRecording ? handleStopRecording : handleStartRecording} disabled={!cameraStream && !screenStream}>
+            {rest.isRecording ? <Square className="h-6 w-6" /> : <Circle className="h-6 w-6 fill-current" />}
+          </Button>
         </div>
-        
-        <Button variant={isScreenSharing ? "default" : "secondary"} size="icon" className="h-12 w-12 transition-colors" onClick={handleScreenShareClick} title={isScreenSharing ? "Stop screen share" : "Share screen"}>
-          <ScreenShare />
-        </Button>
-        
-        <Button size="icon" className={cn("rounded-full h-16 w-16 transition-colors", rest.isRecording ? "bg-red-600 hover:bg-red-700" : "bg-primary hover:bg-primary/90")} onClick={rest.isRecording ? handleStopRecording : handleStartRecording} disabled={!cameraStream && !screenStream}>
-          {rest.isRecording ? <Square /> : <Circle className="h-8 w-8 fill-current" />}
-        </Button>
       </div>
     </div>
   );

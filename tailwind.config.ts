@@ -48,6 +48,18 @@ export default {
           foreground: "hsl(var(--card-foreground))",
         },
       },
+      backgroundImage: {
+        'gradient-primary': 'var(--gradient-primary)',
+        'gradient-accent': 'var(--gradient-accent)',
+        'gradient-surface': 'var(--gradient-surface)',
+      },
+      boxShadow: {
+        'glow': 'var(--shadow-glow)',
+        'elevated': 'var(--shadow-elevated)',
+      },
+      transitionProperty: {
+        'smooth': 'var(--transition-smooth)',
+      },
       borderRadius: {
         lg: "var(--radius)",
         md: "calc(var(--radius) - 2px)",

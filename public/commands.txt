@@ -1,0 +1,2017 @@
+1️⃣ Captions & Text Overlays (1–75)
+
+Show caption “Hello everyone!”
+
+Display caption “Let’s start the game” at bottom
+
+Add rolling text “New subscriber!”
+
+Show top chat message on screen
+
+Hide captions
+
+Highlight chat message in green
+
+Display username of the latest follower
+
+Show donation alert with text
+
+Show subscriber alert with confetti
+
+Add scrolling ticker: “Today’s schedule…”
+
+Display poll question “What’s your favorite map?”
+
+Hide poll
+
+Show countdown timer for 10 seconds
+
+Display overlay text: “Be right back”
+
+Change caption font to Comic Sans
+
+Set text background to black
+
+Show multi-line caption
+
+Flash caption “Victory!”
+
+Animate caption sliding from left
+
+Show caption only for 5 seconds
+
+Display current score as overlay
+
+Show alert: “New high score!”
+
+Show top donation of the day
+
+Display motivational quote: “You can do it”
+
+Change caption color to red
+
+Add shadow to text overlay
+
+Display captions in bold
+
+Show username and message from chat
+
+Hide all overlays for 5 seconds
+
+Add emoji overlay: “🎉”
+
+Show hashtags: #Gaming #Live
+
+Add text outline effect
+
+Change text position to top-right
+
+Scroll text from right to left
+
+Show subtitle for dialogue
+
+Display “Follower goal: 1000”
+
+Animate caption pulse effect
+
+Hide donation alerts temporarily
+
+Show captions only to VIP viewers
+
+Rotate caption 45 degrees
+
+Make caption semi-transparent
+
+Show live chat reactions on screen
+
+Display text for a 10-second loop
+
+Flash text every 2 seconds
+
+Show next event in caption
+
+Display “Stream starting soon”
+
+Show chat poll results overlay
+
+Change caption font size to 24
+
+Animate text scaling up
+
+Show multi-color rainbow caption
+
+Show welcome message for new viewers
+
+Add blinking text effect
+
+Show dynamic score overlay updating in real time
+
+Show health bar overlay with current HP
+
+Show game timer countdown
+
+Flash “Critical hit!” caption
+
+Display achievements unlocked
+
+Show “Level Up!” text animation
+
+Animate rolling credits overlay
+
+Show instructions overlay: “Use arrow keys to move”
+
+Display hint messages for viewers
+
+Show multi-language subtitles
+
+Show VIP badge next to username overlay
+
+Flash donation goal progress text
+
+Display sponsor message overlay
+
+Animate caption spinning
+
+Show chat reactions in colorful text bubbles
+
+Highlight new follower with caption
+
+Display “Top cheerer” text
+
+Add rainbow gradient to captions
+
+Show temporary notification: “You got a gift!”
+
+Display in-game stats overlay
+
+Animate text fade-in and fade-out
+
+Add background behind text for contrast
+
+Show dynamic overlay for game objectives
+
+2️⃣ Stickers, Animations & Effects (76–175)
+
+Spawn confetti at center
+
+Show fireworks animation
+
+Add animated sticker: rocket top-right
+
+Spawn emoji explosion
+
+Add floating hearts
+
+Show lightning effect on screen
+
+Add sparkle effect around webcam
+
+Spawn a “Winner!” badge
+
+Animate trophy at bottom-left
+
+Spawn star shower overlay
+
+Make sticker rotate continuously
+
+Show animated coin drop
+
+Spawn flying text: “Achievement unlocked”
+
+Add snow effect
+
+Add rain effect
+
+Spawn animated dog sticker
+
+Show animated cat reaction
+
+Add glowing border around webcam
+
+Spawn “GG” animation
+
+Add pixel explosion effect
+
+Show floating thumbs-up
+
+Spawn animated snake across screen
+
+Add bouncing ball sticker
+
+Spawn animated gift box
+
+Make confetti fall from top
+
+Spawn hearts from bottom
+
+Show animated fire effect
+
+Add wave animation to overlay
+
+Spawn “Level Up!” animation
+
+Show animated rainbow trail
+
+Add blinking lights around webcam
+
+Spawn virtual confetti cannon
+
+Animate sticker growing in size
+
+Show sticker for 3 seconds
+
+Spawn floating emoji cloud
+
+Animate sticker spinning
+
+Show “Noob!” overlay briefly
+
+Spawn animated crown on player
+
+Add moving banner across top
+
+Spawn animated balloon floating
+
+Show animated star shooting effect
+
+Spawn “You won!” badge
+
+Add fog effect around bottom
+
+Spawn animated gift explosion
+
+Add floating bubble stickers
+
+Show animated checkmark on success
+
+Animate sticker following cursor
+
+Spawn “New Record!” animation
+
+Show floating question marks
+
+Add shaking screen effect
+
+Spawn animated rocket trail
+
+Animate hearts orbiting webcam
+
+Show fireworks behind webcam border
+
+Spawn moving cartoon clouds
+
+Animate falling leaves
+
+Add spinning gears overlay
+
+Spawn bouncing star cluster
+
+Animate floating text along path
+
+Show sparkler animation
+
+Spawn animated comet streak
+
+Add glowing orbs floating
+
+Animate sticker pulsating
+
+Spawn a floating rainbow heart
+
+Show dynamic particle effects
+
+Spawn blinking arrow pointing to webcam
+
+Animate “loading” spinner overlay
+
+Show moving diagonal stripes
+
+Spawn animated balloons rising
+
+Animate overlay scaling up and down
+
+Show confetti spiral effect
+
+Spawn floating diamonds
+
+Animate “New Level!” banner
+
+Spawn interactive stickers on click
+
+Show flying emoji rockets
+
+Animate pixel hearts floating
+
+Spawn confetti blast with sound trigger
+
+Show animated countdown numbers
+
+Animate gift box opening
+
+Spawn floating star trails
+
+Animate sticker orbiting text
+
+Show animated sun rays behind webcam
+
+Spawn dancing character sticker
+
+Animate fireworks burst on text
+
+Show glitter overlay on captions
+
+Spawn hearts bouncing around border
+
+Animate emoji spinning along circular path
+
+Spawn confetti in rainbow colors
+
+Animate particle explosion on alert
+
+Spawn floating cartoon bubbles
+
+Show animated glow around game area
+
+Animate shooting star across overlay
+
+Spawn blinking notification icon
+
+Animate overlay morphing shapes
+
+Show animated spark trail following cursor
+
+Spawn interactive floating stars
+
+Animate hearts pulsing on new follower
+
+Show floating ghost animation
+
+Spawn animated laser beams
+
+Animate sticker shrinking and expanding
+
+Show fireworks following mouse pointer
+
+3️⃣ Webcam Decorations & Border Overlays (176–300)
+
+Add glowing border around webcam
+
+Make webcam circular with border
+
+Add animated heartbeat border
+
+Change webcam border color to red
+
+Change webcam border to rainbow gradient
+
+Add pixelated border effect
+
+Add sparkly border animation
+
+Make webcam border pulse on alert
+
+Add neon frame around webcam
+
+Animate border thickness oscillating
+
+Show floating stars around webcam
+
+Add blinking dots around camera outline
+
+Add confetti burst on webcam border
+
+Animate rainbow waves along border
+
+Show overlay icons along border
+
+Animate border rotating around webcam
+
+Add glow animation on new alert
+
+Add dynamic shadow border
+
+Animate border expanding outward
+
+Show floating hearts along border
+
+Add animated sparkler effect
+
+Animate glowing corners of webcam
+
+Spawn stickers along border path
+
+Animate confetti shower along camera edge
+
+Add interactive sticker buttons around webcam
+
+Show moving arrows along border
+
+Animate fire effect along webcam frame
+
+Add lightning effect on border
+
+Animate shooting stars along border
+
+Add pixel explosion effect along webcam
+
+Animate border blinking in rhythm
+
+Show animated text along border
+
+Spawn floating emoji icons around camera
+
+Animate hearts orbiting webcam border
+
+Add moving rainbow lines around frame
+
+Animate geometric shapes along border
+
+Add shimmer effect on webcam outline
+
+Animate border rotating rainbow colors
+
+Show floating spark effects along border
+
+Animate bouncing dots along border
+
+Spawn moving spark trails along webcam edge
+
+Animate pulsing halo around camera
+
+Add particle explosion behind webcam
+
+Animate confetti spirals along border
+
+Show animated crown overlay on top border
+
+Animate shooting stars from corner edges
+
+Spawn interactive buttons along border
+
+Animate glowing border on new follower
+
+Add animated emoji confetti
+
+Animate swirling border effect
+
+Show sparkle trail on webcam corners
+
+Animate rainbow smoke behind webcam
+
+Add floating star trail along edge
+
+Animate hearts floating upwards along border
+
+Show animated text banners along edge
+
+Add glowing orbs orbiting border
+
+Animate border reacting to alerts
+
+Spawn sparkler bursts on border corners
+
+Animate pulsing circles along border
+
+Add animated lightning along webcam frame
+
+Animate sticker orbiting webcam
+
+Add glitter trail around webcam outline
+
+Animate border expanding and shrinking
+
+Spawn shooting stars on webcam corners
+
+Animate border color shifting
+
+Add interactive emoji buttons on edges
+
+Animate floating bubbles along webcam
+
+Show fireworks behind camera outline
+
+Animate confetti raining along edges
+
+Animate overlay shadow moving along border
+
+Add blinking neon border animation
+
+Animate particle rings around webcam
+
+Add floating flame animation along border
+
+Animate rainbow spark trail along camera
+
+Show interactive sticker floating around webcam
+
+Animate glowing heart around webcam
+
+Spawn floating animated icons along edges
+
+Animate geometric particle explosion
+
+Add animated sparkle starburst along border
+
+Animate border reacting to sound beat
+
+Spawn floating confetti hearts
+
+Animate waves along webcam outline
+
+Show animated shooting spark trails
+
+Animate border expanding outward on alert
+
+Spawn interactive mini-icons on webcam corners
+
+Animate border pulsing to alert rhythm
+
+Add animated rainbow lightning effect
+
+Animate particles orbiting border corners
+
+Spawn floating text messages along webcam
+
+Animate glowing fire trail around webcam
+
+Add animated bouncing emoji along edges
+
+Animate sparkling rainbow trail along border
+
+Spawn floating stars along border path
+
+Animate border glowing on new subscriber
+
+Show animated halo spinning around webcam
+
+Animate hearts and stars swirling along edge
+
+Spawn confetti rockets along webcam frame
+
+Animate glowing spark trail across border
+
+Add rotating neon polygon border
+
+Animate border lighting reacting to speech
+
+Spawn small animated fireworks at border corners
+
+Animate glowing comet passing along edge
+
+Add interactive floating emoji buttons
+
+Animate sparkler fireworks along webcam border
+
+Spawn glowing star trails along edges
+
+Animate pulsing rainbow ring around webcam
+
+Animate overlay graphics around border reacting to speech
+
+Add animated glitter trails on webcam corners
+
+Animate border spinning confetti particles
+
+Spawn interactive animated text banners
+
+Animate glowing ripple effect along border
+
+Show fireworks animation triggered by overlay alerts
+
+Animate spark trails following cursor along webcam
+
+Spawn floating animated hearts around border corners
+
+Animate rotating colored border on webcam
+
+Animate border lights flickering on alert
+
+Add animated overlay icons spinning along edges
+
+Animate fireworks moving around webcam outline
+
+Animate shooting star trail along webcam border
+
+Spawn pulsing animated halo around camera
+
+Animate overlay stickers bouncing along edges
+
+Animate glowing stars pulsing along webcam border
+
+Spawn rainbow particle explosion on overlay
+
+Animate border halo responding to speech
+
+Add floating, spinning, glowing emojis along webcam edge
+
+1️⃣ Captions & Text Overlays (1–75)
+
+Show caption “Vote for the next map!”
+
+Display text overlay “Click here to cheer”
+
+Show subscriber’s username with highlight
+
+Animate chat message popping up
+
+Show top donation alert as scrolling text
+
+Display “Viewer goal: 1000” with progress bar
+
+Animate “Follow me!” caption bouncing
+
+Show emoji reaction: “😂” on new chat
+
+Display chat poll options on screen
+
+Animate live vote counter for poll
+
+Show instructions: “Press space to jump”
+
+Display leaderboard names and scores
+
+Flash “New Level!” text for 3 seconds
+
+Animate countdown: “Next giveaway in 10s”
+
+Show VIP viewer name in special color
+
+Animate chat reaction icons moving across screen
+
+Display donation amount with sparkle animation
+
+Show follower alert with rainbow text
+
+Animate “Thanks for subscribing!” bouncing
+
+Display text overlay for mini-game instructions
+
+Animate caption fade-in on new comment
+
+Display “Top cheerer” with crown icon
+
+Animate incoming messages sliding from right
+
+Show “New achievement unlocked” with animation
+
+Animate poll result percentages
+
+Display chat reactions stacked at screen bottom
+
+Show caption: “Click the button to vote”
+
+Animate goal progress bar growing
+
+Display “Next challenge starts in 5 minutes”
+
+Animate rotating text overlay: “Epic Win!”
+
+Show mini-game instruction captions
+
+Display timer overlay counting down
+
+Animate chat reactions flying towards webcam
+
+Show hover text for interactive elements
+
+Animate captions bouncing on screen edges
+
+Display text with outline pulsing on highlight
+
+Show interactive scoreboard for viewers
+
+Animate emojis reacting to donation events
+
+Show viewer-generated messages on screen
+
+Animate subscriber count increasing
+
+Display “Who will win?” poll overlay
+
+Animate real-time game stats captions
+
+Show special alert for first-time donor
+
+Animate chat reactions on screen corners
+
+Display viewer challenge captions
+
+Show leaderboard with animated highlight
+
+Animate scrolling text for giveaway instructions
+
+Display user votes flying to top of screen
+
+Animate floating text for milestones
+
+Show interactive instruction captions for games
+
+Animate dynamic multi-color text
+
+Display chat mentions with glowing effect
+
+Animate gift alerts popping up
+
+Show animated “like” or “heart” captions
+
+Display subscriber streak count
+
+Animate caption trail following mouse
+
+Show donation leaderboard overlay
+
+Animate timer for in-game events
+
+Display “Next mini-game starting” text
+
+Animate interactive question overlays
+
+Show “Top viewer” with special badge
+
+Animate text for interactive quiz prompts
+
+Display multiple-choice poll results
+
+Animate animated banner “Game On!”
+
+Show live instructions for interactive challenges
+
+Animate incoming subscriber messages
+
+Display “Click to interact” text overlay
+
+Animate dynamic mission text
+
+Show special effect text for VIP viewers
+
+Animate countdown for challenge submissions
+
+Display rewards text overlay
+
+Animate dynamic text for viewers’ reactions
+
+Show floating chat reactions above webcam
+
+Animate “Next level incoming” banner
+
+Display interactive donation goal caption
+
+2️⃣ Stickers, Animations & Effects (76–175)
+
+Spawn interactive clickable heart sticker
+
+Animate confetti triggered by viewer clicks
+
+Spawn animated star trail following cursor
+
+Add fireworks effect when viewer votes
+
+Show floating emoji buttons for interaction
+
+Animate floating icons reacting to donations
+
+Spawn bouncing mini-game objects
+
+Animate rocket sticker triggered by chat command
+
+Show sparkle animation when viewer clicks overlay
+
+Spawn floating animated badges for achievements
+
+Animate stars orbiting webcam reacting to speech
+
+Show interactive sticker that viewers can move
+
+Animate confetti burst when goal is reached
+
+Spawn floating balloons reacting to mouse hover
+
+Animate floating hearts triggered by donations
+
+Spawn shooting star overlay for new subscribers
+
+Animate text and icon combo popping up
+
+Show fireworks trailing cursor movements
+
+Animate interactive spinning wheel overlay
+
+Spawn animated coin drop triggered by interaction
+
+Animate particles flying towards webcam
+
+Show animated “GG” overlay on mini-game win
+
+Animate floating reaction emojis along border
+
+Spawn confetti spiral overlay for new donation
+
+Animate moving sticker reacting to viewer votes
+
+Spawn interactive balloons viewers can pop
+
+Animate fireworks on text captions
+
+Show floating interactive hearts for chat reactions
+
+Animate sticker trail following cursor
+
+Spawn mini-game objects along webcam border
+
+Animate reaction particles around captions
+
+Show clickable emoji overlay for viewers
+
+Animate sparkler bursts on donation events
+
+Spawn floating star clusters along edges
+
+Animate sticker spinning on click
+
+Show interactive confetti cannon overlay
+
+Animate fireworks triggered by chat commands
+
+Spawn floating diamonds reacting to mouse hover
+
+Animate particle trail following chat messages
+
+Show floating reaction icons on click
+
+Animate confetti explosion for mini-game win
+
+Spawn interactive gift box sticker
+
+Animate floating emoji orbit around webcam
+
+Show animated notification icon on screen
+
+Animate floating hearts on hover
+
+Spawn moving spark trails along caption edges
+
+Animate sticker bouncing on screen edges
+
+Show floating balloons following cursor
+
+Animate fireworks around donation overlay
+
+Spawn interactive spinning stars for polls
+
+Animate confetti funnel from top corner
+
+Show floating animated icons reacting to vote count
+
+Animate spark trail following interactive buttons
+
+Spawn emoji clouds floating around webcam
+
+Animate hearts and stars reacting to interaction
+
+Show floating mini-game objects viewers can click
+
+Animate confetti cascade along webcam border
+
+Spawn interactive sticker responding to speech
+
+Animate emoji explosion on donation milestone
+
+Show floating text reacting to votes
+
+Animate stars orbiting interactive buttons
+
+Spawn animated hearts flying from screen corners
+
+Animate interactive confetti spinning
+
+Show mini-game notification animation
+
+Animate spark bursts on new follower alert
+
+Spawn floating interactive badges
+
+Animate heart trails following cursor movements
+
+Show fireworks burst on goal completion
+
+Animate sticker reactions to chat events
+
+Spawn emoji rain triggered by mini-game
+
+Animate text following floating icons
+
+Show confetti trail on viewer click
+
+Animate floating sparkles on hover
+
+Spawn interactive floating stars responding to chat
+
+Animate shooting star overlay following mouse
+
+Show floating icons triggered by follower milestone
+
+Animate hearts floating upwards on donation
+
+Spawn moving particle effects along borders
+
+Animate confetti shower for subscriber streak
+
+Show spinning interactive badge overlay
+
+Animate spark trails following floating stickers
+
+Spawn emoji fireworks on VIP interaction
+
+Animate floating hearts for interactive buttons
+
+Show interactive floating text reacting to chat
+
+Animate sticker flying across screen
+
+Spawn confetti blast triggered by vote completion
+
+Animate stars following mini-game objects
+
+Show floating sparkle trail for donation alerts
+
+Animate fireworks orbiting webcam border
+
+Spawn interactive balloons floating around webcam
+
+Animate hearts and stars reacting to overlay clicks
+
+Show floating reaction emojis moving along border
+
+Animate interactive stickers for viewers
+
+Spawn confetti funnel triggered by chat command
+
+Animate floating stars around interactive text
+
+Show spark trail for mini-game points
+
+Animate floating emojis for VIP alerts
+
+Spawn animated hearts for follower milestone
+
+Animate interactive confetti explosion
+
+Show fireworks animation triggered by mini-game completion
+
+3️⃣ Webcam Decorations & Border Overlays (176–300)
+
+Add glowing interactive border around webcam
+
+Animate webcam border responding to clicks
+
+Spawn moving spark particles along border
+
+Show interactive clickable emojis along webcam edge
+
+Animate hearts orbiting webcam border
+
+Spawn floating star trail reacting to votes
+
+Animate border color change on new follower
+
+Show interactive mini-buttons along border
+
+Animate sparkling webcam outline
+
+Spawn fireworks along webcam corners
+
+Animate pulsing neon border on alerts
+
+Add clickable sticker buttons around webcam
+
+Animate confetti along border on donation
+
+Spawn floating stars reacting to mouse hover
+
+Animate spark trail along webcam frame
+
+Show interactive floating hearts responding to chat
+
+Animate glowing halo along border corners
+
+Spawn interactive icons orbiting webcam
+
+Animate rainbow border color cycle
+
+Show animated sparkles along webcam edges
+
+Animate border reacting to speech events
+
+Spawn floating emojis along webcam frame
+
+Animate interactive sticker spinning on hover
+
+Show confetti trail triggered by overlay interactions
+
+Animate particle explosion along border edges
+
+Spawn interactive floating badges for viewers
+
+Animate shooting star along webcam border
+
+Show glowing border on mini-game win
+
+Animate hearts orbiting webcam outline
+
+Spawn confetti explosion on follower milestone
+
+Animate interactive stars floating along edge
+
+Show fireworks behind webcam border
+
+Animate sparkler bursts on viewer click
+
+Spawn floating emojis responding to donations
+
+Animate confetti spiral along webcam frame
+
+Show interactive hearts floating on screen
+
+Animate border halo spinning on interaction
+
+Spawn fireworks around webcam corners
+
+Animate glowing trail on overlay buttons
+
+Show floating spark particles along border
+
+Animate interactive sticker reaction to chat
+
+Spawn emoji fireworks orbiting webcam
+
+Animate confetti burst on mini-game completion
+
+Show floating interactive icons on webcam
+
+Animate star trail along border responding to clicks
+
+Spawn hearts floating along webcam outline
+
+Animate border color shifting with donations
+
+Show interactive emoji stickers along webcam edge
+
+Animate fireworks following cursor along border
+
+Spawn particle effects along webcam corners
+
+Animate interactive floating stars on click
+
+Show sparkler effect along webcam frame
+
+Animate emoji clouds floating around camera
+
+Spawn interactive reaction buttons along border
+
+Animate glowing border responding to mini-game points
+
+Show floating spark trail following mouse hover
+
+Animate hearts and stars along webcam edges
+
+Spawn interactive floating badges for VIPs
+
+Animate fireworks orbiting overlay icons
+
+Show animated confetti on chat reaction
+
+Animate spark trails following floating stickers
+
+Spawn floating emojis orbiting webcam
+
+Animate interactive particle explosion along border
+
+Show glowing interactive halo on webcam
+
+Animate confetti funnel triggered by mini-game
+
+Spawn floating stars responding to chat votes
+
+Animate heart trails following mouse clicks
+
+Show fireworks burst for donation milestone
+
+Animate interactive emoji trail along webcam border
+
+Spawn sparkler burst on interactive overlay click
+
+Animate particle trails following floating hearts
+
+Show interactive badges spinning around webcam
+
+Animate fireworks on hover over overlay icons
+
+Spawn floating stars orbiting webcam corners
+
+Animate interactive confetti shower
+
+Show sparkle animation triggered by overlay click
+
+Animate heart and star orbit for mini-game alerts
+
+Spawn interactive emoji cloud reacting to chat
+
+Animate fireworks moving along webcam outline
+
+Show glowing interactive border on subscriber alert
+
+Animate spark trails along floating overlay buttons
+
+Spawn floating emojis triggered by donations
+
+Animate interactive sticker bouncing along border
+
+Show animated fireworks following cursor
+
+Animate confetti cascade on mini-game completion
+
+Spawn floating stars and sparkles for VIP interactions
+
+Animate interactive halo spinning around webcam
+
+Show emoji rain along webcam border
+
+Animate spark trail following interactive overlays
+
+Spawn floating hearts reacting to chat reactions
+
+Animate fireworks spiral along border corners
+
+Show floating interactive badges for viewer interactions
+
+Animate hearts and stars following mouse hover
+
+Spawn interactive confetti fountain on donation
+
+Animate spark trails for mini-game scoring
+
+Show glowing halo for interactive buttons
+
+Animate fireworks orbiting webcam edges
+
+Spawn floating stars and sparkles for overlay clicks
+
+Animate heart trail along webcam frame
+
+Show interactive emoji orbiting webcam border
+
+Animate confetti explosion responding to chat command
+
+Spawn floating spark trails for mini-game events
+
+Animate fireworks following floating badges
+
+Show interactive halo on webcam reacting to speech
+
+Animate emoji clouds moving along border
+
+Spawn hearts orbiting overlay buttons
+
+Animate fireworks triggered by interactive elements
+
+Show spark trail following floating hearts
+
+Animate confetti spiral around webcam outline
+
+Spawn interactive emoji particles reacting to clicks
+
+Animate fireworks orbiting interactive badges
+
+Show glowing halo on webcam responding to overlay events
+
+Animate spark trails on floating icons
+
+Spawn floating stars reacting to viewer interactions
+
+Animate confetti funnel triggered by chat votes
+
+Show interactive hearts orbiting webcam border
+
+Animate fireworks following cursor movements
+
+Spawn sparkler bursts on mini-game events
+
+Animate floating emoji clouds on overlay hover
+
+Show interactive floating badges responding to chat
+
+Animate hearts and sparkles orbiting webcam edges
+
+Spawn fireworks spiral on donation alerts
+
+Animate confetti trail following mouse cursor
+
+Show interactive halo on webcam reacting to mini-game
+
+Animate fireworks, spark, and hearts overlay for viewer interaction
+
+1️⃣ Chat & Text Commands (1–120)
+
+Send “Hello” in chat
+
+Send “Good morning”
+
+Send a thumbs-up emoji
+
+Send a heart emoji
+
+Send a laughing emoji
+
+Send a surprised emoji
+
+Reply to a message
+
+Mention a user: “@John”
+
+Send a sticker in chat
+
+Send a GIF
+
+React to a message with emoji
+
+Send a poll vote: Option A
+
+Send a poll vote: Option B
+
+Send a question to the host
+
+Send an answer to a quiz
+
+Send a tip/donation message
+
+Request a song
+
+Ask for clarification: “Can you explain?”
+
+Send “LOL”
+
+Send “GG”
+
+Send “Good game!”
+
+Ask a trivia question
+
+Share a link in chat
+
+Share an image
+
+Share a video clip
+
+Send a sticker reaction
+
+Send a meme
+
+Reply privately to host
+
+Send a chat message in bold
+
+Send a chat message in italics
+
+Send a multi-line chat message
+
+Hide my chat messages temporarily
+
+Send “Hi everyone”
+
+Send “Nice stream”
+
+Ask “What’s the next game?”
+
+Ask “When is the giveaway?”
+
+Ask “Can I join the mini-game?”
+
+Send “Thanks!”
+
+Ask for poll results
+
+Send “Vote for me”
+
+Send applause emoji
+
+Send a clap emoji
+
+Ask “What’s the current score?”
+
+Request subtitles
+
+Request captions in a different language
+
+Send a celebratory emoji
+
+Send a “party” sticker
+
+Ask “Can you repeat that?”
+
+Send a “thumbs-down” emoji
+
+Send a question about stream content
+
+Ask “Where can I download this?”
+
+Ask “How do I participate?”
+
+Send “Well played!”
+
+Send “Congratulations!”
+
+Ask “Who is the winner?”
+
+Send “Good luck!”
+
+Ask “Can you show the leaderboard?”
+
+Send “Thanks for the info”
+
+Ask “Where’s the chat command list?”
+
+Send “Nice overlay!”
+
+Send “Wow!”
+
+Ask “Can I change my display name?”
+
+Ask “Can I change my avatar?”
+
+Send “I agree”
+
+Send “I disagree”
+
+Send “LOL, that was funny”
+
+Send “Best stream ever”
+
+Ask “Can I share this?”
+
+Send a poll suggestion
+
+Send a quiz suggestion
+
+Ask “Who’s online?”
+
+Send “I’m ready”
+
+Ask “Can I submit content?”
+
+Send “Happy birthday!”
+
+Send “Merry Christmas!”
+
+Send “Happy New Year!”
+
+Send “Good night”
+
+Ask “Can I change chat color?”
+
+Ask “Can I react privately?”
+
+Send “Thank you for the stream!”
+
+Send “I love this overlay”
+
+Send “Cool animation”
+
+Ask “Can I add a sticker?”
+
+Send “Can you highlight my message?”
+
+Ask “Can I join the game?”
+
+Send “Vote for the next challenge”
+
+Send “Can we play together?”
+
+Send “I have a question”
+
+Send “Explain that again”
+
+Ask “What’s the next topic?”
+
+Send “Well done!”
+
+Send “Amazing!”
+
+Send “Nice job!”
+
+Ask “Can I share my screen?”
+
+Ask “Can I enable my webcam?”
+
+Send “Hello host!”
+
+Send “Hello viewers!”
+
+Ask “Can I suggest a poll?”
+
+Send “I like this song”
+
+Send “I like this overlay”
+
+Ask “Can I change the emoji theme?”
+
+Send “Send confetti for me!”
+
+Send “I want to participate in mini-game”
+
+Send “Show me the rules”
+
+Ask “Can I interact with the border overlay?”
+
+Send “Highlight my username”
+
+Ask “Can I vote again?”
+
+Send “Can you show my donation?”
+
+Send “I’m enjoying this”
+
+Ask “Can I be VIP?”
+
+Send “Good strategy!”
+
+Send “Cool move!”
+
+Send “Nice overlay effect”
+
+Send “Can I customize my border?”
+
+Ask “Can I trigger confetti?”
+
+Send “I want to react with an animation”
+
+Send “I want to be part of the poll”
+
+Send “Can I vote in quiz?”
+
+Ask “Can I use sticker overlay?”
+
+Send “I want to see leaderboard updates”
+
+2️⃣ Reactions & Interactions (121–250)
+
+Give a thumbs-up reaction
+
+Give a heart reaction
+
+Give a laughing reaction
+
+Give a surprised reaction
+
+Give a party reaction
+
+Give a confetti reaction
+
+Give a fireworks reaction
+
+Give a clapping reaction
+
+Give an animated sticker reaction
+
+Give emoji reaction
+
+Give a floating heart reaction
+
+Give a sparkle reaction
+
+Give a shooting star reaction
+
+Give a celebratory reaction
+
+Tap an interactive button
+
+Click a poll button
+
+Vote in a poll
+
+Submit answer in quiz
+
+Join mini-game
+
+Leave mini-game
+
+Request leaderboard update
+
+Trigger confetti animation
+
+Trigger border sparkle
+
+Trigger overlay hearts
+
+Trigger fireworks overlay
+
+Click floating emoji
+
+Drag an interactive overlay element
+
+Drop an overlay sticker
+
+React with animated sticker
+
+Tap to give points to another user
+
+Send reaction to highlight message
+
+Tap VIP interactive button
+
+Activate interactive mini-object
+
+Send interaction for game event
+
+Hover on overlay to animate it
+
+Click interactive leaderboard element
+
+Tap donation button
+
+Claim mini-game reward
+
+Trigger personalized animation
+
+Send reaction to streamer
+
+Trigger emoji trail on screen
+
+Tap interactive text caption
+
+Trigger sparkles behind webcam
+
+Tap interactive hearts overlay
+
+Trigger fireworks behind overlay
+
+Tap floating star for points
+
+Trigger animated border effect
+
+Tap interactive sticker
+
+Send animated confetti
+
+Tap chat reaction button
+
+Trigger interactive floating badge
+
+Hover to reveal hidden overlay
+
+Drag sticker across screen
+
+Tap to unlock reward animation
+
+Trigger VIP sparkle overlay
+
+Tap animated button for effect
+
+Activate overlay particle effect
+
+Tap interactive floating icon
+
+Trigger mini-game event
+
+Hover to change overlay color
+
+Tap to show hidden text
+
+Tap to trigger confetti burst
+
+Tap emoji button to react
+
+Hover to show animation preview
+
+Trigger animation chain reaction
+
+Tap to unlock mini-game bonus
+
+Send interactive reaction to group
+
+Tap button to vote for content
+
+Tap floating icon for animation
+
+Trigger overlay special effect
+
+Click to animate webcam border
+
+Tap interactive poll icon
+
+Trigger fireworks chain
+
+Hover to animate sticker
+
+Tap overlay icon to send gift
+
+Tap to trigger reaction combo
+
+Activate interactive chat sticker
+
+Tap to trigger border glow
+
+Tap to send sparkle trail
+
+Hover to show floating hearts
+
+Tap interactive star icon
+
+Trigger overlay animation sequence
+
+Tap to send floating emoji
+
+Tap interactive game icon
+
+Trigger mini-game animation
+
+Tap to show leaderboard highlight
+
+Hover to trigger sticker animation
+
+Tap interactive effect for points
+
+Tap to trigger overlay halo
+
+Trigger overlay fireworks with click
+
+Tap interactive badge for animation
+
+Hover to show text pop-up
+
+Tap button to change overlay color
+
+Tap to trigger confetti funnel
+
+Tap floating icon to vote
+
+Trigger hearts orbit overlay
+
+Tap interactive element for reward
+
+Hover to show sparkle trail
+
+Tap button to trigger fireworks
+
+Trigger interactive mini-game feature
+
+Tap floating stars for points
+
+Hover to animate confetti trail
+
+Tap interactive overlay to react
+
+Trigger VIP animation with tap
+
+Tap to unlock interactive animation
+
+Hover to show mini-game instruction
+
+Tap overlay icon to celebrate
+
+Tap button to trigger sparkle burst
+
+Trigger chain reaction with overlay
+
+Tap interactive confetti button
+
+Tap to trigger floating emojis
+
+Hover to show animated border
+
+Tap overlay icon for mini-game
+
+Trigger interactive animation for viewers
+
+Tap to animate floating stickers
+
+Tap button to trigger fireworks
+
+Tap to start reaction animation
+
+Hover to show interactive badge
+
+Tap floating heart to celebrate
+
+Trigger animation combo by tap
+
+Tap interactive star overlay
+
+Tap to trigger confetti rain
+
+Tap button for mini-game participation
+
+Tap to animate text overlay
+
+Hover to reveal hidden icon
+
+Tap interactive icon for reaction
+
+Tap floating emoji to celebrate
+
+Trigger chain confetti animation
+
+Tap to activate sparkle animation
+
+Hover to preview overlay effect
+
+3️⃣ Customization & Personalization Commands (251–400)
+
+Change my display name
+
+Change my avatar
+
+Change chat color
+
+Change emoji reactions color
+
+Change border style
+
+Change webcam border color
+
+Change overlay theme
+
+Customize sticker size
+
+Customize overlay position
+
+Change overlay transparency
+
+Change animation speed
+
+Set favorite emojis
+
+Save custom border style
+
+Save custom sticker pack
+
+Set default text overlay
+
+Set preferred language
+
+Set default poll option
+
+Change font style for chat
+
+Change font size for captions
+
+Change background color for overlay
+
+Change webcam filter
+
+Enable grayscale webcam
+
+Enable cartoon filter
+
+Enable neon glow filter
+
+Enable shadow effect on text
+
+Customize mini-game controls
+
+Customize particle effects
+
+Customize sticker animation
+
+Customize emoji trail
+
+Customize confetti color
+
+Customize spark trails
+
+Customize fireworks style
+
+Change floating icons color
+
+Change floating icons speed
+
+Set default reaction animation
+
+Save favorite overlay preset
+
+Load saved overlay preset
+
+Reset overlay to default
+
+Change border thickness
+
+Change border glow intensity
+
+Change border animation speed
+
+Change text animation type
+
+Change text color
+
+Change chat bubble style
+
+Enable VIP badge display
+
+Disable VIP badge display
+
+Change mini-game theme
+
+Change mini-game difficulty
+
+Change overlay layout
+
+Save custom layout preset
+
+Load custom layout preset
+
+Reset layout
+
+Set personal goal tracker overlay
+
+Set donation goal overlay
+
+Change notification animation
+
+Customize timer overlay
+
+Set favorite animated sticker
+
+Enable special effects on click
+
+Disable special effects
+
+Set background animation
+
+Change particle trail color
+
+Set confetti direction
+
+Set fireworks pattern
+
+Enable hover effects for overlays
+
+Disable hover effects
+
+Set mini-game avatar
+
+Set reaction priority
+
+Set chat bubble transparency
+
+Enable/disable animation loops
+
+Set overlay font style
+
+Set overlay font size
+
+Set text outline thickness
+
+Set glowing border intensity
+
+Change webcam shape
+
+Enable circular webcam
+
+Enable oval webcam
+
+Set webcam filter intensity
+
+Save custom webcam filter
+
+Load webcam filter preset
+
+Reset webcam filter
+
+Enable floating icons
+
+Disable floating icons
+
+Set icon animation speed
+
+Set icon trail length
+
+Enable interactive overlay buttons
+
+Disable interactive overlay buttons
+
+Customize button style
+
+Customize button animation
+
+Set default reaction emoji
+
+Set default overlay animation
+
+Save overlay as template
+
+Load overlay template
+
+Reset overlay template
+
+Set personal highlight color
+
+Enable glow effect for highlight
+
+Disable glow effect
+
+Customize VIP badge style
+
+Set overlay border style for VIPs
+
+Set mini-game overlay theme
+
+Enable confetti for all actions
+
+Disable confetti for all actions
+
+Enable fireworks for donations
+
+Disable fireworks for donations
+
+Set interactive badge animation
+
+Customize sparkler style
+
+Enable floating text effects
+
+Disable floating text effects
+
+Set emoji burst size
+
+Set animation repeat frequency
+
+Set mini-game icon style
+
+Save animation preset
+
+Load animation preset
+
+Reset animation preset
+
+Customize reaction trail
+
+Enable special overlay sounds
+
+Disable overlay sounds
+
+Set text overlay font
+
+Set overlay transparency
+
+Set overlay position
+
+Change overlay color palette
+
+Enable dynamic overlay movement
+
+Disable dynamic overlay movement
+
+Customize mini-game rewards
+
+Enable mini-game leaderboard overlay
+
+Disable mini-game leaderboard
+
+Customize border animation
+
+Enable border animation loops
+
+Disable border animation loops
+
+Set floating emoji animation
+
+Enable floating hearts for reactions
+
+Disable floating hearts
+
+Customize confetti shape
+
+Set fireworks intensity
+
+Enable interactive mini-game icons
+
+Disable interactive icons
+
+Set overlay element rotation speed
+
+Enable mouse-follow overlay effect
+
+Disable mouse-follow effect
+
+Save personal overlay setup
+
+Load personal overlay setup
+
+Reset personal overlay setup
+
+Enable user-triggered animations
+
+Disable user-triggered animations
+
+Customize hover sparkle effect
+
+Enable hover sparkle
+
+Disable hover sparkle
+
+Set floating badge animation speed
+
+Customize floating badge colors
+
+Enable floating text shadow
+
+Disable floating text shadow

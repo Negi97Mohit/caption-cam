@@ -12,6 +12,10 @@ import { GeneratedOverlay, LayoutMode, CameraShape } from "../types/caption";
 import { LayoutControls } from "./LayoutControls";
 import { CameraRenderer } from "./CameraRenderer";
 import { AICommandPopover } from "./AICommandPopover";
+import { Card, CardHeader, CardTitle, CardContent, CardFooter } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
+import { Timer,  Users, Heart, ThumbsUp } from "lucide-react";
 
 type VideoPlayerProps = {
     stream: MediaStream | null;
@@ -31,8 +35,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ stream, className, style }) =
     return <video ref={videoRef} autoPlay muted playsInline className={className} style={style} />;
 };
 
-
-const DynamicCodeRenderer = ({ overlay, onLayoutChange, onRemove, containerSize }) => {
+const DynamicCodeRenderer = ({ overlay, onLayoutChange, onRemove, containerSize, onStateChange }) => {
     const [Component, setComponent] = useState(null);
     const [error, setError] = useState(null);
 
@@ -44,8 +47,19 @@ const DynamicCodeRenderer = ({ overlay, onLayoutChange, onRemove, containerSize 
                 ? transformedCode
                 : `() => { return ${transformedCode} }`;
 
-            const componentFunction = new Function('React', `return ${executableCode}`);
-            setComponent(() => componentFunction(React));
+            // Define the scope of available components and icons for the AI
+            const componentScope = {
+                React,
+                Card, CardHeader, CardTitle, CardContent, CardFooter,
+                Badge,
+                Progress,
+                Button, // Already imported
+                Timer, Mic, MicOff, Users, Heart, ThumbsUp
+            };
+
+            const componentFunction = new Function(...Object.keys(componentScope), `return ${executableCode}`);
+            setComponent(() => componentFunction(...Object.values(componentScope)));
+
         } catch (e) {
             console.error("Component generation error:", e);
             setError((e as Error).message);

@@ -11,12 +11,16 @@ export function useLocalStorage<T>(key: string, initialValue: T): [T, React.Disp
       return initialValue;
     }
   });
+// src/hooks/useLocalStorage.ts
 
   const setValue = (value: T | ((val: T) => T)) => {
     try {
-      const valueToStore = value instanceof Function ? value(storedValue) : value;
-      setStoredValue(valueToStore);
-      window.localStorage.setItem(key, JSON.stringify(valueToStore));
+      // By using the functional update form of setState, we ensure we always have the latest state.
+      setStoredValue(prevStoredValue => {
+        const valueToStore = value instanceof Function ? value(prevStoredValue) : value;
+        window.localStorage.setItem(key, JSON.stringify(valueToStore));
+        return valueToStore;
+      });
     } catch (error) {
       console.error(error);
     }

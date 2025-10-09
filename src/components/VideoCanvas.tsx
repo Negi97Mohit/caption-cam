@@ -97,8 +97,13 @@ const DynamicCodeRenderer = ({ overlay, onLayoutChange, onRemove, containerSize,
             className="flex items-center justify-center border-2 border-transparent hover:border-blue-500 hover:border-dashed group pointer-events-auto"
         >
             <div id={overlay.id} className="w-full h-full relative flex items-center justify-center">{content}</div>
-            <button onClick={() => onRemove(overlay.id)} className="absolute -top-3 -right-3 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">X</button>
-        </Rnd>
+            <button 
+                onClick={() => onRemove(overlay.id)} 
+                className="absolute -top-3 -right-3 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity z-50"
+            >
+                X
+            </button>
+          </Rnd>
     );
 };
 
@@ -551,14 +556,17 @@ const handlePipResizeStop = (e: any, direction: any, ref: HTMLElement, delta: an
       </div>
 
       <div ref={overlayContainerRef} className="absolute inset-0 pointer-events-none" style={{ zIndex: 220 }}>
-        <div className="w-full h-full relative pointer-events-none">
+        <div className="w-full h-full relative">
+          
           {rest.generatedOverlays.map(overlay => (
             <DynamicCodeRenderer 
               key={overlay.id} 
               overlay={overlay} 
               onLayoutChange={rest.onOverlayLayoutChange} 
               onRemove={rest.onRemoveOverlay} 
-              containerSize={containerSize} 
+              containerSize={containerSize}
+              // This onStateChange prop was missing, it's needed for chained actions
+              onStateChange={rest.onOverlayStateChange} 
             />
           ))}
         </div>

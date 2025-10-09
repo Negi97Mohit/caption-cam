@@ -141,7 +141,7 @@ const Index = () => {
       let currentOverlays = [...activeOverlays];
 
       for (const action of actions) {
-        log('AI_ACTION', `Executing: ${action.tool}`, action);
+        log('INFO', `Executing: ${action.tool}`, action);
         switch (action.tool) {
           case 'generate_ui_component':
             if (currentOverlays.some(o => o.name === action.name)) {

@@ -220,7 +220,9 @@ const processTranscript = useCallback(async (transcript: string) => {
           trackingSpeed={trackingSpeed} onTrackingSpeedChange={setTrackingSpeed}
           isBeautifyEnabled={isBeautifyEnabled} onBeautifyToggle={setIsBeautifyEnabled}
           isLowLightEnabled={isLowLightEnabled} onLowLightToggle={setIsLowLightEnabled}
-        />
+          videoFilter={videoFilter}
+          onVideoFilterChange={setVideoFilter}
+      />
         <VideoCanvas
           captionsEnabled={captionsEnabled} backgroundEffect={backgroundEffect} backgroundImageUrl={backgroundImageUrl}
           isAutoFramingEnabled={isAutoFramingEnabled} onProcessTranscript={processTranscript}

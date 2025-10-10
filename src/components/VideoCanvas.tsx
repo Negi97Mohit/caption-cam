@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
-import { Mic, MicOff, Webcam, VideoOff, ScreenShare, Square, ChevronUp, Check, Circle, RotateCcw, Sparkles} from "lucide-react";
+import { Mic, MicOff, Webcam, VideoOff, ScreenShare, Square, ChevronUp, Check, Circle, RotateCcw, Sparkles, Timer, Users, Heart, ThumbsUp, CloudSun, Thermometer, Wind } from "lucide-react";
 import { Button } from "./ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "./ui/dropdown-menu";
 import { toast } from "sonner";
@@ -15,60 +15,82 @@ import { AICommandPopover } from "./AICommandPopover";
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { Timer,  Users, Heart, ThumbsUp } from "lucide-react";
 
-type VideoPlayerProps = {
-    stream: MediaStream | null;
-    className?: string;
-    style?: React.CSSProperties;
-};
-
-const VideoPlayer: React.FC<VideoPlayerProps> = ({ stream, className, style }) => {
-    const videoRef = useRef<HTMLVideoElement>(null);
+const useFetchedData = (fetchConfig: { url: string, interval?: number } | undefined) => {
+    const [jsonData, setJsonData] = useState(null);
+    const [isLoading, setIsLoading] = useState(false);
+    const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
-        if (videoRef.current && stream) {
-            videoRef.current.srcObject = stream;
+        if (!fetchConfig?.url) {
+            setJsonData(null);
+            return;
         }
-    }, [stream]);
 
-    return <video ref={videoRef} autoPlay muted playsInline className={className} style={style} />;
+        let isCancelled = false;
+        const fetchData = async () => {
+            setIsLoading(true);
+            setError(null);
+            try {
+                const response = await fetch(fetchConfig.url);
+                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                const data = await response.json();
+                if (!isCancelled) setJsonData(data);
+            } catch (e) {
+                if (!isCancelled) setError((e as Error).message);
+            } finally {
+                if (!isCancelled) setIsLoading(false);
+            }
+        };
+
+        fetchData();
+        const intervalId = fetchConfig.interval ? setInterval(fetchData, fetchConfig.interval * 1000) : null;
+
+        return () => {
+            isCancelled = true;
+            if (intervalId) clearInterval(intervalId);
+        };
+    }, [fetchConfig?.url, fetchConfig?.interval]);
+
+    return { jsonData, isLoading, error };
 };
 
-const DynamicCodeRenderer = ({ overlay, onLayoutChange, onRemove, containerSize, onStateChange }) => {
-    const [Component, setComponent] = useState(null);
-    const [error, setError] = useState(null);
+const DynamicCodeRenderer: React.FC<{
+    overlay: GeneratedOverlay;
+    onLayoutChange: (id: string, key: 'position' | 'size', value: any) => void;
+    onRemove: (id: string) => void;
+    containerSize: { width: number; height: number };
+    onStateChange: (id: string, state: any) => void;
+}> = ({ overlay, onLayoutChange, onRemove, containerSize, onStateChange }) => {
+    const [Component, setComponent] = useState<React.ComponentType<any> | null>(null);
+    const [error, setError] = useState<string | null>(null);
+    const data = useFetchedData(overlay.fetch);
 
     useEffect(() => {
         try {
             setError(null);
             const transformedCode = Babel.transform(overlay.componentCode, { presets: ['react'] }).code;
-            const executableCode = transformedCode.trim().startsWith('()')
+            const executableCode = transformedCode.trim().startsWith('()') || transformedCode.trim().startsWith('({')
                 ? transformedCode
-                : `() => { return ${transformedCode} }`;
+                : `({ data, onStateChange }) => { return ${transformedCode} }`;
 
-            // Define the scope of available components and icons for the AI
             const componentScope = {
-                React,
-                Card, CardHeader, CardTitle, CardContent, CardFooter,
-                Badge,
-                Progress,
-                Button, // Already imported
-                Timer, Mic, MicOff, Users, Heart, ThumbsUp
+                React, Card, CardHeader, CardTitle, CardContent, CardFooter,
+                Badge, Progress, Button,
+                Timer, Mic, MicOff, Users, Heart, ThumbsUp, CloudSun, Thermometer, Wind
             };
 
             const componentFunction = new Function(...Object.keys(componentScope), `return ${executableCode}`);
             setComponent(() => componentFunction(...Object.values(componentScope)));
-
         } catch (e) {
             console.error("Component generation error:", e);
             setError((e as Error).message);
             setComponent(null);
         }
     }, [overlay.componentCode]);
-    
+
     if (!containerSize.width || !containerSize.height) return null;
-    
+
     const position = {
       x: (overlay.layout.position.x / 100) * containerSize.width,
       y: (overlay.layout.position.y / 100) * containerSize.height,
@@ -79,31 +101,25 @@ const DynamicCodeRenderer = ({ overlay, onLayoutChange, onRemove, containerSize,
     };
 
     const content = error ? (
-        <div className="w-full h-full p-2 bg-red-900 text-white overflow-auto">
-            <h4 className="font-bold">Render Error</h4>
-            <pre className="text-xs whitespace-pre-wrap">{error}</pre>
-        </div>
-    ) : Component ? <Component /> : <div>Loading...</div>;
+        <div className="w-full h-full p-2 bg-red-900 text-white overflow-auto"><h4 className="font-bold">Render Error</h4><pre className="text-xs whitespace-pre-wrap">{error}</pre></div>
+    ) : Component ? <Component data={data} onStateChange={(value: any) => onStateChange(overlay.id, value)} /> : <div>Loading...</div>;
 
     return (
         <Rnd
             size={size} position={position} minWidth={50} minHeight={50} bounds="parent"
             onDragStop={(e, d) => onLayoutChange(overlay.id, 'position', { x: (d.x / containerSize.width) * 100, y: (d.y / containerSize.height) * 100 })}
-            onResizeStop={(e, dir, ref, delta, pos) => {
-                onLayoutChange(overlay.id, 'size', { width: (parseInt(ref.style.width, 10) / containerSize.width) * 100, height: (parseInt(ref.style.height, 10) / containerSize.height) * 100 });
+            onResizeStop={(e, direction, ref, delta, pos) => {
+                const newWidth = size.width + delta.width;
+                const newHeight = size.height + delta.height;
+                onLayoutChange(overlay.id, 'size', { width: (newWidth / containerSize.width) * 100, height: (newHeight / containerSize.height) * 100 });
                 onLayoutChange(overlay.id, 'position', { x: (pos.x / containerSize.width) * 100, y: (pos.y / containerSize.height) * 100 });
             }}
             style={{ zIndex: overlay.layout.zIndex }}
             className="flex items-center justify-center border-2 border-transparent hover:border-blue-500 hover:border-dashed group pointer-events-auto"
         >
             <div id={overlay.id} className="w-full h-full relative flex items-center justify-center">{content}</div>
-            <button 
-                onClick={() => onRemove(overlay.id)} 
-                className="absolute -top-3 -right-3 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity z-50"
-            >
-                X
-            </button>
-          </Rnd>
+            <button onClick={() => onRemove(overlay.id)} className="absolute -top-3 -right-3 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity z-50">X</button>
+        </Rnd>
     );
 };
 
@@ -115,6 +131,7 @@ interface VideoCanvasProps {
   onProcessTranscript: (transcript: string) => void;
   generatedOverlays: GeneratedOverlay[];
   onOverlayLayoutChange: (id: string, key: 'position' | 'size', value: any) => void;
+  onOverlayStateChange: (id: string, state: any) => void;
   onRemoveOverlay: (id: string) => void;
   liveCaptionStyle: React.CSSProperties;
   videoFilter: string;
@@ -148,6 +165,21 @@ interface VideoCanvasProps {
   onAiButtonPositionChange: (position: { x: number; y: number }) => void;
 }
 
+const VideoPlayer: React.FC<{
+    stream: MediaStream | null;
+    className?: string;
+    style?: React.CSSProperties;
+}> = ({ stream, className, style }) => {
+    const videoRef = useRef<HTMLVideoElement>(null);
+
+    useEffect(() => {
+        if (videoRef.current && stream) {
+            videoRef.current.srcObject = stream;
+        }
+    }, [stream]);
+
+    return <video ref={videoRef} autoPlay muted playsInline className={className} style={style} />;
+};
 
 const SNAP_THRESHOLD = 5;
 
@@ -169,7 +201,6 @@ export const VideoCanvas = (props: VideoCanvasProps) => {
   const [isScreenSharing, setIsScreenSharing] = useState(false);
   const [pipContent, setPipContent] = useState<'camera' | 'screen'>('camera');
   const canvasContainerRef = useRef<HTMLDivElement>(null);
-
 
   const { cameraStream, screenStream } = useVideoStreams({
     isCameraOn: isVideoOn,
@@ -216,7 +247,6 @@ export const VideoCanvas = (props: VideoCanvasProps) => {
     return () => resizeObserver.disconnect();
   }, []);
 
-
   const { startRecognition, stopRecognition } = useBrowserSpeech({
     onFinalTranscript: rest.onProcessTranscript,
     onPartialTranscript: setPartialTranscript,
@@ -232,29 +262,21 @@ export const VideoCanvas = (props: VideoCanvasProps) => {
 
         if (isScreenSharing && screenStream) {
             const screenVideoTrack = screenStream.getVideoTracks()[0];
-            if (screenVideoTrack) {
-                outputStream.addTrack(screenVideoTrack.clone());
-            }
+            if (screenVideoTrack) outputStream.addTrack(screenVideoTrack.clone());
 
             const screenAudioTrack = screenStream.getAudioTracks()[0];
             if (screenAudioTrack) {
                 outputStream.addTrack(screenAudioTrack.clone());
             } else if (cameraStream) {
                 const cameraAudioTrack = cameraStream.getAudioTracks()[0];
-                if (cameraAudioTrack) {
-                    outputStream.addTrack(cameraAudioTrack.clone());
-                }
+                if (cameraAudioTrack) outputStream.addTrack(cameraAudioTrack.clone());
             }
         } else if (cameraStream) {
             const cameraVideoTrack = cameraStream.getVideoTracks()[0];
-            if (cameraVideoTrack) {
-                outputStream.addTrack(cameraVideoTrack.clone());
-            }
+            if (cameraVideoTrack) outputStream.addTrack(cameraVideoTrack.clone());
 
             const cameraAudioTrack = cameraStream.getAudioTracks()[0];
-            if (cameraAudioTrack) {
-                outputStream.addTrack(cameraAudioTrack.clone());
-            }
+            if (cameraAudioTrack) outputStream.addTrack(cameraAudioTrack.clone());
         }
 
         if (outputStream.getTracks().length === 0) {
@@ -265,9 +287,7 @@ export const VideoCanvas = (props: VideoCanvasProps) => {
         recordedChunksRef.current = [];
         mediaRecorderRef.current = new MediaRecorder(outputStream, { mimeType: 'video/webm; codecs=vp9' });
         mediaRecorderRef.current.ondataavailable = (e) => {
-            if (e.data.size > 0) {
-                recordedChunksRef.current.push(e.data);
-            }
+            if (e.data.size > 0) recordedChunksRef.current.push(e.data);
         };
         mediaRecorderRef.current.onstop = () => {
             const blob = new Blob(recordedChunksRef.current, { type: 'video/webm' });
@@ -283,7 +303,6 @@ export const VideoCanvas = (props: VideoCanvasProps) => {
         rest.onRecordingToggle(true);
         toast.info("Recording started!");
     };
-
 
   const handleStopRecording = () => {
     if (mediaRecorderRef.current?.state === 'recording') mediaRecorderRef.current.stop();
@@ -369,19 +388,9 @@ const handlePipResizeStop = (e: any, direction: any, ref: HTMLElement, delta: an
 
   const getVideoFilterStyle = (): string => {
     const filters: string[] = [];
-    
-    if (rest.videoFilter && rest.videoFilter !== 'none') {
-      filters.push(rest.videoFilter);
-    }
-    
-    if (rest.isBeautifyEnabled) {
-      filters.push('blur(0.5px) saturate(1.1) brightness(1.05)');
-    }
-    
-    if (rest.isLowLightEnabled) {
-      filters.push('brightness(1.3) contrast(1.15)');
-    }
-    
+    if (rest.videoFilter && rest.videoFilter !== 'none') filters.push(rest.videoFilter);
+    if (rest.isBeautifyEnabled) filters.push('blur(0.5px) saturate(1.1) brightness(1.05)');
+    if (rest.isLowLightEnabled) filters.push('brightness(1.3) contrast(1.15)');
     return filters.length > 0 ? filters.join(' ') : 'none';
   };
 
@@ -390,32 +399,15 @@ const handlePipResizeStop = (e: any, direction: any, ref: HTMLElement, delta: an
   const renderCamera = (className?: string, style?: React.CSSProperties, isPip: boolean = false) => (
     <div className={cn("w-full h-full", className, isPip && rest.cameraShape === 'circle' && 'aspect-square')} style={getCameraShapeStyle()}>
         {(rest.backgroundEffect !== 'none' || rest.isAutoFramingEnabled) ? (
-          <CameraRenderer
-            stream={cameraStream}
-            backgroundEffect={rest.backgroundEffect}
-            backgroundImageUrl={rest.backgroundImageUrl}
-            isAutoFramingEnabled={rest.isAutoFramingEnabled}
-            zoomSensitivity={rest.zoomSensitivity}
-            trackingSpeed={rest.trackingSpeed}
-            className="w-full h-full"
-            style={{ ...style, filter: videoFilterString }}
-          />
+          <CameraRenderer stream={cameraStream} backgroundEffect={rest.backgroundEffect} backgroundImageUrl={rest.backgroundImageUrl} isAutoFramingEnabled={rest.isAutoFramingEnabled} zoomSensitivity={rest.zoomSensitivity} trackingSpeed={rest.trackingSpeed} className="w-full h-full" style={{ ...style, filter: videoFilterString }} />
         ) : (
-          <VideoPlayer 
-            stream={cameraStream} 
-            className="w-full h-full object-cover" 
-            style={{ ...style, filter: videoFilterString }} 
-          />
+          <VideoPlayer stream={cameraStream} className="w-full h-full object-cover" style={{ ...style, filter: videoFilterString }} />
         )}
     </div>
   );
 
   const renderScreen = (className?: string) => (
-      <VideoPlayer 
-        stream={screenStream} 
-        className={cn("w-full h-full object-cover", className)} 
-        style={{ filter: videoFilterString }}
-      />
+      <VideoPlayer stream={screenStream} className={cn("w-full h-full object-cover", className)} style={{ filter: videoFilterString }} />
   );
 
   const renderContent = () => {
@@ -423,39 +415,14 @@ const handlePipResizeStop = (e: any, direction: any, ref: HTMLElement, delta: an
     const mainContent = mainIsCamera ? renderCamera() : renderScreen();
     const pipVideo = pipContent === 'camera' ? renderCamera("cursor-move", {}, true) : renderScreen("cursor-move");
 
-    const pipSizePx = {
-        width: (containerSize.width * rest.pipSize.width) / 100,
-        height: (containerSize.height * rest.pipSize.height) / 100,
-    };
-
-    const pipPositionPx = {
-        x: (containerSize.width * rest.pipPosition.x) / 100,
-        y: (containerSize.height * rest.pipPosition.y) / 100,
-    };
-
+    const pipSizePx = { width: (containerSize.width * rest.pipSize.width) / 100, height: (containerSize.height * rest.pipSize.height) / 100 };
+    const pipPositionPx = { x: (containerSize.width * rest.pipPosition.x) / 100, y: (containerSize.height * rest.pipPosition.y) / 100 };
 
     const pipContentEl = isScreenSharing && screenStream && isVideoOn && cameraStream && containerSize.width > 0 && (
-        <Rnd
-            size={pipSizePx}
-            position={pipPositionPx}
-            minWidth={containerSize.width * 0.1}
-            minHeight={containerSize.height * 0.1}
-            maxWidth={containerSize.width * 0.5}
-            maxHeight={containerSize.height * 0.5}
-            bounds="parent"
-            onDragStop={handlePipDragStop}
-            onResizeStop={handlePipResizeStop}
-            className="pointer-events-auto"
-            style={{ zIndex: 210 }} 
-        >
+        <Rnd size={pipSizePx} position={pipPositionPx} minWidth={containerSize.width * 0.1} minHeight={containerSize.height * 0.1} maxWidth={containerSize.width * 0.5} maxHeight={containerSize.height * 0.5} bounds="parent" onDragStop={handlePipDragStop} onResizeStop={handlePipResizeStop} className="pointer-events-auto" style={{ zIndex: 210 }}>
             <div className="w-full h-full relative group">
                 {pipVideo}
-                <Button
-                    size="icon"
-                    variant="secondary"
-                    className="absolute top-1 right-1 h-6 w-6 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
-                    onClick={() => setPipContent(pipContent === 'camera' ? 'screen' : 'camera')}
-                >
+                <Button size="icon" variant="secondary" className="absolute top-1 right-1 h-6 w-6 rounded-full opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => setPipContent(pipContent === 'camera' ? 'screen' : 'camera')}>
                     <RotateCcw className="h-4 w-4" />
                 </Button>
             </div>
@@ -464,110 +431,49 @@ const handlePipResizeStop = (e: any, direction: any, ref: HTMLElement, delta: an
 
     const getBackgroundStyle = (): React.CSSProperties => {
       const style: React.CSSProperties = {};
-      
-      if (rest.backgroundEffect === 'blur') {
-        style.backdropFilter = 'blur(10px)';
-        style.WebkitBackdropFilter = 'blur(10px)';
-      }
-      
-      if (rest.backgroundEffect === 'image' && rest.backgroundImageUrl) {
-        style.backgroundImage = `url(${rest.backgroundImageUrl})`;
-        style.backgroundSize = 'cover';
-        style.backgroundPosition = 'center';
-      }
-      
+      if (rest.backgroundEffect === 'blur') { style.backdropFilter = 'blur(10px)'; style.WebkitBackdropFilter = 'blur(10px)'; }
+      if (rest.backgroundEffect === 'image' && rest.backgroundImageUrl) { style.backgroundImage = `url(${rest.backgroundImageUrl})`; style.backgroundSize = 'cover'; style.backgroundPosition = 'center'; }
       return style;
     };
 
     const contentWithBackground = (
       <div className="w-full h-full relative" style={getBackgroundStyle()}>
-        {rest.backgroundEffect === 'image' && rest.backgroundImageUrl && (
-          <div className="absolute inset-0 opacity-30" style={{
-            backgroundImage: `url(${rest.backgroundImageUrl})`,
-            backgroundSize: 'cover',
-            backgroundPosition: 'center',
-          }} />
-        )}
-        <div className="relative w-full h-full" style={rest.backgroundEffect === 'blur' ? { 
-          backdropFilter: 'blur(20px)', 
-          WebkitBackdropFilter: 'blur(20px)' 
-        } : {}}>
-          {mainContent}
-        </div>
+        {rest.backgroundEffect === 'image' && rest.backgroundImageUrl && (<div className="absolute inset-0 opacity-30" style={{ backgroundImage: `url(${rest.backgroundImageUrl})`, backgroundSize: 'cover', backgroundPosition: 'center', }} />)}
+        <div className="relative w-full h-full" style={rest.backgroundEffect === 'blur' ? { backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)' } : {}}>{mainContent}</div>
         {pipContentEl}
       </div>
     );
 
     switch (rest.layoutMode) {
-      case 'pip':
-        return contentWithBackground;
+      case 'pip': return contentWithBackground;
       case 'split-vertical':
       case 'split-horizontal':
         const isVertical = rest.layoutMode === 'split-vertical';
         return (
           <div className={cn("w-full h-full flex", isVertical ? "flex-col" : "flex-row")}>
             <div className="relative bg-black flex items-center justify-center overflow-hidden" style={{ [isVertical ? 'height' : 'width']: `${rest.splitRatio * 100}%` }}>
-              {isScreenSharing && screenStream ? renderScreen() : (
-                <div className="text-center text-muted-foreground">
-                  <ScreenShare className="w-16 h-16 mx-auto mb-2" />
-                  <p className="text-sm">Click Share Screen to start</p>
-                </div>
-              )}
+              {isScreenSharing && screenStream ? renderScreen() : (<div className="text-center text-muted-foreground"><ScreenShare className="w-16 h-16 mx-auto mb-2" /><p className="text-sm">Click Share Screen to start</p></div>)}
             </div>
             <div ref={splitDividerRef} className={cn("bg-border hover:bg-primary transition-colors flex items-center justify-center group", isVertical ? "h-2 w-full cursor-row-resize" : "w-2 h-full cursor-col-resize")} onMouseDown={handleSplitterMouseDown}>
               <div className={cn("bg-primary/50 group-hover:bg-primary rounded-full transition-colors", isVertical ? "w-12 h-1" : "w-1 h-12")} />
             </div>
             <div className="relative bg-black flex items-center justify-center overflow-hidden" style={{ [isVertical ? 'height' : 'width']: `${(1 - rest.splitRatio) * 100}%` }}>
-              {isVideoOn && cameraStream ? (
-                <div className="w-full h-full relative" style={getBackgroundStyle()}>
-                  {rest.backgroundEffect === 'image' && rest.backgroundImageUrl && (
-                    <div className="absolute inset-0 opacity-30" style={{
-                      backgroundImage: `url(${rest.backgroundImageUrl})`,
-                      backgroundSize: 'cover',
-                      backgroundPosition: 'center',
-                    }} />
-                  )}
-                  <div className="relative w-full h-full">
-                    {renderCamera()}
-                  </div>
-                </div>
-              ) : (
-                <div className="text-center text-muted-foreground">
-                  <Webcam className="w-16 h-16 mx-auto mb-2" />
-                  <p className="text-sm">Camera Off</p>
-                </div>
-              )}
+              {isVideoOn && cameraStream ? (<div className="w-full h-full relative" style={getBackgroundStyle()}>{rest.backgroundEffect === 'image' && rest.backgroundImageUrl && (<div className="absolute inset-0 opacity-30" style={{ backgroundImage: `url(${rest.backgroundImageUrl})`, backgroundSize: 'cover', backgroundPosition: 'center', }} />)}<div className="relative w-full h-full">{renderCamera()}</div></div>) : (<div className="text-center text-muted-foreground"><Webcam className="w-16 h-16 mx-auto mb-2" /><p className="text-sm">Camera Off</p></div>)}
             </div>
           </div>
         );
-      default:
-        return contentWithBackground;
+      default: return contentWithBackground;
     }
   };
 
-
   return (
     <div ref={canvasContainerRef} className="flex-1 relative bg-black overflow-hidden flex items-center justify-center">
-      
       {renderContent()}
-
-      <div className="absolute top-4 right-4 z-50">
-        <LayoutControls {...rest} />
-      </div>
-
+      <div className="absolute top-4 right-4 z-50"> <LayoutControls {...rest} /> </div>
       <div ref={overlayContainerRef} className="absolute inset-0 pointer-events-none" style={{ zIndex: 220 }}>
         <div className="w-full h-full relative">
-          
           {rest.generatedOverlays.map(overlay => (
-            <DynamicCodeRenderer 
-              key={overlay.id} 
-              overlay={overlay} 
-              onLayoutChange={rest.onOverlayLayoutChange} 
-              onRemove={rest.onRemoveOverlay} 
-              containerSize={containerSize}
-              // This onStateChange prop was missing, it's needed for chained actions
-              onStateChange={rest.onOverlayStateChange} 
-            />
+            <DynamicCodeRenderer key={overlay.id} overlay={overlay} onLayoutChange={rest.onOverlayLayoutChange} onRemove={rest.onRemoveOverlay} containerSize={containerSize} onStateChange={rest.onOverlayStateChange} />
           ))}
         </div>
         {rest.isRecording && partialTranscript && (
@@ -578,21 +484,7 @@ const handlePipResizeStop = (e: any, direction: any, ref: HTMLElement, delta: an
       </div>
       
       {containerSize.width > 0 && (
-        <Rnd
-          style={{ zIndex: 250 }}
-          size={{ width: 64, height: 64 }}
-          position={{
-            x: (aiButtonPosition.x / 100) * containerSize.width,
-            y: (aiButtonPosition.y / 100) * containerSize.height,
-          }}
-          onDragStop={(e, d) => onAiButtonPositionChange({
-            x: (d.x / containerSize.width) * 100,
-            y: (d.y / containerSize.height) * 100
-          })}
-          bounds="parent"
-          enableResizing={false}
-          className="pointer-events-auto"
-        >
+        <Rnd style={{ zIndex: 250 }} size={{ width: 64, height: 64 }} position={{ x: (aiButtonPosition.x / 100) * containerSize.width, y: (aiButtonPosition.y / 100) * containerSize.height, }} onDragStop={(e, d) => onAiButtonPositionChange({ x: (d.x / containerSize.width) * 100, y: (d.y / containerSize.height) * 100 })} bounds="parent" enableResizing={false} className="pointer-events-auto">
           <AICommandPopover onSubmit={rest.onProcessTranscript}>
             <Button size="icon" className="rounded-full h-16 w-16 shadow-lg bg-purple-600 hover:bg-purple-700">
               <Sparkles className="h-8 w-8" />
@@ -621,9 +513,7 @@ const handlePipResizeStop = (e: any, direction: any, ref: HTMLElement, delta: an
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
-
           <div className="w-px h-8 bg-border" />
-
           <div className="flex items-center">
             <Button variant="ghost" size="icon" className="rounded-full h-10 w-10" onClick={() => onVideoToggle(!isVideoOn)}>
               {isVideoOn ? <Webcam className="h-5 w-5" /> : <VideoOff className="h-5 w-5 text-red-500"/>}
@@ -642,15 +532,11 @@ const handlePipResizeStop = (e: any, direction: any, ref: HTMLElement, delta: an
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
-          
           <div className="w-px h-8 bg-border" />
-          
           <Button variant="ghost" size="icon" className={cn("rounded-full h-10 w-10 transition-colors", isScreenSharing && "bg-primary/20")} onClick={handleScreenShareClick} title={isScreenSharing ? "Stop screen share" : "Share screen"}>
             <ScreenShare className="h-5 w-5" />
           </Button>
-          
           <div className="w-px h-8 bg-border" />
-          
           <Button size="icon" className={cn("rounded-full h-12 w-12 transition-colors", rest.isRecording ? "bg-red-600 hover:bg-red-700" : "bg-primary hover:bg-primary/90")} onClick={rest.isRecording ? handleStopRecording : handleStartRecording} disabled={!cameraStream && !screenStream}>
             {rest.isRecording ? <Square className="h-6 w-6" /> : <Circle className="h-6 w-6 fill-current" />}
           </Button>

@@ -32,6 +32,10 @@ export interface GeneratedOverlay {
   layout: GeneratedLayout;
   preview?: string;
   chainedAction?: SingleActionCommand;
+  fetch?: {
+    url: string;
+    interval?: number; // Optional refresh interval in seconds
+  };
 }
 
 // --- SINGLE ACTION COMMANDS ---

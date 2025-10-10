@@ -2,7 +2,7 @@ import React, { createContext, useContext, useState, useCallback } from "react";
 
 export interface LogEntry {
   timestamp: string;
-  type: 'INFO' | 'ERROR' | 'AI_REQUEST' | 'AI_RESPONSE' | 'TRANSCRIPT';
+  type: 'INFO' | 'ERROR' | 'AI_REQUEST' | 'AI_RESPONSE' | 'TRANSCRIPT' | 'AI_ACTION';
   message: string;
   data?: any;
 }

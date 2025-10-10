@@ -89,17 +89,17 @@ export const LeftSidebar = ({
 
   return (
     <aside
-      className="relative bg-card border-r-2 border-border flex flex-col h-full z-10 transition-all duration-300 ease-in-out"
+      className="relative bg-card/80 backdrop-blur-xl border-r flex flex-col h-full z-10 transition-all duration-300 ease-in-out shadow-lg"
       style={{ width: `${width}px` }}
       onMouseEnter={onMouseEnter}
       onMouseLeave={onMouseLeave}
     >
       {isCollapsed ? (
-        <div className="flex flex-col items-center gap-6 py-6 px-2 animate-fade-in">
-          <div className="p-3 rounded-md bg-card border-2 border-border hover:border-primary hover:bg-primary/5 transition-all cursor-pointer" title="Saved Overlays"><Sparkles className="w-5 h-5 text-foreground" /></div>
-          <div className="p-3 rounded-md bg-card border-2 border-border hover:border-primary hover:bg-primary/5 transition-all cursor-pointer" title="Text Styles"><Palette className="w-5 h-5 text-foreground" /></div>
-          <div className="p-3 rounded-md bg-card border-2 border-border hover:border-primary hover:bg-primary/5 transition-all cursor-pointer" title="Video Effects"><Droplets className="w-5 h-5 text-foreground" /></div>
-          <div className="p-3 rounded-md bg-card border-2 border-border hover:border-primary hover:bg-primary/5 transition-all cursor-pointer" title="Debug"><Bug className="w-5 h-5 text-foreground" /></div>
+        <div className="flex flex-col items-center gap-6 py-6 px-2">
+          <div className="p-2 rounded-lg bg-primary/10 hover:bg-primary/20 transition-colors cursor-pointer" title="Saved Overlays"><Sparkles className="w-5 h-5 text-primary" /></div>
+          <div className="p-2 rounded-lg bg-primary/10 hover:bg-primary/20 transition-colors cursor-pointer" title="Text Styles"><Palette className="w-5 h-5 text-primary" /></div>
+          <div className="p-2 rounded-lg bg-primary/10 hover:bg-primary/20 transition-colors cursor-pointer" title="Video Effects"><Droplets className="w-5 h-5 text-primary" /></div>
+          <div className="p-2 rounded-lg bg-primary/10 hover:bg-primary/20 transition-colors cursor-pointer" title="Debug"><Bug className="w-5 h-5 text-primary" /></div>
         </div>
       ) : (
         <div className="flex-1 flex flex-col overflow-hidden transition-opacity duration-200">
@@ -118,14 +118,14 @@ export const LeftSidebar = ({
                       ) : (
                         <div className="grid grid-cols-2 gap-3">
                           {savedOverlays.map(overlay => (
-                            <div key={overlay.id} className="group relative aspect-video rounded-md bg-muted/30 flex items-center justify-center overflow-hidden border-2 border-border hover:border-primary transition-all">
+                            <div key={overlay.id} className="group relative aspect-video rounded-md bg-secondary/50 flex items-center justify-center overflow-hidden border">
                               <button 
                                 className="w-full h-full"
                                 onClick={() => onAddSavedOverlay(overlay)}
                                 title={`Add overlay to canvas`}
                               >
                                 {overlay.preview ? (
-                                    <img src={overlay.preview} alt="Overlay preview" className="absolute inset-0 w-full h-full object-contain p-1" />
+                                    <img src={overlay.preview} alt="Overlay preview" className="absolute inset-0 w-full h-full object-contain" />
                                 ) : (
                                     <span className="text-xs text-muted-foreground">No Preview</span>
                                 )}
@@ -166,10 +166,10 @@ export const LeftSidebar = ({
                 <span className="flex-1 text-left truncate">Video Effects</span>
               </AccordionTrigger>
               <AccordionContent>
-                  <div className="pt-2 space-y-6">
+                 <div className="pt-2 space-y-6">
                   <div className="space-y-3">
                     <Label>Filter</Label>
-                    <div className="flex flex-nowrap items-center gap-2 overflow-x-auto scroll-smooth pb-2 -mx-4 px-4 scrollbar-thin scrollbar-thumb-primary/20 scrollbar-track-transparent hover:scrollbar-thumb-primary/40">
+                    <div className="flex flex-nowrap items-center gap-2 overflow-x-auto pb-2 -mx-4 px-4">
                       {FILTER_PRESETS.map((preset) => (
                         <Button
                           key={preset.id}
@@ -185,7 +185,7 @@ export const LeftSidebar = ({
 
                   <div className="space-y-3 pt-4 border-t">
                     <Label>Background</Label>
-                    <div className="flex items-center gap-2 overflow-x-auto scroll-smooth pb-2 -mx-4 px-4 scrollbar-thin scrollbar-thumb-primary/20 scrollbar-track-transparent hover:scrollbar-thumb-primary/40">
+                    <div className="flex items-center gap-2 overflow-x-auto pb-2 -mx-4 px-4">
                       <Button variant={backgroundEffect === 'none' ? 'default' : 'secondary'} className="h-16 w-20 flex-col flex-shrink-0" onClick={() => handleBackgroundSelect('none')}>
                         <Ban className="w-5 h-5 mb-1" /> None
                       </Button>

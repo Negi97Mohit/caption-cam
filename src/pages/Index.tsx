@@ -88,7 +88,7 @@ const executeCommand = useCallback((action: SingleActionCommand, currentOverlays
               id: generateOverlayId(),
               name: action.name, componentCode: action.componentCode,
               layout: action.layout || { position: { x: 10, y: 10 }, size: { width: 30, height: 15 }, zIndex: 10 },
-              chainedAction: (action as GenerateUICommand).chained as SingleActionCommand,
+              chainedAction: (action as GenerateUICommand).chained,
             };
             updatedOverlays = [...updatedOverlays, newOverlay];
             break;

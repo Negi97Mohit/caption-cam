@@ -116,16 +116,16 @@ export const LeftSidebar = ({
                       {savedOverlays.length === 0 ? (
                         <p className="text-sm text-muted-foreground text-center p-4">Generated overlays will be saved here for reuse.</p>
                       ) : (
-                        <div className="grid grid-cols-2 gap-2">
+                        <div className="grid grid-cols-2 gap-3">
                           {savedOverlays.map(overlay => (
-                            <div key={overlay.id} className="group relative aspect-video rounded-md bg-secondary/50 flex items-center justify-center overflow-hidden border h-20">
+                            <div key={overlay.id} className="group relative aspect-video rounded-md bg-secondary/50 flex items-center justify-center overflow-hidden border">
                               <button 
                                 className="w-full h-full"
                                 onClick={() => onAddSavedOverlay(overlay)}
                                 title={`Add overlay to canvas`}
                               >
                                 {overlay.preview ? (
-                                    <img src={overlay.preview} alt="Overlay preview" className="absolute inset-0 w-full h-full object-contain p-1" />
+                                    <img src={overlay.preview} alt="Overlay preview" className="absolute inset-0 w-full h-full object-contain" />
                                 ) : (
                                     <span className="text-xs text-muted-foreground">No Preview</span>
                                 )}
@@ -133,7 +133,7 @@ export const LeftSidebar = ({
                               <Button 
                                 variant="destructive"
                                 size="icon" 
-                                className="absolute top-0.5 right-0.5 h-5 w-5 opacity-0 group-hover:opacity-100 transition-opacity"
+                                className="absolute top-1 right-1 h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
                                 onClick={() => onDeleteSavedOverlay(overlay.id)}
                                 title="Delete saved overlay"
                               >
@@ -166,16 +166,16 @@ export const LeftSidebar = ({
                 <span className="flex-1 text-left truncate">Video Effects</span>
               </AccordionTrigger>
               <AccordionContent>
-                  <div className="pt-2 space-y-6">
+                 <div className="pt-2 space-y-6">
                   <div className="space-y-3">
                     <Label>Filter</Label>
-                    <div className="flex flex-nowrap items-center gap-2 overflow-x-auto scroll-smooth pb-2 -mx-4 px-4 scrollbar-thin scrollbar-thumb-primary/20 scrollbar-track-transparent">
+                    <div className="flex flex-nowrap items-center gap-2 overflow-x-auto pb-2 -mx-4 px-4">
                       {FILTER_PRESETS.map((preset) => (
                         <Button
                           key={preset.id}
                           variant={videoFilter === preset.style ? 'default' : 'secondary'}
                           onClick={() => onVideoFilterChange(preset.style)}
-                          className="flex-shrink-0 whitespace-nowrap"
+                          className="flex-shrink-0"
                         >
                           {preset.name}
                         </Button>
@@ -185,7 +185,7 @@ export const LeftSidebar = ({
 
                   <div className="space-y-3 pt-4 border-t">
                     <Label>Background</Label>
-                    <div className="flex flex-nowrap items-center gap-2 overflow-x-auto scroll-smooth pb-2 -mx-4 px-4 scrollbar-thin scrollbar-thumb-primary/20 scrollbar-track-transparent">
+                    <div className="flex items-center gap-2 overflow-x-auto pb-2 -mx-4 px-4">
                       <Button variant={backgroundEffect === 'none' ? 'default' : 'secondary'} className="h-16 w-20 flex-col flex-shrink-0" onClick={() => handleBackgroundSelect('none')}>
                         <Ban className="w-5 h-5 mb-1" /> None
                       </Button>

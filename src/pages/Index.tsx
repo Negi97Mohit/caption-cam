@@ -1,4 +1,3 @@
-// src/pages/Index.tsx
 import { useState, useCallback, useEffect } from "react";
 import { VideoCanvas } from "@/components/VideoCanvas";
 import { LeftSidebar } from "@/components/LeftSidebar";
@@ -64,6 +63,7 @@ const Index = () => {
 
   const [isBeautifyEnabled, setIsBeautifyEnabled] = useState(false);
   const [isLowLightEnabled, setIsLowLightEnabled] = useState(false);
+  const [dynamicStyle, setDynamicStyle] = useState('none');
 
   const [layoutMode, setLayoutMode] = useState<LayoutMode>(DEFAULT_LAYOUT_STATE.mode);
   const [cameraShape, setCameraShape] = useState<CameraShape>(DEFAULT_LAYOUT_STATE.cameraShape);
@@ -75,13 +75,12 @@ const Index = () => {
   const { log } = useLog();
   const { setDebugInfo } = useDebug();
 
-const executeCommand = useCallback((action: SingleActionCommand, currentOverlays: GeneratedOverlay[]): GeneratedOverlay[] => {
+  const executeCommand = useCallback((action: SingleActionCommand, currentOverlays: GeneratedOverlay[]): GeneratedOverlay[] => {
       log('AI_ACTION', `Executing: ${action.tool}`, action);
       let updatedOverlays = [...currentOverlays];
       switch (action.tool) {
         case 'generate_ui_component': {
             if (updatedOverlays.some(o => o.name === action.name)) { 
-              // We'll handle the toast in the calling function
               break; 
             }
             const newOverlay: GeneratedOverlay = {
@@ -103,7 +102,11 @@ const executeCommand = useCallback((action: SingleActionCommand, currentOverlays
             updatedOverlays = updatedOverlays.filter(o => o.name !== action.targetId);
             break;
         }
-        case 'apply_live_caption_style': setLiveCaptionStyle(action.style); break;
+        case 'apply_live_caption_style': {
+            setCaptionStyle(prevStyle => ({ ...prevStyle, ...action.style }));
+            toast.success("Caption style updated by AI.");
+            break;
+        }
         case 'apply_video_effect': setVideoFilter(action.filter); break;
         default: console.warn("AI returned an unknown command.");
       }
@@ -119,7 +122,7 @@ const executeCommand = useCallback((action: SingleActionCommand, currentOverlays
     }
   }, [setSavedOverlays]);
 
-const processTranscript = useCallback(async (transcript: string) => {
+  const processTranscript = useCallback(async (transcript: string) => {
     if (!isAiModeEnabled || isProcessingAi) { return; }
     log('TRANSCRIPT', 'Processing command', transcript);
     setDebugInfo((prev) => ({ ...prev, rawTranscript: transcript, aiResponse: null, error: null }));
@@ -140,18 +143,14 @@ const processTranscript = useCallback(async (transcript: string) => {
           finalOverlays = executeCommand(action, finalOverlays);
       }
 
-      // --- NEW CENTRALIZED LOGIC ---
       const originalOverlayIds = new Set(originalOverlays.map(o => o.id));
       const newlyCreatedOverlay = finalOverlays.find(o => !originalOverlayIds.has(o.id));
 
       if (newlyCreatedOverlay) {
         toast.success(`AI generated: "${newlyCreatedOverlay.name}"`);
-        // Step 1: Immediately add the new overlay to the saved list (without preview)
         setSavedOverlays(prev => [...prev, newlyCreatedOverlay]);
-        // Step 2: Queue the preview generation
         setTimeout(() => generatePreview(newlyCreatedOverlay.id), 500);
       }
-      // --- END NEW LOGIC ---
 
       setActiveOverlays(finalOverlays);
 
@@ -209,6 +208,7 @@ const processTranscript = useCallback(async (transcript: string) => {
       <div className="flex flex-1 overflow-hidden">
         <LeftSidebar
           style={captionStyle} onStyleChange={setCaptionStyle}
+          dynamicStyle={dynamicStyle} onDynamicStyleChange={setDynamicStyle}
           width={isMinimized ? 64 : sidebarWidth} isCollapsed={isMinimized}
           onResize={setSidebarWidth} onMouseEnter={() => setIsHoveringSidebar(true)} onMouseLeave={() => setIsHoveringSidebar(false)}
           backgroundEffect={backgroundEffect} onBackgroundEffectChange={setBackgroundEffect}
@@ -228,7 +228,9 @@ const processTranscript = useCallback(async (transcript: string) => {
           isAutoFramingEnabled={isAutoFramingEnabled} onProcessTranscript={processTranscript}
           generatedOverlays={activeOverlays} onOverlayLayoutChange={handleLayoutChange}
           onOverlayStateChange={handleOverlayStateChange} onRemoveOverlay={handleRemoveOverlay}
-          liveCaptionStyle={liveCaptionStyle} videoFilter={videoFilter}
+          liveCaptionStyle={{...liveCaptionStyle, ...captionStyle}}
+          dynamicStyle={dynamicStyle}
+          videoFilter={videoFilter}
           isAudioOn={isAudioOn} onAudioToggle={setIsAudioOn}
           isVideoOn={isVideoOn} onVideoToggle={setIsVideoOn}
           isRecording={isRecording} onRecordingToggle={setIsRecording}

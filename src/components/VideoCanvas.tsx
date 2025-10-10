@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useCallback } from "react";
 import { Mic, MicOff, Webcam, VideoOff, ScreenShare, Square, ChevronUp, Check, Circle, RotateCcw, Sparkles, Timer, Users, Heart, ThumbsUp, CloudSun, Thermometer, Wind } from "lucide-react";
 import { Button } from "./ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "./ui/dropdown-menu";
@@ -8,13 +8,131 @@ import { useBrowserSpeech } from "../hooks/useBrowserSpeech";
 import { useVideoStreams } from "../hooks/useVideoStreams";
 import { Rnd } from 'react-rnd';
 import * as Babel from '@babel/standalone';
-import { GeneratedOverlay, LayoutMode, CameraShape } from "../types/caption";
+import { GeneratedOverlay, LayoutMode, CameraShape, CaptionStyle } from "../types/caption";
 import { LayoutControls } from "./LayoutControls";
 import { CameraRenderer } from "./CameraRenderer";
 import { AICommandPopover } from "./AICommandPopover";
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
+
+const DynamicCaptionRenderer = ({
+  style,
+  dynamicStyle,
+  fullTranscript,
+  interimTranscript,
+}: {
+  style: CaptionStyle;
+  dynamicStyle: string;
+  fullTranscript: string;
+  interimTranscript: string;
+}) => {
+  const getShapeClasses = () => {
+    switch (style.shape) {
+      case "pill": return "rounded-full";
+      case "rectangular": return "rounded-none";
+      case "speech-bubble": return "rounded-2xl relative after:content-[''] after:absolute after:bottom-0 after:left-1/2 after:-translate-x-1/2 after:translate-y-full after:border-8 after:border-transparent after:border-t-current";
+      case "banner": return "rounded-none w-full text-center";
+      default: return "rounded-xl";
+    }
+  };
+
+  const baseStyle: React.CSSProperties = {
+    fontFamily: style.fontFamily,
+    fontSize: `${style.fontSize}px`,
+    color: style.color,
+    backgroundColor: style.backgroundColor,
+    textShadow: style.shadow ? "2px 2px 4px rgba(0,0,0,0.5)" : "none",
+    fontWeight: style.bold ? "bold" : "normal",
+    fontStyle: style.italic ? "italic" : "normal",
+    textDecoration: style.underline ? "underline" : "none",
+  };
+
+  const renderContent = () => {
+    const text = (fullTranscript + " " + interimTranscript).trim();
+    if (!text) return null;
+    const words = text.split(/\s+/);
+
+    switch (dynamicStyle) {
+      case "karaoke": {
+        const finalWordCount = fullTranscript.split(/\s+/).filter(Boolean).length;
+        return (
+          <div style={{...baseStyle, background: 'transparent', textShadow: 'none'}}>
+            {words.map((word, index) => (
+              <span
+                key={index}
+                className="transition-colors duration-200"
+                style={{
+                  color: index < finalWordCount ? style.color : 'rgba(255,255,255,0.4)',
+                  textShadow: index < finalWordCount ? `0 0 8px ${style.color}` : 'none'
+                }}
+              >
+                {word}{' '}
+              </span>
+            ))}
+          </div>
+        );
+      }
+      case "rainbow": {
+        return (
+          <div>
+            {text.split('').map((char, index) => (
+              <span
+                key={index}
+                className="animate-rainbow"
+                style={{ animationDelay: `${index * 50}ms` }}
+              >
+                {char}
+              </span>
+            ))}
+            <style>{`
+              @keyframes rainbow {
+                0%, 100% { color: #ff2a2a; } 20% { color: #ff7a2a; } 40% { color: #fff52a; } 60% { color: #2aff47; } 80% { color: #2a89ff; }
+              }
+              .animate-rainbow { display: inline-block; animation: rainbow 3s linear infinite; }
+            `}</style>
+          </div>
+        );
+      }
+      case 'pop-up': {
+        return (
+          <div>
+            {words.map((word, index) => (
+              <span key={index} className="inline-block animate-pop-up" style={{ animationDelay: `${index * 80}ms`}}>
+                {word}{' '}
+              </span>
+            ))}
+            <style>{`
+              @keyframes pop-up {
+                0% { opacity: 0; transform: translateY(10px) scale(0.9); }
+                100% { opacity: 1; transform: translateY(0) scale(1); }
+              }
+              .animate-pop-up { animation: pop-up 0.5s ease-out forwards; opacity: 0; }
+            `}</style>
+          </div>
+        );
+      }
+      default: // 'none' or static
+        return <span>{text}</span>;
+    }
+  };
+
+  if (!fullTranscript && !interimTranscript) return null;
+
+  return (
+    <div
+      className={cn("absolute px-6 py-3 max-w-[90%] transition-all duration-200", getShapeClasses())}
+      style={{
+        ...baseStyle,
+        left: style.shape === 'banner' ? '50%' : `${style.position.x}%`,
+        top: `${style.position.y}%`,
+        transform: "translate(-50%, -50%)",
+      }}
+    >
+      {renderContent()}
+    </div>
+  );
+};
 
 const useFetchedData = (fetchConfig: { url: string, interval?: number } | undefined) => {
     const [jsonData, setJsonData] = useState(null);
@@ -134,6 +252,7 @@ interface VideoCanvasProps {
   onOverlayStateChange: (id: string, state: any) => void;
   onRemoveOverlay: (id: string) => void;
   liveCaptionStyle: React.CSSProperties;
+  dynamicStyle: string;
   videoFilter: string;
   isAudioOn: boolean;
   onAudioToggle: (on: boolean) => void;
@@ -215,11 +334,40 @@ export const VideoCanvas = (props: VideoCanvasProps) => {
   const recordedChunksRef = useRef<Blob[]>([]);
   const splitDividerRef = useRef<HTMLDivElement>(null);
   const [isDraggingSplitter, setIsDraggingSplitter] = useState(false);
-  const [partialTranscript, setPartialTranscript] = useState("");
   const overlayContainerRef = useRef<HTMLDivElement>(null);
   const [containerSize, setContainerSize] = useState({ width: 0, height: 0 });
   const [audioDevices, setAudioDevices] = useState<MediaDeviceInfo[]>([]);
   const [videoDevices, setVideoDevices] = useState<MediaDeviceInfo[]>([]);
+  
+  const [fullTranscript, setFullTranscript] = useState("");
+  const [interimTranscript, setInterimTranscript] = useState("");
+  const transcriptTimerRef = useRef<NodeJS.Timeout>();
+
+  const handleFinalTranscript = (text: string) => {
+    setFullTranscript(prev => (prev + " " + text).trim());
+    setInterimTranscript("");
+    rest.onProcessTranscript(text);
+    
+    clearTimeout(transcriptTimerRef.current);
+    transcriptTimerRef.current = setTimeout(() => {
+        setFullTranscript("");
+    }, 4000);
+  };
+
+  const { startRecognition, stopRecognition } = useBrowserSpeech({
+    onFinalTranscript: handleFinalTranscript,
+    onPartialTranscript: setInterimTranscript,
+  });
+
+  useEffect(() => {
+    if (rest.isRecording && isAudioOn) {
+      startRecognition();
+    } else {
+      stopRecognition();
+      setFullTranscript("");
+      setInterimTranscript("");
+    }
+  }, [rest.isRecording, isAudioOn, startRecognition, stopRecognition]);
 
   useEffect(() => {
     const getDevices = async () => {
@@ -246,16 +394,6 @@ export const VideoCanvas = (props: VideoCanvasProps) => {
     resizeObserver.observe(container);
     return () => resizeObserver.disconnect();
   }, []);
-
-  const { startRecognition, stopRecognition } = useBrowserSpeech({
-    onFinalTranscript: rest.onProcessTranscript,
-    onPartialTranscript: setPartialTranscript,
-  });
-
-  useEffect(() => {
-    if (rest.isRecording && isAudioOn) startRecognition();
-    else stopRecognition();
-  }, [rest.isRecording, isAudioOn, startRecognition, stopRecognition]);
 
     const handleStartRecording = () => {
         const outputStream = new MediaStream();
@@ -475,12 +613,15 @@ const handlePipResizeStop = (e: any, direction: any, ref: HTMLElement, delta: an
           {rest.generatedOverlays.map(overlay => (
             <DynamicCodeRenderer key={overlay.id} overlay={overlay} onLayoutChange={rest.onOverlayLayoutChange} onRemove={rest.onRemoveOverlay} containerSize={containerSize} onStateChange={rest.onOverlayStateChange} />
           ))}
+          {rest.captionsEnabled && (
+            <DynamicCaptionRenderer
+              style={rest.liveCaptionStyle}
+              dynamicStyle={rest.dynamicStyle}
+              fullTranscript={fullTranscript}
+              interimTranscript={interimTranscript}
+            />
+          )}
         </div>
-        {rest.isRecording && partialTranscript && (
-          <div style={{ ...rest.liveCaptionStyle, position: 'absolute', bottom: '15%', left: '50%', transform: 'translateX(-50%)', background: 'rgba(0,0,0,0.6)', color: 'white', padding: '8px 16px', borderRadius: '8px', textAlign: 'center', maxWidth: '90%', transition: 'all 0.3s ease', pointerEvents: 'none' }}>
-            {partialTranscript}
-          </div>
-        )}
       </div>
       
       {containerSize.width > 0 && (

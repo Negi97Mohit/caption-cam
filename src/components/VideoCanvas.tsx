@@ -15,6 +15,8 @@ import { AICommandPopover } from "./AICommandPopover";
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
+import { DYNAMIC_STYLES } from "@/lib/dynamicCaptionStyles.tsx";
+import { CaptionRenderer } from "./CaptionRenderer";
 
 const DynamicCaptionRenderer = ({
   style,
@@ -47,77 +49,12 @@ const DynamicCaptionRenderer = ({
     fontStyle: style.italic ? "italic" : "normal",
     textDecoration: style.underline ? "underline" : "none",
   };
+  
+  const text = (fullTranscript + " " + interimTranscript).trim();
+  if (!text) return null;
 
-  const renderContent = () => {
-    const text = (fullTranscript + " " + interimTranscript).trim();
-    if (!text) return null;
-    const words = text.split(/\s+/);
-
-    switch (dynamicStyle) {
-      case "karaoke": {
-        const finalWordCount = fullTranscript.split(/\s+/).filter(Boolean).length;
-        return (
-          <div style={{...baseStyle, background: 'transparent', textShadow: 'none'}}>
-            {words.map((word, index) => (
-              <span
-                key={index}
-                className="transition-colors duration-200"
-                style={{
-                  color: index < finalWordCount ? style.color : 'rgba(255,255,255,0.4)',
-                  textShadow: index < finalWordCount ? `0 0 8px ${style.color}` : 'none'
-                }}
-              >
-                {word}{' '}
-              </span>
-            ))}
-          </div>
-        );
-      }
-      case "rainbow": {
-        return (
-          <div>
-            {text.split('').map((char, index) => (
-              <span
-                key={index}
-                className="animate-rainbow"
-                style={{ animationDelay: `${index * 50}ms` }}
-              >
-                {char}
-              </span>
-            ))}
-            <style>{`
-              @keyframes rainbow {
-                0%, 100% { color: #ff2a2a; } 20% { color: #ff7a2a; } 40% { color: #fff52a; } 60% { color: #2aff47; } 80% { color: #2a89ff; }
-              }
-              .animate-rainbow { display: inline-block; animation: rainbow 3s linear infinite; }
-            `}</style>
-          </div>
-        );
-      }
-      case 'pop-up': {
-        return (
-          <div>
-            {words.map((word, index) => (
-              <span key={index} className="inline-block animate-pop-up" style={{ animationDelay: `${index * 80}ms`}}>
-                {word}{' '}
-              </span>
-            ))}
-            <style>{`
-              @keyframes pop-up {
-                0% { opacity: 0; transform: translateY(10px) scale(0.9); }
-                100% { opacity: 1; transform: translateY(0) scale(1); }
-              }
-              .animate-pop-up { animation: pop-up 0.5s ease-out forwards; opacity: 0; }
-            `}</style>
-          </div>
-        );
-      }
-      default: // 'none' or static
-        return <span>{text}</span>;
-    }
-  };
-
-  if (!fullTranscript && !interimTranscript) return null;
+  // Dynamically select the component from our styles object
+  const StyleComponent = DYNAMIC_STYLES[dynamicStyle]?.component || DYNAMIC_STYLES['none'].component;
 
   return (
     <div
@@ -129,7 +66,12 @@ const DynamicCaptionRenderer = ({
         transform: "translate(-50%, -50%)",
       }}
     >
-      {renderContent()}
+      <StyleComponent
+        text={text}
+        fullTranscript={fullTranscript}
+        interimTranscript={interimTranscript}
+        baseStyle={baseStyle}
+      />
     </div>
   );
 };
@@ -220,8 +162,13 @@ const DynamicCodeRenderer: React.FC<{
 
     const content = error ? (
         <div className="w-full h-full p-2 bg-red-900 text-white overflow-auto"><h4 className="font-bold">Render Error</h4><pre className="text-xs whitespace-pre-wrap">{error}</pre></div>
-    ) : Component ? <Component data={data} onStateChange={(value: any) => onStateChange(overlay.id, value)} /> : <div>Loading...</div>;
-
+    ) : Component ? (
+        <Component
+          data={data}
+          onStateChange={(value: any) => onStateChange(overlay.id, value)}
+          {...overlay.props} 
+        />
+    ) : <div>Loading...</div>;
     return (
         <Rnd
             size={size} position={position} minWidth={50} minHeight={50} bounds="parent"
@@ -605,7 +552,7 @@ const handlePipResizeStop = (e: any, direction: any, ref: HTMLElement, delta: an
   };
 
   return (
-    <div ref={canvasContainerRef} className="flex-1 relative bg-black overflow-hidden flex items-center justify-center">
+<div ref={canvasContainerRef} className="flex-1 relative bg-black overflow-hidden flex items-center justify-center">
       {renderContent()}
       <div className="absolute top-4 right-4 z-50"> <LayoutControls {...rest} /> </div>
       <div ref={overlayContainerRef} className="absolute inset-0 pointer-events-none" style={{ zIndex: 220 }}>
@@ -613,26 +560,41 @@ const handlePipResizeStop = (e: any, direction: any, ref: HTMLElement, delta: an
           {rest.generatedOverlays.map(overlay => (
             <DynamicCodeRenderer key={overlay.id} overlay={overlay} onLayoutChange={rest.onOverlayLayoutChange} onRemove={rest.onRemoveOverlay} containerSize={containerSize} onStateChange={rest.onOverlayStateChange} />
           ))}
+          
           {rest.captionsEnabled && (
-            <DynamicCaptionRenderer
-              style={rest.liveCaptionStyle}
-              dynamicStyle={rest.dynamicStyle}
+            <CaptionRenderer
+              activeStyleId={rest.dynamicStyle}
+              captionStyle={rest.liveCaptionStyle as CaptionStyle}
+              text={(fullTranscript + " " + interimTranscript).trim()}
               fullTranscript={fullTranscript}
               interimTranscript={interimTranscript}
+              baseStyle={{
+                fontFamily: rest.liveCaptionStyle.fontFamily,
+                fontSize: `${rest.liveCaptionStyle.fontSize}px`,
+                color: rest.liveCaptionStyle.color,
+                backgroundColor: rest.liveCaptionStyle.backgroundColor,
+                textShadow: (rest.liveCaptionStyle as any).shadow ? "2px 2px 4px rgba(0,0,0,0.5)" : "none",
+                fontWeight: (rest.liveCaptionStyle as any).bold ? "bold" : "normal",
+                fontStyle: (rest.liveCaptionStyle as any).italic ? "italic" : "normal",
+                textDecoration: (rest.liveCaptionStyle as any).underline ? "underline" : "none",
+              }}
             />
           )}
         </div>
       </div>
-      
       {containerSize.width > 0 && (
         <Rnd style={{ zIndex: 250 }} size={{ width: 64, height: 64 }} position={{ x: (aiButtonPosition.x / 100) * containerSize.width, y: (aiButtonPosition.y / 100) * containerSize.height, }} onDragStop={(e, d) => onAiButtonPositionChange({ x: (d.x / containerSize.width) * 100, y: (d.y / containerSize.height) * 100 })} bounds="parent" enableResizing={false} className="pointer-events-auto">
-          <AICommandPopover onSubmit={rest.onProcessTranscript}>
+          <AICommandPopover 
+            onSubmit={rest.onProcessTranscript}
+            activeOverlays={rest.generatedOverlays}
+          >
             <Button size="icon" className="rounded-full h-16 w-16 shadow-lg bg-purple-600 hover:bg-purple-700">
               <Sparkles className="h-8 w-8" />
             </Button>
           </AICommandPopover>
         </Rnd>
       )}
+
 
       <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-50">
         <div className="flex items-center gap-2 bg-background/80 backdrop-blur-md border rounded-full px-4 py-2 shadow-lg">

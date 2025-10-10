@@ -2,7 +2,7 @@ import { useState, useCallback, useEffect } from "react";
 import { VideoCanvas } from "@/components/VideoCanvas";
 import { LeftSidebar } from "@/components/LeftSidebar";
 import { TopToolbar } from "@/components/TopToolbar";
-import { CaptionStyle, GeneratedOverlay, AICommand, DEFAULT_LAYOUT_STATE, LayoutMode, CameraShape, SingleActionCommand, ChainedAction, GenerateUICommand } from "@/types/caption";
+import { CaptionStyle, GeneratedOverlay, AICommand, DEFAULT_LAYOUT_STATE, LayoutMode, CameraShape, SingleActionCommand, ChainedAction, GenerateUICommand, UpdateUICommand } from "@/types/caption";
 import { processCommandWithAgent } from "@/lib/ai";
 import { toast } from "sonner";
 import { useLog } from "@/context/LogContext";
@@ -31,8 +31,6 @@ const substituteStateInAction = (action: ChainedAction, state: any): ChainedActi
 };
 
 const Index = () => {
-  const [savedOverlays, setSavedOverlays] = useLocalStorage<GeneratedOverlay[]>("savedOverlays", []);
-  const [activeOverlays, setActiveOverlays] = useState<GeneratedOverlay[]>([]);
   const [liveCaptionStyle, setLiveCaptionStyle] = useState<React.CSSProperties>({});
   const [videoFilter, setVideoFilter] = useState<string>('none');
   const [isProcessingAi, setIsProcessingAi] = useState(false);
@@ -71,7 +69,8 @@ const Index = () => {
   const [pipPosition, setPipPosition] = useState(DEFAULT_LAYOUT_STATE.pipPosition);
   const [pipSize, setPipSize] = useState(DEFAULT_LAYOUT_STATE.pipSize);
   const [customMaskUrl, setCustomMaskUrl] = useState<string | undefined>(undefined);
-
+  const [savedOverlays, setSavedOverlays] = useLocalStorage<GeneratedOverlay[]>("savedOverlays", []);
+  const [activeOverlays, setActiveOverlays] = useState<GeneratedOverlay[]>([]);
   const { log } = useLog();
   const { setDebugInfo } = useDebug();
 
@@ -81,23 +80,44 @@ const Index = () => {
       switch (action.tool) {
         case 'generate_ui_component': {
             if (updatedOverlays.some(o => o.name === action.name)) { 
+              toast.warning(`Overlay named "${action.name}" already exists.`);
               break; 
             }
             const newOverlay: GeneratedOverlay = {
               id: generateOverlayId(),
-              name: action.name, componentCode: action.componentCode,
+              name: action.name,
+              componentCode: action.componentCode,
               layout: action.layout || { position: { x: 10, y: 10 }, size: { width: 30, height: 15 }, zIndex: 10 },
-              chainedAction: (action as GenerateUICommand).chained,
+              props: action.props || {}, // Store initial props
+              chainedAction: action.chained,
+              fetch: action.fetch,
             };
             updatedOverlays = [...updatedOverlays, newOverlay];
             break;
         }
         case 'update_ui_component': {
             updatedOverlays = updatedOverlays.map(o => {
-              if (o.name === action.targetId) { return { ...o, layout: { ...o.layout, ...action.layout } }; } return o;
+              if (o.name === action.targetId) {
+                // --- CORRECTED & UPGRADED LOGIC ---
+                const updatedOverlay = { ...o };
+                if (action.layout) {
+                  updatedOverlay.layout = { ...updatedOverlay.layout, ...action.layout };
+                }
+                if (action.componentCode) {
+                  updatedOverlay.componentCode = action.componentCode;
+                }
+                // Merge new props with existing props
+                if (action.props) {
+                  updatedOverlay.props = { ...updatedOverlay.props, ...action.props };
+                }
+                return updatedOverlay;
+              }
+              return o;
             });
+            toast.success(`Overlay "${action.targetId}" updated.`);
             break;
         }
+        
         case 'delete_ui_component': {
             updatedOverlays = updatedOverlays.filter(o => o.name !== action.targetId);
             break;

@@ -13,13 +13,7 @@ import { Slider } from "./ui/slider";
 import { FILTER_PRESETS } from "@/lib/filters.ts";
 import { CAPTION_PRESETS } from "@/lib/captionPresets";
 import { RadioGroup, RadioGroupItem } from "./ui/radio-group";
-
-const DYNAMIC_STYLES = [
-  { id: "none", name: "None (Static)" },
-  { id: "karaoke", name: "Karaoke" },
-  { id: "rainbow", name: "Rainbow Wave" },
-  { id: "pop-up", name: "Pop Up" },
-];
+import { DYNAMIC_STYLE_OPTIONS } from "@/components/styles";
 
 interface LeftSidebarProps {
   style: CaptionStyle;
@@ -129,7 +123,7 @@ export const LeftSidebar = ({
               <AccordionContent>
                 <div className="pt-2">
                   <RadioGroup value={dynamicStyle} onValueChange={onDynamicStyleChange} className="space-y-2">
-                    {DYNAMIC_STYLES.map(item => (
+                    {DYNAMIC_STYLE_OPTIONS.map(item => (
                       <div key={item.id} className="flex items-center space-x-2">
                         <RadioGroupItem value={item.id} id={`dynamic-${item.id}`} />
                         <Label htmlFor={`dynamic-${item.id}`} className="font-normal cursor-pointer">{item.name}</Label>

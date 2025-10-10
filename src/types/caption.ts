@@ -30,6 +30,7 @@ export interface GeneratedOverlay {
   name: string;
   componentCode: string;
   layout: GeneratedLayout;
+  props?: { [key: string]: any }; // ADD THIS LINE
   preview?: string;
   chainedAction?: SingleActionCommand;
   fetch?: {
@@ -146,4 +147,19 @@ export interface MemoryRecord {
   userCommand: string;
   aiActions: SingleActionCommand[];
   timestamp: number;
+}
+
+export interface DynamicStyleProps {
+  text: string;
+  fullTranscript: string;
+  interimTranscript: string;
+  baseStyle: React.CSSProperties;
+}
+
+export interface CaptionStyleDef {
+  id: string;
+  name: string;
+  component: React.FC<DynamicStyleProps>;
+  tags?: string[];
+  description?: string;
 }

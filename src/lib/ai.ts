@@ -1,4 +1,4 @@
-// src/lib/ai.ts - Enhanced Production-Ready AI System
+// src/lib/ai.ts - Enhanced Production-Ready AI System (FIXED)
 import { AICommand, GeneratedOverlay } from "@/types/caption";
 
 const API_KEY = import.meta.env.VITE_GROQ_API_KEY;
@@ -9,6 +9,16 @@ const MASTER_PROMPT = `You are an elite AI agent for a real-time video overlay s
 
 **CURRENT ELEMENTS:**
 {CURRENT_ELEMENTS}
+
+**CRITICAL INSTRUCTION - TARGET AWARENESS:**
+When a user specifies they are modifying or updating an EXISTING overlay (indicated by {TARGET_OVERLAY} below), you MUST:
+1. ONLY use update_ui_component or similar modification tools
+2. NEVER create a new overlay under any circumstances
+3. Focus entirely on modifying the targeted overlay
+4. If the user says "update X" or "modify X" or "change X", ALWAYS use update_ui_component with targetId set to the overlay name
+
+**TARGET OVERLAY (if user is modifying existing):**
+{TARGET_OVERLAY}
 
 **CORE OPERATIONS:**
 1. CREATE - Generate new overlays with full customization
@@ -55,10 +65,12 @@ Multiple actions:
 1. **generate_ui_component** - Create new overlay
    Required: name, componentCode, layout
    Optional: props, fetch, metadata, animations, conditions
+   ⚠️ DO NOT USE if TARGET_OVERLAY is specified
 
 2. **update_ui_component** - Modify existing
    Required: targetId
    Optional: componentCode, props, layout (partial updates allowed)
+   ✅ USE THIS when TARGET_OVERLAY is specified
 
 3. **delete_ui_component** - Remove overlay
    Required: targetId
@@ -170,15 +182,7 @@ Size Presets:
   return <div style={style} className='font-mono text-4xl'>{mins}:{secs.toString().padStart(2, '0')}</div>;
 }"
 
-4. Live Data Display:
-"({ data, style }) => {
-  if (data?.isLoading) return <div>Loading...</div>;
-  if (data?.error) return <div>Error</div>;
-  const value = data?.jsonData?.value || 0;
-  return <div style={style} className='text-2xl font-bold'>{value}</div>;
-}"
-
-5. Chart Component:
+4. Bar Chart Component:
 "({ data }) => {
   const chartData = data?.jsonData || [{name: 'A', value: 100}];
   return (
@@ -194,9 +198,30 @@ Size Presets:
   );
 }"
 
+5. Pie Chart Component:
+"({ data }) => {
+  const chartData = data?.jsonData || [{name: 'Group A', value: 400}, {name: 'Group B', value: 300}];
+  const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042'];
+  return (
+    <ResponsiveContainer width='100%' height='100%'>
+      <PieChart>
+        <Pie data={chartData} dataKey='value' nameKey='name' cx='50%' cy='50%' outerRadius={80} fill='#8884d8' label>
+          {chartData.map((entry, index) => <Cell key={'cell-' + index} fill={COLORS[index % COLORS.length]} />)}
+        </Pie>
+        <Tooltip />
+        <Legend />
+      </PieChart>
+    </ResponsiveContainer>
+  );
+}"
+
+
 **COMMAND INTERPRETATION:**
 
 "create X" → generate_ui_component
+"update X" → update_ui_component (if X exists)
+"modify X" → update_ui_component (if X exists)
+"change X" → update_ui_component (if X exists)
 "make X bigger/red" → update_ui_component
 "delete X" → delete_ui_component
 "duplicate X as Y" → clone_ui_component
@@ -217,7 +242,7 @@ Examples:
 - intent='data_widget' → include state management
 - modifiers=['animated'] → add animation classes
 - modifiers=['hasBackground'] → wrap in Card component
-- targetOverlay set → only modify that component
+- targetOverlay set → ONLY modify that component, NEVER create new ones
 
 **VALIDATION RULES:**
 
@@ -228,10 +253,11 @@ Examples:
 5. zIndex must be 1-1000
 6. componentCode must be valid JSX
 7. For updates, include ONLY changed fields
+8. ⚠️ When TARGET_OVERLAY is specified, NEVER generate new overlays - only modify the target
 
 **ERROR RECOVERY:**
 
-If component doesn't exist: suggest creating it
+If component doesn't exist: suggest creating it (unless TARGET_OVERLAY specified)
 If position invalid: use smart positioning
 If syntax error: provide corrected version
 If conflicting operations: resolve with priority
@@ -256,31 +282,21 @@ Output:
   }
 }
 
-Example 2 - Multi-Step:
-Input: "create a timer and stats box side by side"
+Example 2 - Update Existing:
+Input: "update title_hello to say Goodbye"
+Target Overlay: title_hello
 Output:
 {
-  "tool": "multi_tool_reasoning",
-  "actions": [
-    {
-      "tool": "generate_ui_component",
-      "name": "timer_main",
-      "componentCode": "({ style, duration = 300 }) => { const [time, setTime] = React.useState(duration); React.useEffect(() => { const interval = setInterval(() => setTime(t => Math.max(0, t - 1)), 1000); return () => clearInterval(interval); }, []); const mins = Math.floor(time / 60); const secs = time % 60; return <div style={style} className='font-mono text-3xl'>{mins}:{secs.toString().padStart(2, '0')}</div>; }",
-      "props": { "duration": 300, "style": { "color": "#FFFFFF" } },
-      "layout": { "position": { "x": 30, "y": 50 }, "size": { "width": 25, "height": 20 }, "zIndex": 10 }
-    },
-    {
-      "tool": "generate_ui_component",
-      "name": "stats_main",
-      "componentCode": "({ style }) => { const [viewers, setViewers] = React.useState(1234); return <Card className='p-4'><CardContent><div style={style}><Users className='inline w-5 h-5 mr-2' />{viewers} viewers</div></CardContent></Card>; }",
-      "props": { "style": { "color": "#FFFFFF" } },
-      "layout": { "position": { "x": 70, "y": 50 }, "size": { "width": 25, "height": 20 }, "zIndex": 10 }
-    }
-  ]
+  "tool": "update_ui_component",
+  "targetId": "title_hello",
+  "props": {
+    "text": "Goodbye"
+  }
 }
 
-Example 3 - Update:
-Input: "make the title bigger and red"
+Example 3 - Make Bigger (Targeted):
+Input: "make it bigger and red"
+Target Overlay: title_hello
 Output:
 {
   "tool": "update_ui_component",
@@ -290,17 +306,27 @@ Output:
   }
 }
 
-Example 4 - Batch Operation:
-Input: "make all text components blue"
+Example 4 - Multi-Step:
+Input: "create a timer and stats box side by side"
 Output:
 {
-  "tool": "batch_update",
-  "targets": ["title_hello", "stats_main"],
-  "changes": {
-    "props": {
-      "style": { "color": "#3B82F6" }
+  "tool": "multi_tool_reasoning",
+  "actions": [
+    {
+      "tool": "generate_ui_component",
+      "name": "timer_main",
+      "componentCode": "...",
+      "props": { "duration": 300, "style": { "color": "#FFFFFF" } },
+      "layout": { "position": { "x": 30, "y": 50 }, "size": { "width": 25, "height": 20 }, "zIndex": 10 }
+    },
+    {
+      "tool": "generate_ui_component",
+      "name": "stats_main",
+      "componentCode": "...",
+      "props": { "style": { "color": "#FFFFFF" } },
+      "layout": { "position": { "x": 70, "y": 50 }, "size": { "width": 25, "height": 20 }, "zIndex": 10 }
     }
-  }
+  ]
 }
 
 Example 5 - Clone:
@@ -325,6 +351,8 @@ Output:
 - Provide meaningful component names
 - Include only changed fields in updates
 - Chain related operations in multi_tool_reasoning
+- ⚠️ NEVER create new overlays when TARGET_OVERLAY is specified
+- When modifying, focus ENTIRELY on the target
 `;
 
 // ===== VALIDATION & PARSING =====
@@ -356,7 +384,7 @@ function robustJsonParse(text: string): any | null {
   }
 }
 
-function validateCommand(command: any, activeOverlays: GeneratedOverlay[]): ValidationResult {
+function validateCommand(command: any, activeOverlays: GeneratedOverlay[], targetOverlay?: string): ValidationResult {
   if (!command) return { valid: false, error: "Command is null" };
   if (!command.tool) return { valid: false, error: "Missing 'tool' field" };
   
@@ -373,13 +401,26 @@ function validateCommand(command: any, activeOverlays: GeneratedOverlay[]): Vali
     return { valid: false, error: `Unknown tool: ${command.tool}` };
   }
   
+  // CRITICAL: If targetOverlay is specified, ONLY allow modification tools
+  if (targetOverlay) {
+    if (command.tool === 'generate_ui_component') {
+      console.error(`❌ BLOCKED: Attempted to create new overlay when target "${targetOverlay}" was specified`);
+      return { valid: false, error: `Cannot create new overlay when targeting "${targetOverlay}". Use update_ui_component instead.` };
+    }
+    // Ensure targetId matches the target
+    if (command.tool === 'update_ui_component' && command.targetId !== targetOverlay) {
+      console.warn(`⚠️ WARNING: targetId "${command.targetId}" doesn't match expected target "${targetOverlay}". Correcting...`);
+      command.targetId = targetOverlay;
+    }
+  }
+  
   // Validate multi_tool_reasoning
   if (command.tool === 'multi_tool_reasoning') {
     if (!Array.isArray(command.actions) || command.actions.length === 0) {
       return { valid: false, error: "multi_tool_reasoning requires non-empty actions array" };
     }
     for (const action of command.actions) {
-      const result = validateCommand(action, activeOverlays);
+      const result = validateCommand(action, activeOverlays, targetOverlay);
       if (!result.valid) return result;
     }
     return { valid: true };
@@ -463,12 +504,10 @@ async function fetchWithRetry(
       const response = await fetch(url, options);
       if (response.ok) return response;
 
-      // FIX: Provide a more user-friendly message for 429 errors.
       if (response.status === 429) {
         throw new Error("Rate limit exceeded. Please try again in a moment.");
       }
       
-      // Don't retry on other 4xx errors (client errors)
       if (response.status >= 400 && response.status < 500) {
         throw new Error(`API error: ${response.status} ${response.statusText}`);
       }
@@ -476,13 +515,11 @@ async function fetchWithRetry(
       lastError = new Error(`API error: ${response.status}`);
     } catch (error) {
       lastError = error as Error;
-      // If it's a rate limit error, don't retry further.
       if ((error as Error).message.includes("Rate limit exceeded")) {
         break;
       }
     }
     
-    // Exponential backoff
     if (i < maxRetries - 1) {
       await new Promise(resolve => setTimeout(resolve, Math.pow(2, i) * 1000));
     }
@@ -496,7 +533,7 @@ async function fetchWithRetry(
 export async function processCommandWithAgent(
   command: string,
   activeOverlays: GeneratedOverlay[],
-  userContext?: { intent?: string; modifiers?: string[] }
+  userContext?: { intent?: string; modifiers?: string[]; targetOverlay?: string }
 ): Promise<AICommand | null> {
   if (!API_KEY) {
     console.error("API Key Missing");
@@ -514,18 +551,30 @@ export async function processCommandWithAgent(
       activeOverlays.map(o => `- "${o.name}" (z-index: ${o.layout?.zIndex || 0})`).join("\n")
     : "No overlays currently on screen. You can only create new ones.";
   
-  // Build user context
-  let contextPrefix = "";
-  if (userContext) {
-    const parts = [];
-    if (userContext.intent) parts.push(`Intent: ${userContext.intent}`);
-    if (userContext.modifiers && userContext.modifiers.length > 0) {
-      parts.push(`Modifiers: [${userContext.modifiers.join(', ')}]`);
-    }
-    if (parts.length > 0) contextPrefix = `[USER CONTEXT] ${parts.join('; ')}\n\n`;
+  // Build target overlay context - THIS IS CRITICAL
+  let targetOverlayContext = "";
+  if (userContext?.targetOverlay) {
+    targetOverlayContext = `⚠️ CRITICAL INSTRUCTION: You MUST modify ONLY the existing overlay named "${userContext.targetOverlay}". Use update_ui_component with targetId="${userContext.targetOverlay}". ABSOLUTELY DO NOT create a new overlay under ANY circumstances.`;
   }
   
-  const systemPrompt = MASTER_PROMPT.replace('{CURRENT_ELEMENTS}', elementsContext);
+  // Build user context
+  let contextPrefix = "";
+  const parts = [];
+  if (userContext?.intent) parts.push(`Intent: ${userContext.intent}`);
+  if (userContext?.modifiers && userContext.modifiers.length > 0) {
+    parts.push(`Modifiers: [${userContext.modifiers.join(', ')}]`);
+  }
+  if (userContext?.targetOverlay) {
+    parts.push(`TARGET OVERLAY: ${userContext.targetOverlay}`);
+  }
+  
+  if (parts.length > 0 || targetOverlayContext) {
+    contextPrefix = `[USER CONTEXT] ${parts.join('; ')}\n\n${targetOverlayContext}\n\n`;
+  }
+  
+  const systemPrompt = MASTER_PROMPT
+    .replace('{CURRENT_ELEMENTS}', elementsContext)
+    .replace('{TARGET_OVERLAY}', userContext?.targetOverlay || 'None - User is creating new overlays');
   
   try {
     const response = await fetchWithRetry(API_URL, {
@@ -540,7 +589,7 @@ export async function processCommandWithAgent(
           { role: "system", content: systemPrompt },
           { role: "user", content: contextPrefix + command }
         ],
-        temperature: 0.2, // Lower for more consistent outputs
+        temperature: 0.2,
         max_tokens: 3000,
         response_format: { type: "json_object" },
       }),
@@ -559,7 +608,7 @@ export async function processCommandWithAgent(
       throw new Error("Failed to parse JSON from response");
     }
     
-    const validation = validateCommand(parsedCommand, activeOverlays);
+    const validation = validateCommand(parsedCommand, activeOverlays, userContext?.targetOverlay);
     if (!validation.valid) {
       throw new Error(`Validation failed: ${validation.error}`);
     }
@@ -591,7 +640,6 @@ export async function processMultipleCommands(
     const result = await processCommandWithAgent(cmd, activeOverlays);
     if (result) {
       results.push(result);
-      // Update activeOverlays for next command (simulate state)
       if (result.tool === 'generate_ui_component') {
         activeOverlays = [...activeOverlays, {
           id: `temp-${Date.now()}`,
@@ -626,4 +674,3 @@ export async function formatCaptionWithAI(
     style: context?.style || 'default',
   };
 }
-

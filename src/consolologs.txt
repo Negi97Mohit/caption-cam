@@ -1,0 +1,361 @@
+Download the React DevTools for a better development experience: https://reactjs.org/link/react-devtools
+useBrowserSpeech.ts:289 ⏸️ Stopping recognition...
+useBrowserSpeech.ts:41 🛑 Stopping browser speech recognition...
+react-router-dom.js?v=e5d7e410:4393 ⚠️ React Router Future Flag Warning: React Router will begin wrapping state updates in `React.startTransition` in v7. You can use the `v7_startTransition` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_starttransition.
+warnOnce @ react-router-dom.js?v=e5d7e410:4393Understand this warning
+react-router-dom.js?v=e5d7e410:4393 ⚠️ React Router Future Flag Warning: Relative route resolution within Splat routes is changing in v7. You can use the `v7_relativeSplatPath` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_relativesplatpath.
+warnOnce @ react-router-dom.js?v=e5d7e410:4393Understand this warning
+4useBrowserSpeech.ts:257 🧹 Cleaning up speech recognition...
+LogContext.tsx:27 [TRANSCRIPT] Processing command CONTEXT: User intent is 'static_visual'.
+
+USER PROMPT: build a complete streaming overlay with title, timer, viewer count, and social links
+useBrowserSpeech.ts:257 🧹 Cleaning up speech recognition...
+api.groq.com/openai/v1/chat/completions:1  Failed to load resource: the server responded with a status of 429 ()Understand this error
+api.groq.com/openai/v1/chat/completions:1  Failed to load resource: the server responded with a status of 429 ()Understand this error
+api.groq.com/openai/v1/chat/completions:1  Failed to load resource: the server responded with a status of 429 ()Understand this error
+ai.ts:562 processCommandWithAgent error: Error: API error: 429 
+    at fetchWithRetry (ai.ts:468:15)
+    at async processCommandWithAgent (ai.ts:522:22)
+    at async Index.tsx:270:23
+processCommandWithAgent @ ai.ts:562Understand this error
+LogContext.tsx:27 [AI_RESPONSE] Command received Object
+LogContext.tsx:27 [AI_ACTION] Executing: generate_ui_component Object
+9useBrowserSpeech.ts:257 🧹 Cleaning up speech recognition...
+api.groq.com/openai/v1/chat/completions:1  Failed to load resource: the server responded with a status of 429 ()Understand this error
+api.groq.com/openai/v1/chat/completions:1  Failed to load resource: the server responded with a status of 429 ()Understand this error
+api.groq.com/openai/v1/chat/completions:1  Failed to load resource: the server responded with a status of 429 ()Understand this error
+ai.ts:562 processCommandWithAgent error: Error: API error: 429 
+    at fetchWithRetry (ai.ts:468:15)
+    at async processCommandWithAgent (ai.ts:522:22)
+    at async handleSubmit (AICommandPopover.tsx:95:25)
+processCommandWithAgent @ ai.ts:562Understand this error
+LogContext.tsx:27 [TRANSCRIPT] Processing command CONTEXT: User intent is 'static_visual'.
+
+USER PROMPT: add a chat box to the bottom right
+useBrowserSpeech.ts:257 🧹 Cleaning up speech recognition...
+api.groq.com/openai/v1/chat/completions:1  Failed to load resource: the server responded with a status of 429 ()Understand this error
+api.groq.com/openai/v1/chat/completions:1  Failed to load resource: the server responded with a status of 429 ()Understand this error
+api.groq.com/openai/v1/chat/completions:1  Failed to load resource: the server responded with a status of 429 ()Understand this error
+ai.ts:562 processCommandWithAgent error: Error: API error: 429 
+    at fetchWithRetry (ai.ts:468:15)
+    at async processCommandWithAgent (ai.ts:522:22)
+    at async Index.tsx:270:23
+processCommandWithAgent @ ai.ts:562Understand this error
+LogContext.tsx:27 [AI_RESPONSE] Command received Object
+LogContext.tsx:27 [AI_ACTION] Executing: generate_ui_component Object
+9useBrowserSpeech.ts:257 🧹 Cleaning up speech recognition...
+LogContext.tsx:27 [TRANSCRIPT] Processing command CONTEXT: User intent is 'static_visual'. Modifiers: [animated].
+
+USER PROMPT: add a smooth fade-in welcome message
+useBrowserSpeech.ts:257 🧹 Cleaning up speech recognition...
+LogContext.tsx:27 [AI_RESPONSE] Command received Object
+LogContext.tsx:27 [AI_ACTION] Executing: generate_ui_component Object
+12useBrowserSpeech.ts:257 🧹 Cleaning up speech recognition...
+LogContext.tsx:27 [TRANSCRIPT] Processing command CONTEXT: User intent is 'static_visual'. Modifiers: [animated].
+
+USER PROMPT: create a pulsing notification bell in the top right
+useBrowserSpeech.ts:257 🧹 Cleaning up speech recognition...
+api.groq.com/openai/v1/chat/completions:1  Failed to load resource: the server responded with a status of 429 ()Understand this error
+api.groq.com/openai/v1/chat/completions:1  Failed to load resource: the server responded with a status of 429 ()Understand this error
+api.groq.com/openai/v1/chat/completions:1  Failed to load resource: the server responded with a status of 429 ()Understand this error
+ai.ts:562 processCommandWithAgent error: Error: API error: 429 
+    at fetchWithRetry (ai.ts:468:15)
+    at async processCommandWithAgent (ai.ts:522:22)
+    at async Index.tsx:270:23
+processCommandWithAgent @ ai.ts:562Understand this error
+LogContext.tsx:27 [AI_RESPONSE] Command received Object
+LogContext.tsx:27 [AI_ACTION] Executing: generate_ui_component Object
+11useBrowserSpeech.ts:257 🧹 Cleaning up speech recognition...
+LogContext.tsx:27 [TRANSCRIPT] Processing command CONTEXT: User intent is 'static_visual'. Modifiers: [animated].
+
+USER PROMPT: create a spinning loading indicator
+useBrowserSpeech.ts:257 🧹 Cleaning up speech recognition...
+api.groq.com/openai/v1/chat/completions:1  Failed to load resource: the server responded with a status of 429 ()Understand this error
+api.groq.com/openai/v1/chat/completions:1  Failed to load resource: the server responded with a status of 429 ()Understand this error
+api.groq.com/openai/v1/chat/completions:1  Failed to load resource: the server responded with a status of 429 ()Understand this error
+ai.ts:562 processCommandWithAgent error: Error: API error: 429 
+    at fetchWithRetry (ai.ts:468:15)
+    at async processCommandWithAgent (ai.ts:522:22)
+    at async Index.tsx:270:23
+processCommandWithAgent @ ai.ts:562Understand this error
+LogContext.tsx:27 [AI_RESPONSE] Command received Object
+LogContext.tsx:27 [AI_ACTION] Executing: generate_ui_component Object
+10useBrowserSpeech.ts:257 🧹 Cleaning up speech recognition...
+LogContext.tsx:27 [TRANSCRIPT] Processing command CONTEXT: User intent is 'static_visual'.
+
+USER PROMPT: create a bold title that says "LIVE NOW"
+useBrowserSpeech.ts:257 🧹 Cleaning up speech recognition...
+LogContext.tsx:27 [AI_RESPONSE] Command received Object
+LogContext.tsx:27 [AI_ACTION] Executing: generate_ui_component Object
+5useBrowserSpeech.ts:257 🧹 Cleaning up speech recognition...
+@radix-ui_react-select.js?v=e5d7e410:875 Uncaught Error: A <Select.Item /> must have a value prop that is not an empty string. This is because the Select value can be set to an empty string to clear the selection and show the placeholder.
+    at @radix-ui_react-select.js?v=e5d7e410:875:13
+    at renderWithHooks (chunk-FJ2A54M7.js?v=e5d7e410:11548:26)
+    at updateForwardRef (chunk-FJ2A54M7.js?v=e5d7e410:14325:28)
+    at beginWork (chunk-FJ2A54M7.js?v=e5d7e410:15946:22)
+    at HTMLUnknownElement.callCallback2 (chunk-FJ2A54M7.js?v=e5d7e410:3674:22)
+    at Object.invokeGuardedCallbackDev (chunk-FJ2A54M7.js?v=e5d7e410:3699:24)
+    at invokeGuardedCallback (chunk-FJ2A54M7.js?v=e5d7e410:3733:39)
+    at beginWork$1 (chunk-FJ2A54M7.js?v=e5d7e410:19765:15)
+    at performUnitOfWork (chunk-FJ2A54M7.js?v=e5d7e410:19198:20)
+    at workLoopSync (chunk-FJ2A54M7.js?v=e5d7e410:19137:13)
+    at renderRootSync (chunk-FJ2A54M7.js?v=e5d7e410:19116:15)
+    at performSyncWorkOnRoot (chunk-FJ2A54M7.js?v=e5d7e410:18874:28)
+    at flushSyncCallbacks (chunk-FJ2A54M7.js?v=e5d7e410:9119:30)
+    at chunk-FJ2A54M7.js?v=e5d7e410:18627:21Understand this error
+@radix-ui_react-select.js?v=e5d7e410:875 Uncaught Error: A <Select.Item /> must have a value prop that is not an empty string. This is because the Select value can be set to an empty string to clear the selection and show the placeholder.
+    at @radix-ui_react-select.js?v=e5d7e410:875:13
+    at renderWithHooks (chunk-FJ2A54M7.js?v=e5d7e410:11548:26)
+    at updateForwardRef (chunk-FJ2A54M7.js?v=e5d7e410:14325:28)
+    at beginWork (chunk-FJ2A54M7.js?v=e5d7e410:15946:22)
+    at HTMLUnknownElement.callCallback2 (chunk-FJ2A54M7.js?v=e5d7e410:3674:22)
+    at Object.invokeGuardedCallbackDev (chunk-FJ2A54M7.js?v=e5d7e410:3699:24)
+    at invokeGuardedCallback (chunk-FJ2A54M7.js?v=e5d7e410:3733:39)
+    at beginWork$1 (chunk-FJ2A54M7.js?v=e5d7e410:19765:15)
+    at performUnitOfWork (chunk-FJ2A54M7.js?v=e5d7e410:19198:20)
+    at workLoopSync (chunk-FJ2A54M7.js?v=e5d7e410:19137:13)
+    at renderRootSync (chunk-FJ2A54M7.js?v=e5d7e410:19116:15)
+    at recoverFromConcurrentError (chunk-FJ2A54M7.js?v=e5d7e410:18736:28)
+    at performSyncWorkOnRoot (chunk-FJ2A54M7.js?v=e5d7e410:18879:28)
+    at flushSyncCallbacks (chunk-FJ2A54M7.js?v=e5d7e410:9119:30)
+    at chunk-FJ2A54M7.js?v=e5d7e410:18627:21Understand this error
+chunk-FJ2A54M7.js?v=e5d7e410:14032 The above error occurred in the <SelectItem> component:
+
+    at http://localhost:8080/node_modules/.vite/deps/@radix-ui_react-select.js?v=e5d7e410:848:7
+    at _c8 (http://localhost:8080/src/components/ui/select.tsx:234:60)
+    at div
+    at http://localhost:8080/node_modules/.vite/deps/chunk-J2LHNCXX.js?v=e5d7e410:43:13
+    at http://localhost:8080/node_modules/.vite/deps/chunk-3MFSG4SQ.js?v=e5d7e410:79:13
+    at http://localhost:8080/node_modules/.vite/deps/chunk-3MFSG4SQ.js?v=e5d7e410:56:13
+    at http://localhost:8080/node_modules/.vite/deps/chunk-PY2MI4VU.js?v=e5d7e410:41:15
+    at http://localhost:8080/node_modules/.vite/deps/@radix-ui_react-select.js?v=e5d7e410:759:13
+    at div
+    at http://localhost:8080/node_modules/.vite/deps/chunk-3MFSG4SQ.js?v=e5d7e410:79:13
+    at http://localhost:8080/node_modules/.vite/deps/chunk-3MFSG4SQ.js?v=e5d7e410:56:13
+    at http://localhost:8080/node_modules/.vite/deps/chunk-PY2MI4VU.js?v=e5d7e410:41:15
+    at Provider (http://localhost:8080/node_modules/.vite/deps/chunk-T2Y55DJC.js?v=e5d7e410:22:15)
+    at http://localhost:8080/node_modules/.vite/deps/@radix-ui_react-select.js?v=e5d7e410:302:58
+    at http://localhost:8080/node_modules/.vite/deps/chunk-3MFSG4SQ.js?v=e5d7e410:79:13
+    at http://localhost:8080/node_modules/.vite/deps/chunk-3MFSG4SQ.js?v=e5d7e410:56:13
+    at http://localhost:8080/node_modules/.vite/deps/chunk-J2LHNCXX.js?v=e5d7e410:43:13
+    at http://localhost:8080/node_modules/.vite/deps/chunk-X7HXBKKN.js?v=e5d7e410:260:22
+    at SelectPortal
+    at _c4 (http://localhost:8080/src/components/ui/select.tsx:141:63)
+    at Provider (http://localhost:8080/node_modules/.vite/deps/chunk-T2Y55DJC.js?v=e5d7e410:22:15)
+    at Provider (http://localhost:8080/node_modules/.vite/deps/chunk-T2Y55DJC.js?v=e5d7e410:22:15)
+    at CollectionProvider (http://localhost:8080/node_modules/.vite/deps/chunk-PY2MI4VU.js?v=e5d7e410:31:13)
+    at Provider (http://localhost:8080/node_modules/.vite/deps/chunk-T2Y55DJC.js?v=e5d7e410:22:15)
+    at Provider (http://localhost:8080/node_modules/.vite/deps/chunk-T2Y55DJC.js?v=e5d7e410:22:15)
+    at Popper (http://localhost:8080/node_modules/.vite/deps/chunk-SKLY5YMQ.js?v=e5d7e410:1955:11)
+    at Select (http://localhost:8080/node_modules/.vite/deps/@radix-ui_react-select.js?v=e5d7e410:88:5)
+    at div
+    at div
+    at div
+    at http://localhost:8080/node_modules/.vite/deps/chunk-J2LHNCXX.js?v=e5d7e410:43:13
+    at Provider (http://localhost:8080/node_modules/.vite/deps/chunk-T2Y55DJC.js?v=e5d7e410:22:15)
+    at div
+    at http://localhost:8080/node_modules/.vite/deps/chunk-SKLY5YMQ.js?v=e5d7e410:1985:7
+    at http://localhost:8080/node_modules/.vite/deps/chunk-3MFSG4SQ.js?v=e5d7e410:79:13
+    at http://localhost:8080/node_modules/.vite/deps/chunk-3MFSG4SQ.js?v=e5d7e410:56:13
+    at http://localhost:8080/node_modules/.vite/deps/chunk-J2LHNCXX.js?v=e5d7e410:43:13
+    at http://localhost:8080/node_modules/.vite/deps/chunk-X7HXBKKN.js?v=e5d7e410:61:7
+    at http://localhost:8080/node_modules/.vite/deps/chunk-3MFSG4SQ.js?v=e5d7e410:79:13
+    at http://localhost:8080/node_modules/.vite/deps/chunk-3MFSG4SQ.js?v=e5d7e410:56:13
+    at http://localhost:8080/node_modules/.vite/deps/chunk-J2LHNCXX.js?v=e5d7e410:43:13
+    at http://localhost:8080/node_modules/.vite/deps/chunk-GB5UFZTV.js?v=e5d7e410:57:5
+    at http://localhost:8080/node_modules/.vite/deps/@radix-ui_react-popover.js?v=e5d7e410:245:7
+    at http://localhost:8080/node_modules/.vite/deps/@radix-ui_react-popover.js?v=e5d7e410:202:59
+    at Presence (http://localhost:8080/node_modules/.vite/deps/chunk-VZ7XWNEJ.js?v=e5d7e410:24:11)
+    at http://localhost:8080/node_modules/.vite/deps/@radix-ui_react-popover.js?v=e5d7e410:151:64
+    at http://localhost:8080/node_modules/.vite/deps/chunk-3MFSG4SQ.js?v=e5d7e410:79:13
+    at http://localhost:8080/node_modules/.vite/deps/chunk-3MFSG4SQ.js?v=e5d7e410:56:13
+    at http://localhost:8080/node_modules/.vite/deps/chunk-J2LHNCXX.js?v=e5d7e410:43:13
+    at http://localhost:8080/node_modules/.vite/deps/chunk-X7HXBKKN.js?v=e5d7e410:260:22
+    at Presence (http://localhost:8080/node_modules/.vite/deps/chunk-VZ7XWNEJ.js?v=e5d7e410:24:11)
+    at Provider (http://localhost:8080/node_modules/.vite/deps/chunk-T2Y55DJC.js?v=e5d7e410:22:15)
+    at PopoverPortal (http://localhost:8080/node_modules/.vite/deps/@radix-ui_react-popover.js?v=e5d7e410:143:11)
+    at _c (http://localhost:8080/src/components/ui/popover.tsx:26:63)
+    at Provider (http://localhost:8080/node_modules/.vite/deps/chunk-T2Y55DJC.js?v=e5d7e410:22:15)
+    at Provider (http://localhost:8080/node_modules/.vite/deps/chunk-T2Y55DJC.js?v=e5d7e410:22:15)
+    at Popper (http://localhost:8080/node_modules/.vite/deps/chunk-SKLY5YMQ.js?v=e5d7e410:1955:11)
+    at Popover (http://localhost:8080/node_modules/.vite/deps/@radix-ui_react-popover.js?v=e5d7e410:65:5)
+    at AICommandPopover (http://localhost:8080/src/components/AICommandPopover.tsx:32:36)
+    at div
+    at Resizable2 (http://localhost:8080/node_modules/.vite/deps/react-rnd.js?v=e5d7e410:1539:26)
+    at DraggableCore (http://localhost:8080/node_modules/.vite/deps/react-rnd.js?v=e5d7e410:590:9)
+    at Draggable2 (http://localhost:8080/node_modules/.vite/deps/react-rnd.js?v=e5d7e410:1022:9)
+    at Rnd2 (http://localhost:8080/node_modules/.vite/deps/react-rnd.js?v=e5d7e410:2183:26)
+    at div
+    at VideoCanvas (http://localhost:8080/src/components/VideoCanvas.tsx:342:13)
+    at div
+    at div
+    at Index (http://localhost:8080/src/pages/Index.tsx:53:53)
+    at RenderedRoute (http://localhost:8080/node_modules/.vite/deps/react-router-dom.js?v=e5d7e410:4088:5)
+    at Routes (http://localhost:8080/node_modules/.vite/deps/react-router-dom.js?v=e5d7e410:4558:5)
+    at Router (http://localhost:8080/node_modules/.vite/deps/react-router-dom.js?v=e5d7e410:4501:15)
+    at BrowserRouter (http://localhost:8080/node_modules/.vite/deps/react-router-dom.js?v=e5d7e410:5247:5)
+    at Provider (http://localhost:8080/node_modules/.vite/deps/chunk-T2Y55DJC.js?v=e5d7e410:22:15)
+    at TooltipProvider (http://localhost:8080/node_modules/.vite/deps/@radix-ui_react-tooltip.js?v=e5d7e410:64:5)
+    at O (http://localhost:8080/node_modules/.vite/deps/next-themes.js?v=e5d7e410:23:25)
+    at z (http://localhost:8080/node_modules/.vite/deps/next-themes.js?v=e5d7e410:21:18)
+    at DebugProvider (http://localhost:8080/src/context/DebugContext.tsx:24:33)
+    at LogProvider (http://localhost:8080/src/context/LogContext.tsx:24:31)
+    at QueryClientProvider (http://localhost:8080/node_modules/.vite/deps/@tanstack_react-query.js?v=e5d7e410:3081:3)
+    at App
+
+Consider adding an error boundary to your tree to customize error handling behavior.
+Visit https://reactjs.org/link/error-boundaries to learn more about error boundaries.
+logCapturedError @ chunk-FJ2A54M7.js?v=e5d7e410:14032Understand this error
+chunk-FJ2A54M7.js?v=e5d7e410:9129 Uncaught Error: A <Select.Item /> must have a value prop that is not an empty string. This is because the Select value can be set to an empty string to clear the selection and show the placeholder.
+    at @radix-ui_react-select.js?v=e5d7e410:875:13
+    at renderWithHooks (chunk-FJ2A54M7.js?v=e5d7e410:11548:26)
+    at updateForwardRef (chunk-FJ2A54M7.js?v=e5d7e410:14325:28)
+    at beginWork (chunk-FJ2A54M7.js?v=e5d7e410:15946:22)
+    at beginWork$1 (chunk-FJ2A54M7.js?v=e5d7e410:19753:22)
+    at performUnitOfWork (chunk-FJ2A54M7.js?v=e5d7e410:19198:20)
+    at workLoopSync (chunk-FJ2A54M7.js?v=e5d7e410:19137:13)
+    at renderRootSync (chunk-FJ2A54M7.js?v=e5d7e410:19116:15)
+    at recoverFromConcurrentError (chunk-FJ2A54M7.js?v=e5d7e410:18736:28)
+    at performSyncWorkOnRoot (chunk-FJ2A54M7.js?v=e5d7e410:18879:28)
+    at flushSyncCallbacks (chunk-FJ2A54M7.js?v=e5d7e410:9119:30)
+    at chunk-FJ2A54M7.js?v=e5d7e410:18627:21
+
+
+    Download the React DevTools for a better development experience: https://reactjs.org/link/react-devtools
+useBrowserSpeech.ts:289 ⏸️ Stopping recognition...
+useBrowserSpeech.ts:41 🛑 Stopping browser speech recognition...
+react-router-dom.js?v=e5d7e410:4393 ⚠️ React Router Future Flag Warning: React Router will begin wrapping state updates in `React.startTransition` in v7. You can use the `v7_startTransition` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_starttransition.
+warnOnce @ react-router-dom.js?v=e5d7e410:4393Understand this warning
+react-router-dom.js?v=e5d7e410:4393 ⚠️ React Router Future Flag Warning: Relative route resolution within Splat routes is changing in v7. You can use the `v7_relativeSplatPath` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_relativesplatpath.
+warnOnce @ react-router-dom.js?v=e5d7e410:4393Understand this warning
+7useBrowserSpeech.ts:257 🧹 Cleaning up speech recognition...
+@radix-ui_react-select.js?v=e5d7e410:875 Uncaught Error: A <Select.Item /> must have a value prop that is not an empty string. This is because the Select value can be set to an empty string to clear the selection and show the placeholder.
+    at @radix-ui_react-select.js?v=e5d7e410:875:13
+    at renderWithHooks (chunk-FJ2A54M7.js?v=e5d7e410:11548:26)
+    at updateForwardRef (chunk-FJ2A54M7.js?v=e5d7e410:14325:28)
+    at beginWork (chunk-FJ2A54M7.js?v=e5d7e410:15946:22)
+    at HTMLUnknownElement.callCallback2 (chunk-FJ2A54M7.js?v=e5d7e410:3674:22)
+    at Object.invokeGuardedCallbackDev (chunk-FJ2A54M7.js?v=e5d7e410:3699:24)
+    at invokeGuardedCallback (chunk-FJ2A54M7.js?v=e5d7e410:3733:39)
+    at beginWork$1 (chunk-FJ2A54M7.js?v=e5d7e410:19765:15)
+    at performUnitOfWork (chunk-FJ2A54M7.js?v=e5d7e410:19198:20)
+    at workLoopSync (chunk-FJ2A54M7.js?v=e5d7e410:19137:13)
+    at renderRootSync (chunk-FJ2A54M7.js?v=e5d7e410:19116:15)
+    at performSyncWorkOnRoot (chunk-FJ2A54M7.js?v=e5d7e410:18874:28)
+    at flushSyncCallbacks (chunk-FJ2A54M7.js?v=e5d7e410:9119:30)
+    at chunk-FJ2A54M7.js?v=e5d7e410:18627:21Understand this error
+@radix-ui_react-select.js?v=e5d7e410:875 Uncaught Error: A <Select.Item /> must have a value prop that is not an empty string. This is because the Select value can be set to an empty string to clear the selection and show the placeholder.
+    at @radix-ui_react-select.js?v=e5d7e410:875:13
+    at renderWithHooks (chunk-FJ2A54M7.js?v=e5d7e410:11548:26)
+    at updateForwardRef (chunk-FJ2A54M7.js?v=e5d7e410:14325:28)
+    at beginWork (chunk-FJ2A54M7.js?v=e5d7e410:15946:22)
+    at HTMLUnknownElement.callCallback2 (chunk-FJ2A54M7.js?v=e5d7e410:3674:22)
+    at Object.invokeGuardedCallbackDev (chunk-FJ2A54M7.js?v=e5d7e410:3699:24)
+    at invokeGuardedCallback (chunk-FJ2A54M7.js?v=e5d7e410:3733:39)
+    at beginWork$1 (chunk-FJ2A54M7.js?v=e5d7e410:19765:15)
+    at performUnitOfWork (chunk-FJ2A54M7.js?v=e5d7e410:19198:20)
+    at workLoopSync (chunk-FJ2A54M7.js?v=e5d7e410:19137:13)
+    at renderRootSync (chunk-FJ2A54M7.js?v=e5d7e410:19116:15)
+    at recoverFromConcurrentError (chunk-FJ2A54M7.js?v=e5d7e410:18736:28)
+    at performSyncWorkOnRoot (chunk-FJ2A54M7.js?v=e5d7e410:18879:28)
+    at flushSyncCallbacks (chunk-FJ2A54M7.js?v=e5d7e410:9119:30)
+    at chunk-FJ2A54M7.js?v=e5d7e410:18627:21Understand this error
+chunk-FJ2A54M7.js?v=e5d7e410:14032 The above error occurred in the <SelectItem> component:
+
+    at http://localhost:8080/node_modules/.vite/deps/@radix-ui_react-select.js?v=e5d7e410:848:7
+    at _c8 (http://localhost:8080/src/components/ui/select.tsx:234:60)
+    at div
+    at http://localhost:8080/node_modules/.vite/deps/chunk-J2LHNCXX.js?v=e5d7e410:43:13
+    at http://localhost:8080/node_modules/.vite/deps/chunk-3MFSG4SQ.js?v=e5d7e410:79:13
+    at http://localhost:8080/node_modules/.vite/deps/chunk-3MFSG4SQ.js?v=e5d7e410:56:13
+    at http://localhost:8080/node_modules/.vite/deps/chunk-PY2MI4VU.js?v=e5d7e410:41:15
+    at http://localhost:8080/node_modules/.vite/deps/@radix-ui_react-select.js?v=e5d7e410:759:13
+    at div
+    at http://localhost:8080/node_modules/.vite/deps/chunk-3MFSG4SQ.js?v=e5d7e410:79:13
+    at http://localhost:8080/node_modules/.vite/deps/chunk-3MFSG4SQ.js?v=e5d7e410:56:13
+    at http://localhost:8080/node_modules/.vite/deps/chunk-PY2MI4VU.js?v=e5d7e410:41:15
+    at Provider (http://localhost:8080/node_modules/.vite/deps/chunk-T2Y55DJC.js?v=e5d7e410:22:15)
+    at http://localhost:8080/node_modules/.vite/deps/@radix-ui_react-select.js?v=e5d7e410:302:58
+    at http://localhost:8080/node_modules/.vite/deps/chunk-3MFSG4SQ.js?v=e5d7e410:79:13
+    at http://localhost:8080/node_modules/.vite/deps/chunk-3MFSG4SQ.js?v=e5d7e410:56:13
+    at http://localhost:8080/node_modules/.vite/deps/chunk-J2LHNCXX.js?v=e5d7e410:43:13
+    at http://localhost:8080/node_modules/.vite/deps/chunk-X7HXBKKN.js?v=e5d7e410:260:22
+    at SelectPortal
+    at _c4 (http://localhost:8080/src/components/ui/select.tsx:141:63)
+    at Provider (http://localhost:8080/node_modules/.vite/deps/chunk-T2Y55DJC.js?v=e5d7e410:22:15)
+    at Provider (http://localhost:8080/node_modules/.vite/deps/chunk-T2Y55DJC.js?v=e5d7e410:22:15)
+    at CollectionProvider (http://localhost:8080/node_modules/.vite/deps/chunk-PY2MI4VU.js?v=e5d7e410:31:13)
+    at Provider (http://localhost:8080/node_modules/.vite/deps/chunk-T2Y55DJC.js?v=e5d7e410:22:15)
+    at Provider (http://localhost:8080/node_modules/.vite/deps/chunk-T2Y55DJC.js?v=e5d7e410:22:15)
+    at Popper (http://localhost:8080/node_modules/.vite/deps/chunk-SKLY5YMQ.js?v=e5d7e410:1955:11)
+    at Select (http://localhost:8080/node_modules/.vite/deps/@radix-ui_react-select.js?v=e5d7e410:88:5)
+    at div
+    at div
+    at div
+    at http://localhost:8080/node_modules/.vite/deps/chunk-J2LHNCXX.js?v=e5d7e410:43:13
+    at Provider (http://localhost:8080/node_modules/.vite/deps/chunk-T2Y55DJC.js?v=e5d7e410:22:15)
+    at div
+    at http://localhost:8080/node_modules/.vite/deps/chunk-SKLY5YMQ.js?v=e5d7e410:1985:7
+    at http://localhost:8080/node_modules/.vite/deps/chunk-3MFSG4SQ.js?v=e5d7e410:79:13
+    at http://localhost:8080/node_modules/.vite/deps/chunk-3MFSG4SQ.js?v=e5d7e410:56:13
+    at http://localhost:8080/node_modules/.vite/deps/chunk-J2LHNCXX.js?v=e5d7e410:43:13
+    at http://localhost:8080/node_modules/.vite/deps/chunk-X7HXBKKN.js?v=e5d7e410:61:7
+    at http://localhost:8080/node_modules/.vite/deps/chunk-3MFSG4SQ.js?v=e5d7e410:79:13
+    at http://localhost:8080/node_modules/.vite/deps/chunk-3MFSG4SQ.js?v=e5d7e410:56:13
+    at http://localhost:8080/node_modules/.vite/deps/chunk-J2LHNCXX.js?v=e5d7e410:43:13
+    at http://localhost:8080/node_modules/.vite/deps/chunk-GB5UFZTV.js?v=e5d7e410:57:5
+    at http://localhost:8080/node_modules/.vite/deps/@radix-ui_react-popover.js?v=e5d7e410:245:7
+    at http://localhost:8080/node_modules/.vite/deps/@radix-ui_react-popover.js?v=e5d7e410:202:59
+    at Presence (http://localhost:8080/node_modules/.vite/deps/chunk-VZ7XWNEJ.js?v=e5d7e410:24:11)
+    at http://localhost:8080/node_modules/.vite/deps/@radix-ui_react-popover.js?v=e5d7e410:151:64
+    at http://localhost:8080/node_modules/.vite/deps/chunk-3MFSG4SQ.js?v=e5d7e410:79:13
+    at http://localhost:8080/node_modules/.vite/deps/chunk-3MFSG4SQ.js?v=e5d7e410:56:13
+    at http://localhost:8080/node_modules/.vite/deps/chunk-J2LHNCXX.js?v=e5d7e410:43:13
+    at http://localhost:8080/node_modules/.vite/deps/chunk-X7HXBKKN.js?v=e5d7e410:260:22
+    at Presence (http://localhost:8080/node_modules/.vite/deps/chunk-VZ7XWNEJ.js?v=e5d7e410:24:11)
+    at Provider (http://localhost:8080/node_modules/.vite/deps/chunk-T2Y55DJC.js?v=e5d7e410:22:15)
+    at PopoverPortal (http://localhost:8080/node_modules/.vite/deps/@radix-ui_react-popover.js?v=e5d7e410:143:11)
+    at _c (http://localhost:8080/src/components/ui/popover.tsx:26:63)
+    at Provider (http://localhost:8080/node_modules/.vite/deps/chunk-T2Y55DJC.js?v=e5d7e410:22:15)
+    at Provider (http://localhost:8080/node_modules/.vite/deps/chunk-T2Y55DJC.js?v=e5d7e410:22:15)
+    at Popper (http://localhost:8080/node_modules/.vite/deps/chunk-SKLY5YMQ.js?v=e5d7e410:1955:11)
+    at Popover (http://localhost:8080/node_modules/.vite/deps/@radix-ui_react-popover.js?v=e5d7e410:65:5)
+    at AICommandPopover (http://localhost:8080/src/components/AICommandPopover.tsx:32:36)
+    at div
+    at Resizable2 (http://localhost:8080/node_modules/.vite/deps/react-rnd.js?v=e5d7e410:1539:26)
+    at DraggableCore (http://localhost:8080/node_modules/.vite/deps/react-rnd.js?v=e5d7e410:590:9)
+    at Draggable2 (http://localhost:8080/node_modules/.vite/deps/react-rnd.js?v=e5d7e410:1022:9)
+    at Rnd2 (http://localhost:8080/node_modules/.vite/deps/react-rnd.js?v=e5d7e410:2183:26)
+    at div
+    at VideoCanvas (http://localhost:8080/src/components/VideoCanvas.tsx:342:13)
+    at div
+    at div
+    at Index (http://localhost:8080/src/pages/Index.tsx:53:53)
+    at RenderedRoute (http://localhost:8080/node_modules/.vite/deps/react-router-dom.js?v=e5d7e410:4088:5)
+    at Routes (http://localhost:8080/node_modules/.vite/deps/react-router-dom.js?v=e5d7e410:4558:5)
+    at Router (http://localhost:8080/node_modules/.vite/deps/react-router-dom.js?v=e5d7e410:4501:15)
+    at BrowserRouter (http://localhost:8080/node_modules/.vite/deps/react-router-dom.js?v=e5d7e410:5247:5)
+    at Provider (http://localhost:8080/node_modules/.vite/deps/chunk-T2Y55DJC.js?v=e5d7e410:22:15)
+    at TooltipProvider (http://localhost:8080/node_modules/.vite/deps/@radix-ui_react-tooltip.js?v=e5d7e410:64:5)
+    at O (http://localhost:8080/node_modules/.vite/deps/next-themes.js?v=e5d7e410:23:25)
+    at z (http://localhost:8080/node_modules/.vite/deps/next-themes.js?v=e5d7e410:21:18)
+    at DebugProvider (http://localhost:8080/src/context/DebugContext.tsx:24:33)
+    at LogProvider (http://localhost:8080/src/context/LogContext.tsx:24:31)
+    at QueryClientProvider (http://localhost:8080/node_modules/.vite/deps/@tanstack_react-query.js?v=e5d7e410:3081:3)
+    at App
+
+Consider adding an error boundary to your tree to customize error handling behavior.
+Visit https://reactjs.org/link/error-boundaries to learn more about error boundaries.
+logCapturedError @ chunk-FJ2A54M7.js?v=e5d7e410:14032Understand this error
+chunk-FJ2A54M7.js?v=e5d7e410:9129 Uncaught Error: A <Select.Item /> must have a value prop that is not an empty string. This is because the Select value can be set to an empty string to clear the selection and show the placeholder.
+    at @radix-ui_react-select.js?v=e5d7e410:875:13
+    at renderWithHooks (chunk-FJ2A54M7.js?v=e5d7e410:11548:26)
+    at updateForwardRef (chunk-FJ2A54M7.js?v=e5d7e410:14325:28)
+    at beginWork (chunk-FJ2A54M7.js?v=e5d7e410:15946:22)
+    at beginWork$1 (chunk-FJ2A54M7.js?v=e5d7e410:19753:22)
+    at performUnitOfWork (chunk-FJ2A54M7.js?v=e5d7e410:19198:20)
+    at workLoopSync (chunk-FJ2A54M7.js?v=e5d7e410:19137:13)
+    at renderRootSync (chunk-FJ2A54M7.js?v=e5d7e410:19116:15)
+    at recoverFromConcurrentError (chunk-FJ2A54M7.js?v=e5d7e410:18736:28)
+    at performSyncWorkOnRoot (chunk-FJ2A54M7.js?v=e5d7e410:18879:28)
+    at flushSyncCallbacks (chunk-FJ2A54M7.js

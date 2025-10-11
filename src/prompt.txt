@@ -1,0 +1,1358 @@
+// src/components/AICommandPopover.tsx
+
+import { useState } from "react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Textarea } from "@/components/ui/textarea";
+import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
+import { Send, Crosshair, Package, Sparkles, Trash2, Edit3, Copy, Loader2 } from "lucide-react";
+import { GeneratedOverlay } from "@/types/caption";
+import { processCommandWithAgent } from "@/lib/ai";
+
+interface AICommandPopoverProps {
+  onSubmit: (text: string) => void;
+  activeOverlays: GeneratedOverlay[];
+  children: React.ReactNode;
+}
+
+export const AICommandPopover = ({ onSubmit, activeOverlays, children }: AICommandPopoverProps) => {
+  const [open, setOpen] = useState(false);
+  const [text, setText] = useState("");
+  const [selectedTargetId, setSelectedTargetId] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  
+  // Intent and Modifiers
+  const [intent, setIntent] = useState<string>('static_visual');
+  const [modifiers, setModifiers] = useState({
+    animated: false,
+    hasBackground: false,
+  });
+
+  // Template suggestions
+  const [showTemplates, setShowTemplates] = useState(false);
+
+  const templates = {
+    create: [
+      { label: "Timer (5 min)", prompt: "create a 5 minute countdown timer" },
+      { label: "Title Card", prompt: "create a bold title that says 'Live Stream'" },
+      { label: "Stats Counter", prompt: "create a stats box showing viewers count" },
+      { label: "Chart", prompt: "create a bar chart with sample data" },
+      { label: "Pulse Animation", prompt: "create an animated pulsing circle" },
+    ],
+    modify: [
+      { label: "Make Bigger", prompt: "make this component larger" },
+      { label: "Change Color", prompt: "change the color to red" },
+      { label: "Reposition", prompt: "move this to the bottom right" },
+      { label: "Add Animation", prompt: "add a smooth fade-in animation" },
+    ],
+    manage: [
+      { label: "Delete All", prompt: "remove all overlays from the screen" },
+      { label: "Clear Text", prompt: "delete all text components" },
+      { label: "Show/Hide", prompt: "hide this component temporarily" },
+    ],
+  };
+
+  const handleModifierChange = (modifier: keyof typeof modifiers) => {
+    setModifiers(prev => ({ ...prev, [modifier]: !prev[modifier] }));
+  };
+
+  const handleTemplateSelect = (templatePrompt: string) => {
+    setText(templatePrompt);
+    setShowTemplates(false);
+  };
+
+  const handleSubmit = async () => {
+    if (!text.trim()) return;
+
+    setIsLoading(true);
+    try {
+      let finalPrompt = text.trim();
+      let contextParts: string[] = [];
+
+      // Add Intent context
+      contextParts.push(`User intent is '${intent}'.`);
+      
+      // Add Modifiers context
+      const activeModifiers = Object.entries(modifiers)
+        .filter(([, value]) => value)
+        .map(([key]) => key);
+
+      if (activeModifiers.length > 0) {
+        contextParts.push(`Modifiers: [${activeModifiers.join(', ')}].`);
+      }
+      
+      // Add target overlay context
+      if (selectedTargetId) {
+        contextParts.push(`Act ONLY on the UI component named "${selectedTargetId}".`);
+      }
+      
+      // Assemble the final prompt
+      finalPrompt = `CONTEXT: ${contextParts.join(' ')}\n\nUSER PROMPT: ${finalPrompt}`;
+      
+      // Call the AI with enhanced context
+      const aiCommand = await processCommandWithAgent(finalPrompt, activeOverlays, {
+        intent,
+        modifiers: activeModifiers
+      });
+
+      if (aiCommand) {
+        onSubmit(finalPrompt);
+        setText("");
+        setSelectedTargetId(null);
+        setModifiers({ animated: false, hasBackground: false });
+        setOpen(false);
+      }
+    } catch (error) {
+      console.error("Error processing command:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === 'Enter' && !e.shiftKey && !isLoading) {
+      e.preventDefault();
+      handleSubmit();
+    }
+  };
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>{children}</PopoverTrigger>
+      <PopoverContent className="w-96 p-4" align="end">
+        <div className="grid gap-4">
+          {/* Header */}
+          <div className="space-y-2">
+            <h4 className="font-semibold leading-none flex items-center gap-2">
+              <Sparkles className="h-4 w-4" />
+              AI Command Center
+            </h4>
+            <p className="text-xs text-muted-foreground">
+              Create, modify, or delete overlays with natural language commands.
+            </p>
+          </div>
+
+          {/* Intent Selector */}
+          <div className="flex items-center gap-2">
+            <Package className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+            <Select onValueChange={setIntent} defaultValue={intent}>
+              <SelectTrigger className="flex-1 h-9 text-sm">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="static_visual">📝 Static Visual / Text</SelectItem>
+                <SelectItem value="data_widget">📊 Data Widget (Timer, Chart)</SelectItem>
+                <SelectItem value="interactive">🔘 Interactive Element</SelectItem>
+                <SelectItem value="live_data">🌐 Live Data (Online)</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Modifiers */}
+          <div className="space-y-2">
+            <Label className="text-xs font-semibold text-muted-foreground flex items-center">
+              <Sparkles className="w-3 h-3 mr-1.5" />
+              Enhance With
+            </Label>
+            <div className="flex items-center gap-3 bg-muted/30 p-2 rounded-md">
+              <div className="flex items-center space-x-2 flex-1">
+                <Checkbox 
+                  id="animated" 
+                  checked={modifiers.animated} 
+                  onCheckedChange={() => handleModifierChange('animated')}
+                />
+                <Label htmlFor="animated" className="text-xs font-normal leading-none cursor-pointer">
+                  Animated
+                </Label>
+              </div>
+              <div className="flex items-center space-x-2 flex-1">
+                <Checkbox 
+                  id="hasBackground" 
+                  checked={modifiers.hasBackground} 
+                  onCheckedChange={() => handleModifierChange('hasBackground')}
+                />
+                <Label htmlFor="hasBackground" className="text-xs font-normal leading-none cursor-pointer">
+                  Background
+                </Label>
+              </div>
+            </div>
+          </div>
+
+          {/* Target Overlay Selector */}
+          {activeOverlays.length > 0 && (
+            <div className="flex items-center gap-2">
+              <Crosshair className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+              <Select onValueChange={(val) => setSelectedTargetId(val)} value={selectedTargetId || ""}>
+                <SelectTrigger className="flex-1 h-9 text-sm">
+                  <SelectValue placeholder="Target an overlay (optional)" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">None (Create New)</SelectItem>
+                  {activeOverlays.map(overlay => (
+                    <SelectItem key={overlay.id} value={overlay.name}>
+                      {overlay.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
+          {/* Main Input */}
+          <Textarea
+            placeholder="Describe what you want to create or modify..."
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            onKeyDown={handleKeyDown}
+            disabled={isLoading}
+            className="min-h-24 text-sm resize-none"
+          />
+
+          {/* Quick Templates */}
+          <div className="relative">
+            <Button
+              variant="outline"
+              size="sm"
+              className="w-full justify-between text-xs"
+              onClick={() => setShowTemplates(!showTemplates)}
+            >
+              💡 Quick Templates
+              <span className="text-muted-foreground">{showTemplates ? '▼' : '▶'}</span>
+            </Button>
+            
+            {showTemplates && (
+              <div className="absolute top-full left-0 right-0 mt-1 bg-popover border rounded-md shadow-md z-50">
+                <div className="p-2 max-h-64 overflow-y-auto">
+                  <div className="space-y-1">
+                    <p className="text-xs font-semibold text-muted-foreground px-2 pt-1">Create</p>
+                    {templates.create.map((t, i) => (
+                      <button
+                        key={`create-${i}`}
+                        onClick={() => handleTemplateSelect(t.prompt)}
+                        className="w-full text-left px-3 py-1.5 text-xs hover:bg-accent rounded transition-colors"
+                      >
+                        {t.label}
+                      </button>
+                    ))}
+                    <p className="text-xs font-semibold text-muted-foreground px-2 pt-2">Modify</p>
+                    {templates.modify.map((t, i) => (
+                      <button
+                        key={`modify-${i}`}
+                        onClick={() => handleTemplateSelect(t.prompt)}
+                        className="w-full text-left px-3 py-1.5 text-xs hover:bg-accent rounded transition-colors"
+                      >
+                        {t.label}
+                      </button>
+                    ))}
+                    <p className="text-xs font-semibold text-muted-foreground px-2 pt-2">Manage</p>
+                    {templates.manage.map((t, i) => (
+                      <button
+                        key={`manage-${i}`}
+                        onClick={() => handleTemplateSelect(t.prompt)}
+                        className="w-full text-left px-3 py-1.5 text-xs hover:bg-accent rounded transition-colors"
+                      >
+                        {t.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Action Buttons */}
+          <div className="flex gap-2">
+            <Button
+              onClick={handleSubmit}
+              disabled={!text.trim() || isLoading}
+              className="flex-1"
+              size="sm"
+            >
+              {isLoading ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Processing...
+                </>
+              ) : (
+                <>
+                  <Send className="w-4 h-4 mr-2" />
+                  Generate
+                </>
+              )}
+            </Button>
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={() => setText("")}
+              disabled={!text.trim()}
+              className="h-10"
+            >
+              <Trash2 className="w-4 h-4" />
+            </Button>
+          </div>
+
+          {/* Info Footer */}
+          <div className="bg-muted/30 p-2 rounded-md text-xs text-muted-foreground space-y-1">
+            <p><strong>Tip:</strong> Use "update [name]" to modify existing components</p>
+            <p><strong>Multi-step:</strong> Chain commands like "create X, then update Y"</p>
+            <p><strong>Delete:</strong> Say "remove [name]" to delete components</p>
+          </div>
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
+};
+
+# Enhanced AI System Integration Guide
+
+## Overview
+This guide explains how to integrate the enhanced AI system for robust overlay management in your video application.
+
+---
+
+## 1. Key Improvements
+
+### Stability
+- **Validation Layer**: Commands are validated before execution
+- **Error Handling**: Comprehensive error handling with user-friendly messages
+- **Graceful Degradation**: If AI fails, meaningful error components are displayed
+- **Lower Temperature (0.3)**: More consistent, predictable AI responses
+
+### Extensibility
+- **Multi-Step Commands**: Chain multiple operations (create → update → delete)
+- **Batch Processing**: Process multiple commands sequentially
+- **Context Awareness**: Pass user intent and modifiers for better generation
+- **Template System**: Pre-built templates for common operations
+
+### Reliability Features
+- **Command Validation**: Ensures all commands have required fields
+- **Overlay Existence Checks**: Won't try to update/delete non-existent overlays
+- **Partial Updates**: Only send changed fields when updating
+- **Better Prompts**: Detailed system prompt with clear examples
+
+---
+
+## 2. Installation & Setup
+
+### Step 1: Replace `ai.ts`
+Copy the enhanced `ai.ts` into your `src/lib/` directory. This includes:
+- Improved prompt with detailed examples
+- Validation layer for commands
+- Better error handling
+- Support for multi-step operations
+
+### Step 2: Update `AICommandPopover.tsx`
+Replace your existing popover with the enhanced version. New features:
+- Quick template system (create, modify, manage)
+- Visual loading states
+- Better UX with quick actions
+- Template suggestions for common tasks
+
+### Step 3: Update VideoCanvas.tsx Integration
+
+In your `VideoCanvas.tsx`, ensure the AI popover passes the correct callbacks:
+
+```typescript
+<AICommandPopover 
+  onSubmit={rest.onProcessTranscript}
+  activeOverlays={rest.generatedOverlays}
+>
+  <Button size="icon" className="rounded-full h-16 w-16 shadow-lg bg-purple-600 hover:bg-purple-700">
+    <Sparkles className="h-8 w-8" />
+  </Button>
+</AICommandPopover>
+```
+
+---
+
+## 3. Capability Matrix
+
+### CREATE Operations
+```
+"create a 5-minute timer" 
+  → generate_ui_component with Timer icon & React.useEffect
+
+"create a title saying Hello World"
+  → generate_ui_component with h1 element & style prop
+
+"create a bar chart with data"
+  → generate_ui_component with recharts BarChart
+
+"create an animated pulsing circle"
+  → generate_ui_component with animate-pulse class
+```
+
+### UPDATE Operations
+```
+"make the title bigger"
+  → update_ui_component: props.style.fontSize
+
+"change color to red"
+  → update_ui_component: props.style.color
+
+"move to bottom right"
+  → update_ui_component: layout.position
+
+"add a background"
+  → update_ui_component: props.style.backgroundColor
+```
+
+### DELETE Operations
+```
+"remove the timer"
+  → delete_ui_component: targetId = "timer_name"
+
+"delete all overlays"
+  → multi_tool_reasoning: [delete, delete, delete...]
+
+"clear the screen"
+  → delete_ui_component for each active overlay
+```
+
+### MULTI-STEP Operations
+```
+"create a dashboard with a title and chart, then update the title to red"
+  → multi_tool_reasoning with 3 actions:
+     1. generate title component
+     2. generate chart component
+     3. update title props.style.color
+
+"replace the old timer with a new one"
+  → multi_tool_reasoning:
+     1. delete old_timer
+     2. generate new_timer
+```
+
+---
+
+## 4. Command Flow Diagram
+
+```
+User Input
+    ↓
+[AICommandPopover]
+    - Collect intent (static_visual, data_widget, interactive, live_data)
+    - Collect modifiers (animated, hasBackground)
+    - Collect target overlay (if updating)
+    - Build context string
+    ↓
+[processCommandWithAgent]
+    - Validate API key
+    - Build system prompt with current elements
+    - Call Groq API with command + context
+    ↓
+[robustJsonParse]
+    - Extract JSON from response
+    - Handle wrapped/escaped responses
+    ↓
+[validateCommand]
+    - Check tool is valid
+    - Check required fields exist
+    - Validate multi_tool_reasoning actions
+    ↓
+[Return AICommand]
+    - Single action: { tool, props, layout, ... }
+    - Multi action: { tool: "multi_tool_reasoning", actions: [...] }
+    ↓
+[VideoCanvas processes]
+    - DynamicCodeRenderer executes each action
+    - State updates trigger re-renders
+```
+
+---
+
+## 5. Advanced Usage Examples
+
+### Example 1: Creating a Dashboard
+```
+User Input: "create a live dashboard with weather and stats"
+Intent: "live_data"
+Modifiers: ["hasBackground"]
+
+Expected Output:
+{
+  "tool": "multi_tool_reasoning",
+  "actions": [
+    {
+      "tool": "generate_ui_component",
+      "name": "dashboard_card",
+      "componentCode": "({ style, data }) => <Card style={style}>...</Card>",
+      "props": { "style": { "backgroundColor": "#1F2937" } },
+      "layout": { "position": { "x": 50, "y": 50 }, "size": { "width": 80, "height": 60 }, "zIndex": 10 }
+    },
+    {
+      "tool": "generate_ui_component",
+      "name": "weather_widget",
+      "componentCode": "({ data }) => <div>...</div>",
+      "props": {},
+      "layout": { "position": { "x": 30, "y": 30 }, "size": { "width": 40, "height": 40 }, "zIndex": 11 },
+      "fetch": { "url": "https://wttr.in/London?format=j1", "interval": 300 }
+    }
+  ]
+}
+```
+
+### Example 2: Updating Multiple Components
+```
+User Input: "make all text components red and bigger"
+Target: "title_main"
+
+Expected Output:
+{
+  "tool": "multi_tool_reasoning",
+  "actions": [
+    {
+      "tool": "update_ui_component",
+      "targetId": "title_main",
+      "props": {
+        "style": { "color": "#FF0000", "fontSize": "64px" }
+      }
+    },
+    {
+      "tool": "update_ui_component",
+      "targetId": "subtitle_main",
+      "props": {
+        "style": { "color": "#FF0000", "fontSize": "48px" }
+      }
+    }
+  ]
+}
+```
+
+### Example 3: Cleanup Operations
+```
+User Input: "clear the screen except for the main camera"
+Active Overlays: [timer_1, chart_1, title_1, stats_1]
+
+Expected Output:
+{
+  "tool": "multi_tool_reasoning",
+  "actions": [
+    { "tool": "delete_ui_component", "targetId": "timer_1" },
+    { "tool": "delete_ui_component", "targetId": "chart_1" },
+    { "tool": "delete_ui_component", "targetId": "title_1" },
+    { "tool": "delete_ui_component", "targetId": "stats_1" }
+  ]
+}
+```
+
+---
+
+## 6. Error Handling Strategy
+
+### API Failures
+If the Groq API is unreachable:
+- Catch the error in processCommandWithAgent
+- Return an error component showing: "API error: [status code]"
+- User can retry or check API key
+
+### Invalid Commands
+If AI returns malformed JSON:
+- robustJsonParse attempts to extract valid JSON
+- If extraction fails, return error component
+- Log the raw response for debugging
+
+### Validation Failures
+If command fails validation:
+- validateCommand rejects it
+- Return error component with specific validation error
+- User sees exactly what's wrong
+
+### Runtime Errors
+If component code has syntax errors:
+- Caught in DynamicCodeRenderer useEffect
+- Display red error card with error message and code snippet
+- Doesn't break the entire app
+
+---
+
+## 7. Testing Checklist
+
+- [ ] Simple text creation works
+- [ ] Component styling via style prop works
+- [ ] Position/size updates work
+- [ ] Multi-step operations execute in order
+- [ ] Deleting non-existent components fails gracefully
+- [ ] API errors show user-friendly messages
+- [ ] Templates work and populate text field
+- [ ] Modifiers (animated, hasBackground) are applied
+- [ ] Intent selector changes AI behavior
+- [ ] Target overlay selector works correctly
+- [ ] Loading states display during processing
+- [ ] Charts render with live data
+- [ ] Fetch operations update on interval
+
+---
+
+## 8. Performance Optimization Tips
+
+### Reduce API Calls
+- Batch related commands into single multi_tool_reasoning
+- Debounce rapid successive commands
+- Cache component code when possible
+
+### Optimize Re-renders
+- Use React.memo for DynamicCodeRenderer
+- Only update changed properties (partial updates)
+- Avoid unnecessary layout recalculations
+
+### Improve Response Time
+- Use lower max_tokens (currently 2000)
+- Lower temperature for faster convergence (currently 0.3)
+- Pre-compile common patterns
+
+---
+
+## 9. Extending the System
+
+### Adding New Tools
+1. Add tool definition to MASTER_PROMPT_AGENT
+2. Add case to validateCommand()
+3. Handle in VideoCanvas DynamicCodeRenderer
+
+### Adding New Components
+Add to componentScope in DynamicCodeRenderer:
+```typescript
+const componentScope = {
+  React, Card, CardHeader, // ... existing
+  NewComponent, // Add here
+};
+```
+
+### Custom Fetch Endpoints
+Current supported:
+- Weather: `https://wttr.in/CITY?format=j1`
+- Custom APIs with proper CORS
+
+Add to MASTER_PROMPT_AGENT with examples.
+
+---
+
+## 10. Common Patterns
+
+### Pattern 1: Conditional Rendering
+```
+"create a timer that shows 'Live' when active"
+→ Component uses internal state to toggle display
+```
+
+### Pattern 2: Data-Driven Updates
+```
+"create a counter that increments on click"
+→ Component uses useState + Button with onClick handler
+```
+
+### Pattern 3: Animated State Changes
+```
+"create a pulsing indicator"
+→ Component uses Tailwind animate-pulse class
+```
+
+### Pattern 4: Live Updates
+```
+"create a live viewer count from the API"
+→ Component uses fetch with interval + data prop
+```
+
+---
+
+## 11. Troubleshooting
+
+### AI Response is Invalid JSON
+**Symptom**: Red error box with parse error
+**Fix**: Check robustJsonParse is correctly extracting JSON. Increase max_tokens.
+
+### Components Don't Update
+**Symptom**: Create works but update doesn't change anything
+**Fix**: Verify targetId matches overlay.name exactly. Check updateCommand validation.
+
+### Fetch Not Working
+**Symptom**: Live data component shows "Loading..."
+**Fix**: Check URL is CORS-enabled. Verify interval is in seconds. Check network tab.
+
+### Out of Memory
+**Symptom**: App crashes after many operations
+**Fix**: Implement overlay cleanup. Limit active overlays to ~20.
+
+---
+
+## 12. Best Practices
+
+1. **Always validate user input** before sending to AI
+2. **Provide context** (intent, modifiers) for better generation
+3. **Use templates** for common operations
+4. **Test edge cases** (empty overlays, invalid targets)
+5. **Monitor API usage** to avoid rate limits
+6. **Implement cleanup** for deleted overlays
+7. **Log errors** for debugging
+8. **Cache** frequently generated components
+9. **Debounce** rapid user inputs
+10. **Collect feedback** on generated components
+
+
+
+// src/types/ai.ts
+
+/**
+ * Core AI Command Types
+ */
+
+export type ToolType = 'generate_ui_component' | 'update_ui_component' | 'delete_ui_component' | 'multi_tool_reasoning';
+
+export interface LayoutConfig {
+  position: { x: number; y: number }; // 0-100 percentages
+  size: { width: number; height: number }; // 0-100 percentages
+  zIndex: number; // 1-1000
+}
+
+export interface FetchConfig {
+  url: string;
+  interval?: number; // seconds
+}
+
+export interface GenerateUIComponentAction {
+  tool: 'generate_ui_component';
+  name: string; // Unique identifier for the component
+  componentCode: string; // React component code as string
+  props: Record<string, any>; // Initial props
+  layout: LayoutConfig;
+  fetch?: FetchConfig; // Optional for live data
+}
+
+export interface UpdateUIComponentAction {
+  tool: 'update_ui_component';
+  targetId: string; // Name of component to update
+  props?: Record<string, any>; // Partial props update
+  layout?: Partial<LayoutConfig>; // Partial layout update
+}
+
+export interface DeleteUIComponentAction {
+  tool: 'delete_ui_component';
+  targetId: string; // Name of component to delete
+}
+
+export interface MultiToolReasoningAction {
+  tool: 'multi_tool_reasoning';
+  actions: AIAction[]; // Array of other actions
+}
+
+export type AIAction = 
+  | GenerateUIComponentAction 
+  | UpdateUIComponentAction 
+  | DeleteUIComponentAction 
+  | MultiToolReasoningAction;
+
+export type AICommand = AIAction;
+
+/**
+ * Validation and Processing Types
+ */
+
+export interface CommandValidationResult {
+  valid: boolean;
+  error?: string;
+}
+
+export interface AIProcessingContext {
+  intent?: 'static_visual' | 'data_widget' | 'interactive' | 'live_data';
+  modifiers?: ('animated' | 'hasBackground')[];
+  targetOverlay?: string;
+}
+
+export interface ProcessCommandOptions {
+  context?: AIProcessingContext;
+  timeout?: number; // ms
+  maxRetries?: number;
+}
+
+/**
+ * Error Handling
+ */
+
+export interface AIError {
+  type: 'api_error' | 'parse_error' | 'validation_error' | 'runtime_error';
+  message: string;
+  originalError?: Error;
+  command?: string;
+}
+
+/**
+ * Response Types from API
+ */
+
+export interface GroqAPIResponse {
+  choices: Array<{
+    message: {
+      content: string;
+    };
+  }>;
+  usage?: {
+    prompt_tokens: number;
+    completion_tokens: number;
+    total_tokens: number;
+  };
+}
+
+/**
+ * Enhanced Overlay Type (to extend existing GeneratedOverlay)
+ */
+
+export interface EnhancedGeneratedOverlay {
+  id: string;
+  name: string;
+  componentCode: string;
+  props: Record<string, any>;
+  layout: LayoutConfig;
+  fetch?: FetchConfig;
+  createdAt: Date;
+  lastUpdatedAt: Date;
+  source: 'ai_generated' | 'manual' | 'template';
+  metadata?: {
+    intent?: string;
+    modifiers?: string[];
+    description?: string;
+  };
+}
+
+/**
+ * Template System Types
+ */
+
+export interface CommandTemplate {
+  id: string;
+  label: string;
+  category: 'create' | 'modify' | 'manage' | 'advanced';
+  prompt: string;
+  description?: string;
+  intent?: string;
+  modifiers?: string[];
+  example?: {
+    command: string;
+    expectedOutput: AICommand;
+  };
+}
+
+export interface TemplateLibrary {
+  templates: CommandTemplate[];
+  addTemplate: (template: CommandTemplate) => void;
+  removeTemplate: (id: string) => void;
+  getTemplatesByCategory: (category: string) => CommandTemplate[];
+  search: (query: string) => CommandTemplate[];
+}
+
+/**
+ * State Management Types
+ */
+
+export interface AIState {
+  isLoading: boolean;
+  error: AIError | null;
+  lastCommand: string | null;
+  commandHistory: string[];
+  generatedComponents: Map<string, EnhancedGeneratedOverlay>;
+}
+
+export interface AIContextValue {
+  state: AIState;
+  processCommand: (command: string, options?: ProcessCommandOptions) => Promise<AICommand | null>;
+  processMultipleCommands: (commands: string[]) => Promise<AICommand[]>;
+  clearError: () => void;
+  resetState: () => void;
+}
+
+/**
+ * Hook Return Types
+ */
+
+export interface UseAICommandReturn {
+  processCommand: (command: string, overlays: any[]) => Promise<void>;
+  isLoading: boolean;
+  error: string | null;
+  commandHistory: string[];
+}
+
+/**
+ * Component Props Types
+ */
+
+export interface AICommandPopoverProps {
+  onSubmit: (text: string) => void;
+  activeOverlays: any[];
+  children: React.ReactNode;
+  templates?: CommandTemplate[];
+  onError?: (error: AIError) => void;
+}
+
+/**
+ * Data Fetching Types
+ */
+
+export interface FetchedDataPayload {
+  jsonData: any;
+  isLoading: boolean;
+  error: string | null;
+  lastFetched?: Date;
+  retryCount?: number;
+}
+
+/**
+ * Live Caption Related
+ */
+
+export interface LiveCaptionOptions {
+  decision: 'SHOW' | 'HIDE';
+  type: 'live' | 'recorded';
+  duration: number; // seconds
+  formattedText: string;
+  style?: string;
+  language?: string;
+}
+
+/**
+ * Batch Operation Types
+ */
+
+export interface BatchOperation {
+  id: string;
+  commands: string[];
+  status: 'pending' | 'executing' | 'completed' | 'failed';
+  results: AICommand[];
+  errors: AIError[];
+  startedAt?: Date;
+  completedAt?: Date;
+}
+
+/**
+ * Analytics Types
+ */
+
+export interface CommandAnalytics {
+  totalCommands: number;
+  successfulCommands: number;
+  failedCommands: number;
+  averageResponseTime: number; // ms
+  mostUsedIntents: Map<string, number>;
+  mostUsedModifiers: Map<string, number>;
+  commandFrequency: Map<string, number>;
+}
+
+/**
+ * Utility Functions Types
+ */
+
+export type CommandParser = (input: string) => {
+  intent: string;
+  action: string;
+  target?: string;
+  modifiers: string[];
+};
+
+export type ResponseTransformer = (raw: any) => AICommand;
+
+export type ErrorHandler = (error: AIError) => Promise<void>;
+
+/**
+ * Configuration Types
+ */
+
+export interface AISystemConfig {
+  apiKey: string;
+  apiUrl: string;
+  model: string;
+  temperature: number;
+  maxTokens: number;
+  retryAttempts: number;
+  timeoutMs: number;
+  enableLogging: boolean;
+  enableAnalytics: boolean;
+}
+
+/**
+ * Event Types
+ */
+
+export interface AICommandEvent {
+  type: 'command_start' | 'command_success' | 'command_error' | 'command_cancel';
+  command: string;
+  timestamp: Date;
+  duration?: number;
+  result?: AICommand;
+  error?: AIError;
+}
+
+export type AIEventListener = (event: AICommandEvent) => void;
+
+# AI System Quick Reference & Cheat Sheet
+
+## Quick Command Examples
+
+### Create Commands
+```
+"create a 5-minute countdown timer"
+"create a title that says Live Stream in bold"
+"create a bar chart with quarterly data"
+"create an animated pulsing circle in the center"
+"create a stats box showing viewers and likes"
+"create a live weather widget for London"
+"create a poll with 3 options"
+"create a scoreboard overlay"
+```
+
+### Update Commands
+```
+"make the title bigger and red"
+"move the timer to the bottom right"
+"change the chart colors to blue and green"
+"add a semi-transparent background to the stats box"
+"increase the animation speed"
+"make the font italic"
+"center the component on screen"
+```
+
+### Delete Commands
+```
+"remove the timer"
+"delete all overlays"
+"clear the screen"
+"remove the chart and stats box"
+"hide the temporary elements"
+```
+
+### Multi-Step Commands
+```
+"create a title and chart, then make the title red"
+"add a timer, then update it to 10 minutes"
+"create 3 stat boxes, then align them horizontally"
+"replace the old timer with a new 3-minute one"
+"create a dashboard with header, chart, and footer"
+```
+
+---
+
+## Intent Types Cheat Sheet
+
+| Intent | Best For | Example |
+|--------|----------|---------|
+| `static_visual` | Text, images, static layouts | "Create a title" |
+| `data_widget` | Timers, counters, charts | "Create a timer" |
+| `interactive` | Buttons, polls, clickable elements | "Create a poll" |
+| `live_data` | API-driven data, live updates | "Create live viewer count" |
+
+---
+
+## Modifiers Cheat Sheet
+
+| Modifier | Effect | Example |
+|----------|--------|---------|
+| `animated` | Adds animations/transitions | + "with animation" |
+| `hasBackground` | Adds background/card styling | + "with background" |
+
+**Usage**: Select in the popover OR mention in text:
+- "create a pulsing timer with animation"
+- "create a stat box with background"
+- "create an animated title with background"
+
+---
+
+## API Response Patterns
+
+### Single Action Response
+```json
+{
+  "tool": "generate_ui_component",
+  "name": "timer_countdown",
+  "componentCode": "({ style, duration }) => ...",
+  "props": { "duration": 300 },
+  "layout": { "position": { "x": 50, "y": 50 }, "size": { "width": 20, "height": 20 }, "zIndex": 10 }
+}
+```
+
+### Multi-Step Response
+```json
+{
+  "tool": "multi_tool_reasoning",
+  "actions": [
+    { "tool": "generate_ui_component", "name": "...", ... },
+    { "tool": "update_ui_component", "targetId": "...", ... },
+    { "tool": "delete_ui_component", "targetId": "..." }
+  ]
+}
+```
+
+---
+
+## Component Code Patterns
+
+### Simple Text Component
+```typescript
+"({ style, text }) => <h1 style={style}>{text}</h1>"
+```
+
+### Component with State
+```typescript
+"({ style, onStateChange }) => {
+  const [count, setCount] = React.useState(0);
+  return <button style={style} onClick={() => { setCount(count+1); onStateChange(count+1); }}>
+    {count}
+  </button>;
+}"
+```
+
+### Component with Live Data
+```typescript
+"({ data, style }) => {
+  if (data?.isLoading) return <div>Loading...</div>;
+  if (data?.error) return <div>Error: {data.error}</div>;
+  return <div style={style}>{data?.jsonData?.temp}°C</div>;
+}"
+```
+
+### Component with Chart
+```typescript
+"({ data }) => {
+  const chartData = data?.jsonData || [];
+  return (
+    <ResponsiveContainer width='100%' height='100%'>
+      <BarChart data={chartData}>
+        <CartesianGrid />
+        <XAxis dataKey='name' />
+        <Bar dataKey='value' fill='#8884d8' />
+      </BarChart>
+    </ResponsiveContainer>
+  );
+}"
+```
+
+---
+
+## Layout Positioning Guide
+
+```
+        x: 0              x: 50              x: 100
+y: 0   ┌─────────────────┬─────────────────┐
+       │  TOP-LEFT       │   TOP-CENTER    │
+       │  x:10, y:10     │   x:50, y:10    │
+       │                 │                 │
+y: 50  ├─────────────────┼─────────────────┤
+       │ CENTER-LEFT     │     CENTER      │ CENTER-RIGHT
+       │ x:10, y:50      │   x:50, y:50    │ x:90, y:50
+       │                 │                 │
+y: 100 ├─────────────────┼─────────────────┤
+       │ BOTTOM-LEFT     │ BOTTOM-CENTER   │
+       │ x:10, y:90      │  x:50, y:90     │
+       └─────────────────┴─────────────────┘
+```
+
+**Common Positions:**
+- Top-left: `{ x: 10, y: 10 }`
+- Top-center: `{ x: 50, y: 10 }`
+- Center: `{ x: 50, y: 50 }`
+- Bottom-center: `{ x: 50, y: 90 }`
+- Bottom-right: `{ x: 90, y: 90 }`
+
+---
+
+## Size Recommendations
+
+```
+Size (W x H)        Use Case                    Example
+─────────────────────────────────────────────────────────
+5 x 5               Small icon/indicator        Pulse dot
+10 x 10             Small badge                 Live indicator
+15 x 15             Small widget                Status badge
+20 x 20             Standard badge              Viewer count
+30 x 40             Medium overlay              Timer display
+40 x 15             Title/Header                Stream title
+50 x 30             Large widget                Main chart
+60 x 80             Full-height panel           Dashboard panel
+80 x 60             Large section               Main content area
+100 x 100           Fullscreen                  Full overlay
+```
+
+---
+
+## Available UI Components
+
+### Cards & Containers
+- `<Card>` - Basic card container
+- `<CardHeader>` - Card header section
+- `<CardTitle>` - Card title text
+- `<CardContent>` - Card main content
+- `<CardFooter>` - Card footer section
+
+### Common UI
+- `<Button>` - Clickable button
+- `<Badge>` - Small label/badge
+- `<Progress>` - Progress bar
+
+### Icons (from lucide-react)
+- `<Timer />` - Timer icon
+- `<Mic />` - Microphone icon
+- `<MicOff />` - Muted mic icon
+- `<Users />` - Users/viewers icon
+- `<Heart />` - Like/heart icon
+- `<ThumbsUp />` - Thumbs up icon
+- `<CloudSun />` - Weather icon
+- `<Thermometer />` - Temperature icon
+- `<Wind />` - Wind/speed icon
+
+### Charts (recharts)
+- `<BarChart>`, `<Bar>` - Bar charts
+- `<LineChart>`, `<Line>` - Line graphs
+- `<PieChart>`, `<Pie>`, `<Cell>` - Pie charts
+- `<XAxis>`, `<YAxis>` - Axes
+- `<CartesianGrid>` - Grid lines
+- `<Tooltip>` - Data tooltips
+- `<Legend>` - Chart legend
+- `<ResponsiveContainer>` - Container wrapper
+
+---
+
+## Common Errors & Solutions
+
+| Error | Cause | Solution |
+|-------|-------|----------|
+| "API Key Missing" | VITE_GROQ_API_KEY not set | Add to .env file |
+| "Failed to parse JSON" | AI response malformed | Check API quota/status |
+| "Component not found" | Updating non-existent overlay | Verify overlay name exists |
+| "Invalid layout values" | Position/size out of range | Keep values 0-100 |
+| "Render Error" in component | Syntax error in componentCode | Check JSX syntax |
+| "Loading..." stuck | Fetch URL not responding | Verify CORS enabled, URL valid |
+
+---
+
+## Styling Best Practices
+
+### DO ✓
+```typescript
+"({ style, text }) => <h1 style={style}>{text}</h1>"
+// Accept style prop and apply it
+
+"className='text-center p-4 rounded-lg'"
+// Use Tailwind for layout
+
+"props": { "style": { "color": "#FF0000", "fontSize": "48px" } }
+// Pass styles in props
+```
+
+### DON'T ✗
+```typescript
+"({ text }) => <h1 style={{ color: 'red' }}>{text}</h1>"
+// Don't hardcode styles, use style prop
+
+"<div style={{ padding: '16px', margin: '8px', ... }}>"
+// Don't use inline styles for layout, use Tailwind
+
+"<div className='bg-red-500' style={{ color: 'blue' }}>"
+// Don't mix when one could work
+```
+
+---
+
+## Performance Tips
+
+1. **Debounce rapid commands** - Wait 500ms between inputs
+2. **Batch related operations** - Use multi_tool_reasoning for chained actions
+3. **Limit active overlays** - Keep under 20 components for smooth performance
+4. **Use intervals wisely** - Set fetch intervals to 5+ seconds
+5. **Cache components** - Reuse same component types when possible
+
+---
+
+## State Management Pattern
+
+```typescript
+// In AICommandPopover
+const [intent, setIntent] = useState('static_visual');
+const [modifiers, setModifiers] = useState({
+  animated: false,
+  hasBackground: false
+});
+const [selectedTargetId, setSelectedTargetId] = useState(null);
+
+// Build context
+const context = {
+  intent,
+  modifiers: Object.entries(modifiers)
+    .filter(([, value]) => value)
+    .map(([key]) => key)
+};
+
+// Pass to AI
+await processCommandWithAgent(command, overlays, context);
+```
+
+---
+
+## Keyboard Shortcuts
+
+- `Enter` (in textarea) - Submit command
+- `Shift + Enter` - New line in textarea
+- `Escape` - Close popover
+
+---
+
+## API Rate Limits
+
+- Groq API: 30 requests/minute (free tier)
+- Recommended debounce: 500ms minimum
+- Batch operations to maximize throughput
+
+---
+
+## Troubleshooting Flowchart
+
+```
+Command doesn't work?
+│
+├─ Is JSON valid?
+│  ├─ NO → Check robustJsonParse, increase max_tokens
+│  └─ YES → Continue
+│
+├─ Does component exist?
+│  ├─ NO → Verify overlay.name matches targetId
+│  └─ YES → Continue
+│
+├─ Is layout valid?
+│  ├─ NO → Ensure position/size are 0-100
+│  └─ YES → Continue
+│
+├─ Does component code have errors?
+│  ├─ NO → Check React syntax, imports
+│  └─ YES → Continue
+│
+└─ Check browser console for DynamicCodeRenderer errors
+```
+
+---
+
+## Quick Command Template Generator
+
+**Create Template:**
+"create a [TYPE] that [SHOWS/DOES] [DESCRIPTION]"
+
+Examples:
+- "create a timer that counts down 10 minutes"
+- "create a chart that shows sales data"
+- "create a button that opens a link"
+- "create a counter that increments on click"
+- "create a banner that displays breaking news"
+
+**Update Template:**
+"[ACTION] the [TARGET] to [NEW_STATE/VALUE]"
+
+Examples:
+- "make the timer bigger"
+- "change the color to red"
+- "move to the corner"
+- "add an animation"
+
+**Delete Template:**
+"[REMOVE/DELETE/CLEAR] [TARGET]"
+
+Examples:
+- "remove the timer"
+- "delete all overlays"
+- "clear the screen"

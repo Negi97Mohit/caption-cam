@@ -1,6 +1,6 @@
+// src/components/CaptionRenderer.tsx
 import React from "react";
-import { DYNAMIC_STYLES } from "./styles";
-import { DynamicStyleProps } from "@/types/caption";
+import { DYNAMIC_STYLES } from "@/lib/dynamicCaptionStyles";import { DynamicStyleProps } from "@/types/caption";
 import { CaptionStyle } from "@/types/caption";
 import { cn } from "@/lib/utils";
 
@@ -15,7 +15,6 @@ export const CaptionRenderer: React.FC<CaptionRendererProps> = ({
   ...props
 }) => {
   const getShapeClasses = () => {
-    // ... (This function can be copied from the old VideoCanvas.tsx)
     switch (captionStyle.shape) {
       case "pill": return "rounded-full";
       case "rectangular": return "rounded-none";
@@ -31,15 +30,15 @@ export const CaptionRenderer: React.FC<CaptionRendererProps> = ({
   const styleEntry = DYNAMIC_STYLES[activeStyleId] || DYNAMIC_STYLES["none"];
   const StyleComponent = styleEntry.component;
 
+  // The style prop for absolute positioning has been removed.
+  // The component now fills its parent and centers its content.
   return (
     <div
-      className={cn("absolute px-4 py-2 max-w-[90%] transition-all duration-200", getShapeClasses())}
-      style={{
-        ...props.baseStyle,
-        left: captionStyle.shape === 'banner' ? '50%' : `${captionStyle.position.x}%`,
-        top: `${captionStyle.position.y}%`,
-        transform: "translate(-50%, -50%)",
-      }}
+      className={cn(
+        "w-full h-full p-2 max-w-full transition-all duration-200 flex items-center justify-center text-center", 
+        getShapeClasses()
+      )}
+      style={props.baseStyle}
     >
       <StyleComponent {...props} />
     </div>

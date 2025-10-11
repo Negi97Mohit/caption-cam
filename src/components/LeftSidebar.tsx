@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useRef, useEffect } from "react";
 import { CaptionStyle, GeneratedOverlay, CaptionTemplate } from "@/types/caption";
 import { StyleControls } from "./StyleControls";
 import { DebugPanel } from "./DebugPanel";
@@ -14,6 +14,7 @@ import { FILTER_PRESETS } from "@/lib/filters.ts";
 import { CAPTION_PRESETS } from "@/lib/captionPresets";
 import { RadioGroup, RadioGroupItem } from "./ui/radio-group";
 import { DYNAMIC_STYLE_OPTIONS } from "@/components/styles";
+import { Input } from "./ui/input"; // Import the Input component
 
 interface LeftSidebarProps {
   style: CaptionStyle;
@@ -63,7 +64,26 @@ export const LeftSidebar = ({
   videoFilter, onVideoFilterChange,
 }: LeftSidebarProps) => {
   const [showDebug, setShowDebug] = useState(false);
+  const [filterSearch, setFilterSearch] = useState(""); // State for the filter search
   const isResizing = React.useRef(false);
+  const filterContainerRef = useRef<HTMLDivElement>(null); // Ref for the filter container
+
+  // Automatically scroll to the selected filter
+  useEffect(() => {
+    if (videoFilter && filterContainerRef.current) {
+      const activeFilter = FILTER_PRESETS.find(p => p.style === videoFilter);
+      if (activeFilter) {
+        const element = filterContainerRef.current.querySelector(`#filter-btn-${activeFilter.id}`);
+        if (element) {
+          element.scrollIntoView({
+            behavior: 'smooth',
+            block: 'nearest',
+            inline: 'center'
+          });
+        }
+      }
+    }
+  }, [videoFilter]);
 
   const handleBackgroundSelect = (effect: 'none' | 'blur' | 'image', url: string | null = null) => {
     onBackgroundEffectChange(effect);
@@ -95,6 +115,11 @@ export const LeftSidebar = ({
     document.removeEventListener('mousemove', handleMouseMove);
     document.removeEventListener('mouseup', handleMouseUp);
   }, [handleMouseMove]);
+
+  // Filter presets based on search query
+  const displayedFilters = filterSearch
+    ? FILTER_PRESETS.filter(p => p.name.toLowerCase().includes(filterSearch.toLowerCase()))
+    : FILTER_PRESETS;
 
   return (
     <aside
@@ -199,10 +224,26 @@ export const LeftSidebar = ({
                  <div className="pt-2 space-y-6">
                   <div className="space-y-3">
                     <Label>Filter</Label>
-                    <div className="w-full overflow-x-auto pb-2 -mx-4 px-4">
+                    <Input
+                      placeholder="Search filters..."
+                      value={filterSearch}
+                      onChange={(e) => setFilterSearch(e.target.value)}
+                      className="w-full"
+                    />
+                    <div
+                      ref={filterContainerRef}
+                      className="w-full overflow-x-auto pb-2 -mx-4 px-4"
+                      style={{ scrollbarWidth: 'thin' }}
+                    >
                       <div className="flex flex-nowrap items-center gap-2">
-                        {FILTER_PRESETS.map((preset) => (
-                          <Button key={preset.id} variant={videoFilter === preset.style ? 'default' : 'secondary'} onClick={() => onVideoFilterChange(preset.style)} className="flex-shrink-0">
+                        {displayedFilters.map((preset) => (
+                          <Button
+                            key={preset.id}
+                            id={`filter-btn-${preset.id}`}
+                            variant={videoFilter === preset.style ? 'default' : 'secondary'}
+                            onClick={() => onVideoFilterChange(preset.style)}
+                            className="flex-shrink-0"
+                          >
                             {preset.name}
                           </Button>
                         ))}

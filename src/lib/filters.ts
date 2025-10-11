@@ -72,4 +72,21 @@ export const FILTER_PRESETS: FilterPreset[] = [
   { id: 'dreamcore', name: 'Dreamcore', style: 'blur(0.8px) brightness(1.1) saturate(1.4)' },
   { id: 'steelblue', name: 'Steel Blue', style: 'hue-rotate(190deg) brightness(1.05) contrast(1.1)' },
   { id: 'espresso', name: 'Espresso', style: 'sepia(0.6) contrast(1.3) brightness(0.95)' },
+  // --- ADDED NEON OUTLINE FILTER ---
+ {
+    id: 'neon-outline',
+    name: 'Neon Outline',
+    style: 'drop-shadow(0 0 2px cyan) drop-shadow(0 0 5px cyan) drop-shadow(0 0 10px magenta) drop-shadow(0 0 20px magenta) contrast(1.3) saturate(1.5)',
+  },
+  // --- Alternative neon filters ---
+  {
+    id: 'neon-edge',
+    name: 'Neon Edge',
+    style: 'contrast(2) brightness(1.2) saturate(2) drop-shadow(0 0 3px #0ff) drop-shadow(0 0 8px #f0f)',
+  },
+  {
+    id: 'cyber-neon',
+    name: 'Cyber Neon',
+    style: 'hue-rotate(270deg) contrast(1.8) saturate(2.5) drop-shadow(0 0 5px #00ffff) drop-shadow(0 0 15px #ff00ff)',
+  },
 ];

@@ -40,8 +40,10 @@ const Index = () => {
     fontFamily: "Inter", fontSize: 24, color: "#FFFFFF", backgroundColor: "rgba(0, 0, 0, 0.8)",
     position: { x: 50, y: 85 }, shape: "rounded", animation: "fade", outline: false, shadow: true,
     bold: false, italic: false, underline: false,
+    width: 80, // ADD THIS LINE
+    height: 10, // ADD THIS LINE
   });
-  const [backgroundEffect, setBackgroundEffect] = useState<'none' | 'blur' | 'image'>('none');
+    const [backgroundEffect, setBackgroundEffect] = useState<'none' | 'blur' | 'image'>('none');
   const [backgroundImageUrl, setBackgroundImageUrl] = useState<string | null>(null);
   const [isAutoFramingEnabled, setIsAutoFramingEnabled] = useState(false);
   const [sidebarWidth, setSidebarWidth] = useState(384);
@@ -73,6 +75,15 @@ const Index = () => {
   const [activeOverlays, setActiveOverlays] = useState<GeneratedOverlay[]>([]);
   const { log } = useLog();
   const { setDebugInfo } = useDebug();
+
+  const handleCaptionLayoutChange = useCallback((newLayout: { position?: { x: number; y: number }, size?: { width: number, height: number } }) => {
+    setCaptionStyle(prev => ({
+        ...prev,
+        position: newLayout.position ?? prev.position,
+        width: newLayout.size?.width ?? prev.width,
+        height: newLayout.size?.height ?? prev.height,
+    }));
+  }, []);
 
   const executeCommand = useCallback((action: SingleActionCommand, currentOverlays: GeneratedOverlay[]): GeneratedOverlay[] => {
       log('AI_ACTION', `Executing: ${action.tool}`, action);
@@ -250,6 +261,7 @@ const Index = () => {
           onOverlayStateChange={handleOverlayStateChange} onRemoveOverlay={handleRemoveOverlay}
           liveCaptionStyle={{...liveCaptionStyle, ...captionStyle}}
           dynamicStyle={dynamicStyle}
+          onCaptionLayoutChange={handleCaptionLayoutChange} 
           videoFilter={videoFilter}
           isAudioOn={isAudioOn} onAudioToggle={setIsAudioOn}
           isVideoOn={isVideoOn} onVideoToggle={setIsVideoOn}

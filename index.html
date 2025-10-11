@@ -23,5 +23,30 @@
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
+
+    <!-- ADDED SVG FILTER DEFINITION FOR NEON OUTLINE -->
+    <svg width="0" height="0" style="position:absolute;z-index:-1;">
+      <filter id="neon-outline">
+        <feConvolveMatrix
+          order="3"
+          kernelMatrix="0 -1 0 -1 4 -1 0 -1 0"
+          result="edges"
+        />
+        <feGaussianBlur in="edges" stdDeviation="2" result="blurred" />
+        <feColorMatrix
+          in="blurred"
+          type="matrix"
+          values="0 0 0 0  0
+                  0 1 1 0  0
+                  1 0 1 0  0
+                  0 0 0 1  0"
+          result="neonColor"
+        />
+        <feMerge>
+          <feMergeNode in="neonColor" />
+          <feMergeNode in="SourceGraphic" />
+        </feMerge>
+      </filter>
+    </svg>
   </body>
 </html>

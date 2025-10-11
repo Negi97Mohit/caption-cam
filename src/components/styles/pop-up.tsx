@@ -3,29 +3,43 @@ import { CaptionStyleDef, DynamicStyleProps } from "@/types/caption";
 
 const PopUpComponent: React.FC<DynamicStyleProps> = ({ text }) => {
   const words = text.split(/\s+/);
+
   return (
     <div>
       {words.map((word, index) => (
         <React.Fragment key={index}>
           <span
             className="animate-pop-up"
-            style={{ animationDelay: `${index * 100}ms` }}
+            style={{
+              animationDelay: `${index * 250}ms`, // slower delay between words
+              animationFillMode: "forwards",
+            }}
           >
             {word}
-          </span>
-          {' '}
+          </span>{" "}
         </React.Fragment>
       ))}
+
       <style>{`
         @keyframes pop-up {
-          0% { opacity: 0; transform: translateY(20px) scale(0.8); }
-          60% { opacity: 1; transform: translateY(-5px) scale(1.05); }
-          100% { transform: translateY(0) scale(1); }
+          0% {
+            opacity: 0;
+            transform: translateY(25px) scale(0.85);
+          }
+          40% {
+            opacity: 1;
+            transform: translateY(-5px) scale(1.05);
+          }
+          100% {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+          }
         }
+
         .animate-pop-up {
           display: inline-block;
-          animation: pop-up 0.6s cubic-bezier(0.25, 1.25, 0.5, 1) forwards;
           opacity: 0;
+          animation: pop-up 3s cubic-bezier(0.22, 1, 0.36, 1);
         }
       `}</style>
     </div>
@@ -34,6 +48,6 @@ const PopUpComponent: React.FC<DynamicStyleProps> = ({ text }) => {
 
 export const PopUpStyle: CaptionStyleDef = {
   id: "pop-up",
-  name: "Pop Up",
+  name: "Pop Up (Smooth)",
   component: PopUpComponent,
 };

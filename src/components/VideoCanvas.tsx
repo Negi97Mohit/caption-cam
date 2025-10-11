@@ -17,64 +17,9 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { DYNAMIC_STYLES } from "@/lib/dynamicCaptionStyles.tsx";
 import { CaptionRenderer } from "./CaptionRenderer";
+// --- ADD THIS IMPORT ---
+import { ResponsiveContainer, BarChart, CartesianGrid, XAxis, YAxis, Tooltip, Bar, LineChart, Line, PieChart, Pie, Cell, Legend } from 'recharts';
 
-const DynamicCaptionRenderer = ({
-  style,
-  dynamicStyle,
-  fullTranscript,
-  interimTranscript,
-}: {
-  style: CaptionStyle;
-  dynamicStyle: string;
-  fullTranscript: string;
-  interimTranscript: string;
-}) => {
-  const getShapeClasses = () => {
-    switch (style.shape) {
-      case "pill": return "rounded-full";
-      case "rectangular": return "rounded-none";
-      case "speech-bubble": return "rounded-2xl relative after:content-[''] after:absolute after:bottom-0 after:left-1/2 after:-translate-x-1/2 after:translate-y-full after:border-8 after:border-transparent after:border-t-current";
-      case "banner": return "rounded-none w-full text-center";
-      default: return "rounded-xl";
-    }
-  };
-
-  const baseStyle: React.CSSProperties = {
-    fontFamily: style.fontFamily,
-    fontSize: `${style.fontSize}px`,
-    color: style.color,
-    backgroundColor: style.backgroundColor,
-    textShadow: style.shadow ? "2px 2px 4px rgba(0,0,0,0.5)" : "none",
-    fontWeight: style.bold ? "bold" : "normal",
-    fontStyle: style.italic ? "italic" : "normal",
-    textDecoration: style.underline ? "underline" : "none",
-  };
-  
-  const text = (fullTranscript + " " + interimTranscript).trim();
-  if (!text) return null;
-
-  // Dynamically select the component from our styles object
-  const StyleComponent = DYNAMIC_STYLES[dynamicStyle]?.component || DYNAMIC_STYLES['none'].component;
-
-  return (
-    <div
-      className={cn("absolute px-6 py-3 max-w-[90%] transition-all duration-200", getShapeClasses())}
-      style={{
-        ...baseStyle,
-        left: style.shape === 'banner' ? '50%' : `${style.position.x}%`,
-        top: `${style.position.y}%`,
-        transform: "translate(-50%, -50%)",
-      }}
-    >
-      <StyleComponent
-        text={text}
-        fullTranscript={fullTranscript}
-        interimTranscript={interimTranscript}
-        baseStyle={baseStyle}
-      />
-    </div>
-  );
-};
 
 const useFetchedData = (fetchConfig: { url: string, interval?: number } | undefined) => {
     const [jsonData, setJsonData] = useState(null);
@@ -134,10 +79,13 @@ const DynamicCodeRenderer: React.FC<{
                 ? transformedCode
                 : `({ data, onStateChange }) => { return ${transformedCode} }`;
 
+            // --- UPDATE THIS SCOPE OBJECT ---
             const componentScope = {
                 React, Card, CardHeader, CardTitle, CardContent, CardFooter,
                 Badge, Progress, Button,
-                Timer, Mic, MicOff, Users, Heart, ThumbsUp, CloudSun, Thermometer, Wind
+                Timer, Mic, MicOff, Users, Heart, ThumbsUp, CloudSun, Thermometer, Wind,
+                ResponsiveContainer, BarChart, CartesianGrid, XAxis, YAxis, Tooltip, Bar,
+                LineChart, Line, PieChart, Pie, Cell, Legend
             };
 
             const componentFunction = new Function(...Object.keys(componentScope), `return ${executableCode}`);
@@ -229,6 +177,7 @@ interface VideoCanvasProps {
   onCustomMaskUpload?: (file: File) => void;
   aiButtonPosition: { x: number; y: number };
   onAiButtonPositionChange: (position: { x: number; y: number }) => void;
+  onCaptionLayoutChange: (layout: { position?: { x: number; y: number }, size?: { width: number, height: number } }) => void;
 }
 
 const VideoPlayer: React.FC<{
@@ -261,6 +210,7 @@ export const VideoCanvas = (props: VideoCanvasProps) => {
     onAudioToggle,
     aiButtonPosition,
     onAiButtonPositionChange,
+    onCaptionLayoutChange,
     ...rest
   } = props;
   
@@ -307,14 +257,14 @@ export const VideoCanvas = (props: VideoCanvasProps) => {
   });
 
   useEffect(() => {
-    if (rest.isRecording && isAudioOn) {
+    if (isAudioOn) {
       startRecognition();
     } else {
       stopRecognition();
       setFullTranscript("");
       setInterimTranscript("");
     }
-  }, [rest.isRecording, isAudioOn, startRecognition, stopRecognition]);
+  }, [isAudioOn, startRecognition, stopRecognition]);
 
   useEffect(() => {
     const getDevices = async () => {
@@ -348,20 +298,21 @@ export const VideoCanvas = (props: VideoCanvasProps) => {
         if (isScreenSharing && screenStream) {
             const screenVideoTrack = screenStream.getVideoTracks()[0];
             if (screenVideoTrack) outputStream.addTrack(screenVideoTrack.clone());
-
-            const screenAudioTrack = screenStream.getAudioTracks()[0];
-            if (screenAudioTrack) {
-                outputStream.addTrack(screenAudioTrack.clone());
-            } else if (cameraStream) {
-                const cameraAudioTrack = cameraStream.getAudioTracks()[0];
-                if (cameraAudioTrack) outputStream.addTrack(cameraAudioTrack.clone());
-            }
-        } else if (cameraStream) {
+        }
+        
+        if (isVideoOn && cameraStream) {
             const cameraVideoTrack = cameraStream.getVideoTracks()[0];
             if (cameraVideoTrack) outputStream.addTrack(cameraVideoTrack.clone());
+        }
 
-            const cameraAudioTrack = cameraStream.getAudioTracks()[0];
-            if (cameraAudioTrack) outputStream.addTrack(cameraAudioTrack.clone());
+        if (isAudioOn) {
+            if (isScreenSharing && screenStream?.getAudioTracks().length > 0) {
+                 const screenAudioTrack = screenStream.getAudioTracks()[0];
+                 if(screenAudioTrack) outputStream.addTrack(screenAudioTrack.clone());
+            } else if (cameraStream?.getAudioTracks().length > 0) {
+                const cameraAudioTrack = cameraStream.getAudioTracks()[0];
+                if(cameraAudioTrack) outputStream.addTrack(cameraAudioTrack.clone());
+            }
         }
 
         if (outputStream.getTracks().length === 0) {
@@ -484,7 +435,16 @@ const handlePipResizeStop = (e: any, direction: any, ref: HTMLElement, delta: an
   const renderCamera = (className?: string, style?: React.CSSProperties, isPip: boolean = false) => (
     <div className={cn("w-full h-full", className, isPip && rest.cameraShape === 'circle' && 'aspect-square')} style={getCameraShapeStyle()}>
         {(rest.backgroundEffect !== 'none' || rest.isAutoFramingEnabled) ? (
-          <CameraRenderer stream={cameraStream} backgroundEffect={rest.backgroundEffect} backgroundImageUrl={rest.backgroundImageUrl} isAutoFramingEnabled={rest.isAutoFramingEnabled} zoomSensitivity={rest.zoomSensitivity} trackingSpeed={rest.trackingSpeed} className="w-full h-full" style={{ ...style, filter: videoFilterString }} />
+          <CameraRenderer 
+            stream={cameraStream} 
+            backgroundEffect={rest.backgroundEffect} 
+            backgroundImageUrl={rest.backgroundImageUrl} 
+            isAutoFramingEnabled={rest.isAutoFramingEnabled} 
+            zoomSensitivity={rest.zoomSensitivity} 
+            trackingSpeed={rest.trackingSpeed} 
+            className="w-full h-full"
+            style={{ ...style, filter: videoFilterString }}
+          />
         ) : (
           <VideoPlayer stream={cameraStream} className="w-full h-full object-cover" style={{ ...style, filter: videoFilterString }} />
         )}
@@ -492,7 +452,7 @@ const handlePipResizeStop = (e: any, direction: any, ref: HTMLElement, delta: an
   );
 
   const renderScreen = (className?: string) => (
-      <VideoPlayer stream={screenStream} className={cn("w-full h-full object-cover", className)} style={{ filter: videoFilterString }} />
+      <VideoPlayer stream={screenStream} className={cn("w-full h-full object-cover", className)} />
   );
 
   const renderContent = () => {
@@ -561,25 +521,70 @@ const handlePipResizeStop = (e: any, direction: any, ref: HTMLElement, delta: an
             <DynamicCodeRenderer key={overlay.id} overlay={overlay} onLayoutChange={rest.onOverlayLayoutChange} onRemove={rest.onRemoveOverlay} containerSize={containerSize} onStateChange={rest.onOverlayStateChange} />
           ))}
           
-          {rest.captionsEnabled && (
-            <CaptionRenderer
-              activeStyleId={rest.dynamicStyle}
-              captionStyle={rest.liveCaptionStyle as CaptionStyle}
-              text={(fullTranscript + " " + interimTranscript).trim()}
-              fullTranscript={fullTranscript}
-              interimTranscript={interimTranscript}
-              baseStyle={{
-                fontFamily: rest.liveCaptionStyle.fontFamily,
-                fontSize: `${rest.liveCaptionStyle.fontSize}px`,
-                color: rest.liveCaptionStyle.color,
-                backgroundColor: rest.liveCaptionStyle.backgroundColor,
-                textShadow: (rest.liveCaptionStyle as any).shadow ? "2px 2px 4px rgba(0,0,0,0.5)" : "none",
-                fontWeight: (rest.liveCaptionStyle as any).bold ? "bold" : "normal",
-                fontStyle: (rest.liveCaptionStyle as any).italic ? "italic" : "normal",
-                textDecoration: (rest.liveCaptionStyle as any).underline ? "underline" : "none",
-              }}
-            />
-          )}
+          {(() => {
+            const captionText = (fullTranscript + " " + interimTranscript).trim();
+            const captionStyle = rest.liveCaptionStyle as CaptionStyle;
+
+            if (!rest.captionsEnabled || !captionText || containerSize.width === 0) {
+              return null;
+            }
+            
+            return (
+              <Rnd
+                size={{
+                  width: `${captionStyle.width || 80}%`,
+                  height: `${captionStyle.height || 10}%`,
+                }}
+                position={{
+                  x: ((captionStyle.position.x - (captionStyle.width || 80) / 2) / 100) * containerSize.width,
+                  y: ((captionStyle.position.y - (captionStyle.height || 10) / 2) / 100) * containerSize.height,
+                }}
+                onDragStop={(e, d) => {
+                  onCaptionLayoutChange({
+                    position: {
+                      x: ((d.x / containerSize.width) * 100) + ((captionStyle.width || 80) / 2),
+                      y: ((d.y / containerSize.height) * 100) + ((captionStyle.height || 10) / 2),
+                    }
+                  });
+                }}
+                onResizeStop={(e, direction, ref, delta, pos) => {
+                  onCaptionLayoutChange({
+                    position: {
+                      x: ((pos.x / containerSize.width) * 100) + ((parseInt(ref.style.width, 10) / containerSize.width * 100) / 2),
+                      y: ((pos.y / containerSize.height) * 100) + ((parseInt(ref.style.height, 10) / containerSize.height * 100) / 2),
+                    },
+                    size: {
+                      width: (parseInt(ref.style.width, 10) / containerSize.width) * 100,
+                      height: (parseInt(ref.style.height, 10) / containerSize.height) * 100,
+                    }
+                  });
+                }}
+                bounds="parent"
+                className="pointer-events-auto border-2 border-transparent hover:border-primary border-dashed"
+                style={{ zIndex: 999 }}
+                minWidth="20%"
+                minHeight="5%"
+              >
+                <CaptionRenderer
+                  activeStyleId={rest.dynamicStyle}
+                  captionStyle={captionStyle}
+                  text={captionText}
+                  fullTranscript={fullTranscript}
+                  interimTranscript={interimTranscript}
+                  baseStyle={{
+                    fontFamily: captionStyle.fontFamily,
+                    fontSize: `${captionStyle.fontSize}px`,
+                    color: captionStyle.color,
+                    backgroundColor: captionStyle.backgroundColor,
+                    textShadow: (captionStyle as any).shadow ? "2px 2px 4px rgba(0,0,0,0.5)" : "none",
+                    fontWeight: (captionStyle as any).bold ? "bold" : "normal",
+                    fontStyle: (captionStyle as any).italic ? "italic" : "normal",
+                    textDecoration: (captionStyle as any).underline ? "underline" : "none",
+                  }}
+                />
+              </Rnd>
+            );
+          })()}
         </div>
       </div>
       {containerSize.width > 0 && (
@@ -596,7 +601,7 @@ const handlePipResizeStop = (e: any, direction: any, ref: HTMLElement, delta: an
       )}
 
 
-      <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-50">
+      <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-[1001]">
         <div className="flex items-center gap-2 bg-background/80 backdrop-blur-md border rounded-full px-4 py-2 shadow-lg">
           <div className="flex items-center">
             <Button variant="ghost" size="icon" className="rounded-full h-10 w-10" onClick={() => onAudioToggle(!isAudioOn)}>
@@ -640,7 +645,11 @@ const handlePipResizeStop = (e: any, direction: any, ref: HTMLElement, delta: an
             <ScreenShare className="h-5 w-5" />
           </Button>
           <div className="w-px h-8 bg-border" />
-          <Button size="icon" className={cn("rounded-full h-12 w-12 transition-colors", rest.isRecording ? "bg-red-600 hover:bg-red-700" : "bg-primary hover:bg-primary/90")} onClick={rest.isRecording ? handleStopRecording : handleStartRecording} disabled={!cameraStream && !screenStream}>
+          <Button
+            size="icon"
+            className={cn("rounded-full h-12 w-12 transition-colors", rest.isRecording ? "bg-red-600 hover:bg-red-700" : "bg-primary hover:bg-primary/90")}
+            onClick={rest.isRecording ? handleStopRecording : handleStartRecording}
+          >
             {rest.isRecording ? <Square className="h-6 w-6" /> : <Circle className="h-6 w-6 fill-current" />}
           </Button>
         </div>
@@ -648,3 +657,4 @@ const handlePipResizeStop = (e: any, direction: any, ref: HTMLElement, delta: an
     </div>
   );
 };
+

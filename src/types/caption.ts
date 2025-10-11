@@ -2,6 +2,7 @@
 export type CaptionShape = "rectangular" | "rounded" | "pill" | "speech-bubble" | "banner";
 export type CaptionAnimation = "fade" | "bounce" | "karaoke" | "none" | "slide-up";
 
+
 export interface CaptionStyle {
   fontFamily: string;
   fontSize: number;
@@ -17,8 +18,9 @@ export interface CaptionStyle {
   italic: boolean;
   underline: boolean;
   textShadow?: string;
+  width?: number; // ADD THIS LINE (percentage)
+  height?: number; // ADD THIS LINE (percentage)
 }
-
 export type GeneratedLayout = {
   position: { x: number; y: number };
   size: { width: number; height: number };
